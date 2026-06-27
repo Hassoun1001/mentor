@@ -1,0 +1,86 @@
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+
+import { ApiError } from '../api/client';
+import { login } from '../api/auth';
+import { setToken } from '../lib/authStorage';
+
+export function LoginPage() {
+  const [username, setUsername] = useState('mentor');
+  const [password, setPassword] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: ({ u, p }: { u: string; p: string }) => login(u, p),
+    onSuccess: (result) => {
+      setToken(result.access_token, new Date(result.expires_at));
+    },
+  });
+
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <form
+        className="panel-pad w-full max-w-sm space-y-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutation.mutate({ u: username, p: password });
+        }}
+      >
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-7 rounded-md bg-mentor-accent/20 ring-1 ring-mentor-accent">
+              <div className="m-1 h-5 w-5 rounded-sm bg-mentor-accent" />
+            </div>
+            <div className="font-serif text-2xl tracking-tight">Mentor</div>
+          </div>
+          <p className="mt-2 text-xs text-mentor-muted">
+            Single-user sign-in. All API keys are server-side. Nothing
+            sensitive in the browser.
+          </p>
+        </div>
+
+        <div>
+          <label className="label">Username</label>
+          <input
+            className="input"
+            type="text"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label">Password</label>
+          <input
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+
+        {mutation.error instanceof ApiError && (
+          <div className="rounded-lg border border-mentor-danger/40 bg-mentor-danger/10 p-3 text-sm text-mentor-danger">
+            {mutation.error.message}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={mutation.isPending || !password}
+          className="w-full rounded-lg bg-mentor-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-mentor-accentSoft disabled:opacity-50"
+        >
+          {mutation.isPending ? 'Signing in…' : 'Sign in'}
+        </button>
+
+        <p className="text-xs text-mentor-muted">
+          First time? Generate a password hash on the backend with{' '}
+          <code className="font-mono text-mentor-fg/80">
+            python -m mentor.cli.hash_password
+          </code>{' '}
+          then put the result in <code className="font-mono">MENTOR_AUTH_PASSWORD_HASH</code>.
+        </p>
+      </form>
+    </div>
+  );
+}

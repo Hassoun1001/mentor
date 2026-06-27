@@ -1,0 +1,28 @@
+# Normalize line endings to LF in the repository for all text files.
+# This keeps CI (Linux) and local Windows checkouts consistent and avoids
+# spurious whitespace diffs.
+* text=auto eol=lf
+
+# Explicit text types
+*.py    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.toml  text eol=lf
+*.ini   text eol=lf
+*.mako  text eol=lf
+*.svg   text eol=lf
+
+# Binary assets — never normalize or diff.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.joblib binary

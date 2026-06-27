@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-mentor-accent ring-offset-2 ring-offset-mentor-bg;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-mentor-border bg-mentor-panel shadow-panel;
+  }
+
+  .panel-pad {
+    @apply panel p-6;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-mentor-border bg-mentor-panelLight px-3 py-2
+      font-mono text-sm text-mentor-fg placeholder-mentor-muted
+      transition-colors focus:border-mentor-accent;
+  }
+
+  .label {
+    @apply mb-1.5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider
+      text-mentor-muted;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-mentor-border
+      bg-mentor-panelLight px-3 py-1 text-xs font-medium text-mentor-muted;
+  }
+
+  .metric-value {
+    @apply font-mono text-2xl font-semibold tracking-tight text-mentor-fg;
+  }
+
+  .metric-label {
+    @apply text-xs uppercase tracking-wider text-mentor-muted;
+  }
+}

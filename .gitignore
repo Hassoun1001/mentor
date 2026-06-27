@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Frontend build
+frontend/dist/
+frontend/.vite/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Data and secrets
+data/
+*.parquet
+*.csv
+*.sqlite
+*.db
+secrets/
+
+# Logs
+logs/
+*.log

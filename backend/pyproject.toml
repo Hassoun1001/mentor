@@ -1,0 +1,112 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mentor"
+version = "0.1.0"
+description = "Mentor — trading tutor and probabilistic forecasting engine."
+readme = "../README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Mentor" }]
+
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "python-jose[cryptography]>=3.3",
+  "bcrypt>=4.1",
+  "structlog>=24.4",
+  "httpx>=0.28",
+  "tenacity>=9.0",
+  "orjson>=3.10",
+  "anthropic>=0.39",
+  "numpy>=2.1",
+  "scikit-learn>=1.5",
+  "joblib>=1.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=6.0",
+  "hypothesis>=6.118",
+  "ruff>=0.7",
+  "mypy>=1.13",
+  "types-python-jose>=3.3",
+]
+ml = [
+  "pandas>=2.2",
+  "numpy>=2.1",
+  "scikit-learn>=1.5",
+  "xgboost>=2.1",
+  "lightgbm>=4.5",
+  "pandas-ta>=0.3.14b0",
+  "vectorbt>=0.26",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mentor"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",     # pycodestyle / pyflakes
+  "I",                # isort
+  "B",                # bugbear
+  "UP",               # pyupgrade
+  "S",                # bandit
+  "SIM",              # simplify
+  "RUF",              # ruff-specific
+  "PL",               # pylint subset
+  "ASYNC",            # async correctness
+  "TID",              # tidy imports
+]
+ignore = [
+  "S101",             # asserts are fine in tests
+  "PLR0913",          # function-args: many small typed args is fine
+  "PLR2004",          # magic-value comparison: domain threshold/bounds literals are self-documenting
+  "RUF001",           # ambiguous unicode in strings — deliberate typography (— ≥ × →) in mentor copy
+  "RUF002",           # ditto, in docstrings
+  "RUF003",           # ditto, in comments
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's Query/Path/Depends/Body are designed to be called in defaults.
+extend-immutable-calls = [
+  "fastapi.Query",
+  "fastapi.Path",
+  "fastapi.Depends",
+  "fastapi.Body",
+  "fastapi.Header",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["jose.*", "sklearn.*", "joblib.*", "anthropic.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]

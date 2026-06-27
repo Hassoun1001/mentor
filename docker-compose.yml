@@ -1,0 +1,38 @@
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: mentor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MENTOR_DB_NAME:-mentor}
+      POSTGRES_USER: ${MENTOR_DB_USER:-mentor}
+      POSTGRES_PASSWORD: ${MENTOR_DB_PASSWORD:-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - mentor_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MENTOR_DB_USER:-mentor} -d ${MENTOR_DB_NAME:-mentor}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mentor-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      MENTOR_DB_HOST: db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn mentor.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mentor_db_data:
