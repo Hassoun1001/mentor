@@ -214,6 +214,84 @@ class NewsItemORM(Base, _TimestampMixin):
     )
 
 
+# --- daily news tone (GDELT) ------------------------------------------------
+
+
+class DailyNewsToneORM(Base, _TimestampMixin):
+    """One day's aggregate news sentiment for a macro query (GDELT).
+
+    `tone` is GDELT's Average Tone (roughly -10..+10; negative = more
+    negative coverage). `volume` is GDELT's Volume Intensity (share of
+    global coverage matching the query). Keyed by (query_key, day) so we
+    can hold tone series for more than one query later. This is a derived
+    cache backfilled from GDELT — not user data — but persisted so the
+    model trains without re-hitting the rate-limited API every run.
+    """
+
+    __tablename__ = "daily_news_tone"
+
+    query_key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    day: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    tone: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    volume: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)
+    article_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="gdelt")
+
+    __table_args__ = (Index("ix_daily_news_tone_day", "query_key", day.desc()),)
+
+
+class MacroSeriesORM(Base, _TimestampMixin):
+    """One daily observation of a macro/FX-driver series (FRED cache).
+
+    Keyed by (series_id, day) so a single table holds every driver — US
+    rates, the 2s10s curve, the broad dollar index, VIX. A derived cache
+    backfilled from FRED (not user data), persisted so the model trains
+    without re-hitting the network — mirrors ``daily_news_tone``.
+    """
+
+    __tablename__ = "macro_series"
+
+    series_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    day: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    value: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="fred")
+
+    __table_args__ = (Index("ix_macro_series_day", "series_id", day.desc()),)
+
+
+# --- stock tips (tipster track record) -------------------------------------
+
+
+class StockTipORM(Base, _TimestampMixin):
+    """One actionable stock tip from a tipster, with the entry price
+    snapshotted at the mention date so returns can be scored later."""
+
+    __tablename__ = "stock_tips"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tipster: Mapped[str] = mapped_column(String(64), nullable=False)
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False)
+    category: Mapped[str] = mapped_column(String(24), nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    conviction: Mapped[str] = mapped_column(String(8), nullable=False)
+    note: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    raw_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mentioned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    mention_price: Mapped[Decimal | None] = mapped_column(Numeric(20, 6), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
+    source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="yahoo")
+
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('buy','buy_on_dip','hold','watch','avoid')",
+            name="ck_stock_tips_action",
+        ),
+        Index("ix_stock_tips_tipster_ticker", "tipster", "ticker"),
+        Index("ix_stock_tips_mentioned_at", mentioned_at.desc()),
+    )
+
+
 # --- predictions (audit log) -----------------------------------------------
 
 

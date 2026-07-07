@@ -6,13 +6,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from mentor.api.deps import SessionDep
 from mentor.application.backtest import BacktestRunner
 from mentor.domain.backtest import CostModel
 from mentor.domain.backtest.strategies import STRATEGY_REGISTRY
+from mentor.domain.errors import ValidationError
 from mentor.domain.market.bars import Timeframe
 from mentor.domain.money import Money
 from mentor.infrastructure.repositories import PriceBarRepository
@@ -212,6 +213,90 @@ async def run_backtest_endpoint(body: BacktestRequest, session: SessionDep) -> B
             if payload.walk_forward is not None
             else None
         ),
+    )
+
+
+# ---------- compare (strategies side by side) ----------
+
+
+class CompareStrategyDTO(BaseModel):
+    strategy: str
+    strategy_params: dict[str, Any] = Field(default_factory=dict)
+    label: str | None = None
+
+
+class CompareRequest(BaseModel):
+    symbol: str
+    timeframe: Timeframe
+    start: datetime
+    end: datetime
+    strategies: Annotated[list[CompareStrategyDTO], Field(min_length=2, max_length=6)]
+    starting_balance: StartingBalanceDTO
+    risk_per_trade_percent: Annotated[Decimal, Field(gt=0, le=10)] = Decimal("1")
+    cost_model: CostModelDTO = Field(default_factory=CostModelDTO)
+
+
+class CompareEntryDTO(BaseModel):
+    strategy: str
+    label: str
+    ending_balance: Decimal
+    equity_curve: list[EquityPointDTO]
+    metrics: MetricsDTO
+
+
+class CompareResponse(BaseModel):
+    symbol: str
+    currency: str
+    starting_balance: Decimal
+    entries: list[CompareEntryDTO]
+
+
+@router.post("/compare", response_model=CompareResponse)
+async def compare_strategies(body: CompareRequest, session: SessionDep) -> CompareResponse:
+    """Run several strategies over the *same* window and cost model so their
+    equity curves and stats line up for an honest apples-to-apples read."""
+    runner = BacktestRunner(PriceBarRepository(session))
+    balance = Money(body.starting_balance.amount, body.starting_balance.currency)
+    cost_model = CostModel(
+        spread_pips=body.cost_model.spread_pips,
+        slippage_pips=body.cost_model.slippage_pips,
+        commission_per_lot_round_trip=body.cost_model.commission_per_lot_round_trip,
+    )
+    entries: list[CompareEntryDTO] = []
+    for spec in body.strategies:
+        try:
+            payload = await runner.run(
+                symbol=body.symbol,
+                timeframe=body.timeframe,
+                start=body.start,
+                end=body.end,
+                strategy_name=spec.strategy,
+                strategy_params=spec.strategy_params,
+                starting_balance=balance,
+                cost_model=cost_model,
+                risk_per_trade_fraction=body.risk_per_trade_percent / Decimal("100"),
+                do_walk_forward=False,
+                walk_forward_windows=4,
+            )
+        except ValidationError as exc:
+            raise HTTPException(status_code=400, detail=f"{spec.strategy}: {exc}") from exc
+        entries.append(
+            CompareEntryDTO(
+                strategy=payload.result.strategy,
+                label=spec.label or payload.result.strategy,
+                ending_balance=payload.result.ending_balance.amount,
+                equity_curve=[
+                    EquityPointDTO(ts=p.ts, balance=p.balance)
+                    for p in payload.result.equity_curve
+                ],
+                metrics=_to_metrics_dto(payload.metrics),
+            )
+        )
+    return CompareResponse(
+        symbol=body.symbol,
+        currency=balance.currency,
+        starting_balance=balance.amount,
+        entries=entries,
     )
 
 

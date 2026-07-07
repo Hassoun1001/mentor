@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { clsx } from 'clsx';
 
 import { type EventFreeze, getEventFreeze, sweepAlerts } from '../api/alerts';
 import { type SnapshotResponse, fetchForecastSnapshot } from '../api/forecast';
@@ -60,15 +61,13 @@ export function DashboardPage() {
   const today = useMemo(() => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }), []);
 
   return (
-    <section className="space-y-8">
-      <header className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-wider text-mentor-muted">
-          Morning briefing · {today}
-        </span>
-        <h1 className="font-serif text-3xl tracking-tight">
-          {SYMBOL} — what matters today
-        </h1>
-      </header>
+    <section className="space-y-6">
+      <MarketStrip
+        snapshot={snapshot.data}
+        analytics={analytics.data}
+        loading={snapshot.isLoading}
+        today={today}
+      />
 
       <FreezeBanner freeze={eventFreeze.data} />
 
@@ -92,6 +91,140 @@ export function DashboardPage() {
         <div className="hidden lg:block" aria-hidden />
       </div>
     </section>
+  );
+}
+
+// ---------- market strip (the at-a-glance terminal bar) ----------
+
+function MarketStrip({
+  snapshot,
+  analytics,
+  loading,
+  today,
+}: {
+  snapshot: SnapshotResponse | undefined;
+  analytics: Analytics | undefined;
+  loading: boolean;
+  today: string;
+}) {
+  const f = snapshot?.forecast;
+  const dir = f?.direction;
+  const price = f ? Number(f.asof_close).toFixed(5) : '—';
+  const pUp = f != null ? Math.round(Number(f.p_up) * 100) : null;
+  const conf = f != null ? Math.round(Number(f.confidence) * 100) : null;
+  const hasJournal = analytics != null && analytics.sample_size > 0;
+  const exp = hasJournal ? Number(analytics.expectancy_r) : null;
+  const win = hasJournal ? analytics.win_rate_percent : null;
+
+  return (
+    <div className="hero flex flex-wrap items-center gap-x-8 gap-y-5 px-6 py-5">
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium tracking-wide text-mentor-fg">{SYMBOL}</span>
+          <span className="text-[11px] text-mentor-muted">· 1h</span>
+        </div>
+        <div className="mt-1 flex items-baseline gap-3">
+          <span className="font-mono text-3xl tracking-tight text-mentor-fg">
+            {loading ? '·····' : price}
+          </span>
+          {dir && (
+            <span
+              className={clsx(
+                'chip',
+                dir === 'long' && 'chip-up',
+                dir === 'short' && 'chip-down',
+                dir === 'neutral' && 'chip-accent'
+              )}
+            >
+              {dir === 'long' ? '▲ ' : dir === 'short' ? '▼ ' : ''}
+              {dir}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <PupRing pct={pUp} />
+
+      <div className="hidden h-12 w-px shrink-0 bg-mentor-border/70 sm:block" />
+
+      <StatCell label="Confidence" value={conf != null ? `${conf}%` : '—'} />
+      <StatCell label="Expectancy" value={exp != null ? `${exp.toFixed(2)}R` : '—'} tone={exp == null ? 'default' : exp > 0 ? 'up' : 'down'} />
+      <StatCell label="Win rate" value={win != null ? `${Math.round(Number(win))}%` : '—'} />
+
+      <div className="ml-auto text-right text-[11px] leading-tight text-mentor-muted">
+        <div className="uppercase tracking-wider">Morning briefing</div>
+        <div className="text-mentor-fg/80">{today}</div>
+      </div>
+    </div>
+  );
+}
+
+function PupRing({ pct }: { pct: number | null }) {
+  const p = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+  const r = 26;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - p / 100);
+  const stroke =
+    pct == null
+      ? 'rgb(var(--mentor-muted))'
+      : p >= 50
+        ? 'rgb(var(--mentor-accentSoft))'
+        : 'rgb(var(--mentor-danger))';
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative h-16 w-16">
+        <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgb(var(--mentor-border))" strokeWidth="6" />
+          <circle
+            cx="32"
+            cy="32"
+            r={r}
+            fill="none"
+            stroke={stroke}
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            style={{ transition: 'stroke-dashoffset .6s ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="font-mono text-base leading-none text-mentor-fg">
+            {pct == null ? '—' : `${pct}%`}
+          </span>
+        </div>
+      </div>
+      <div className="text-[11px] leading-tight text-mentor-muted">
+        <div className="uppercase tracking-wider">P(up)</div>
+        <div>next 24h</div>
+      </div>
+    </div>
+  );
+}
+
+function StatCell({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'up' | 'down';
+}) {
+  return (
+    <div className="rounded-lg border border-mentor-border/60 bg-mentor-panelLight/40 px-3 py-2">
+      <div className="metric-label">{label}</div>
+      <div
+        className={clsx(
+          'font-mono text-lg tracking-tight',
+          tone === 'up' && 'text-mentor-accentSoft',
+          tone === 'down' && 'text-mentor-danger',
+          tone === 'default' && 'text-mentor-fg'
+        )}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 

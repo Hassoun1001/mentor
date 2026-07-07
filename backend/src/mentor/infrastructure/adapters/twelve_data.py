@@ -119,7 +119,11 @@ def _format_symbol(symbol: str) -> str:
 
 
 def _parse_ts(value: str) -> datetime:
-    # Twelve Data: "2026-06-25 14:30:00" — already UTC because we passed timezone=UTC.
-    if "T" in value:
-        return datetime.fromisoformat(value).replace(tzinfo=UTC)
-    return datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+    # Twelve Data timestamps are already UTC (we pass timezone=UTC). Intraday
+    # bars carry a time ("2026-06-25 14:30:00"); daily/weekly bars are
+    # date-only ("2026-06-25"). Handle both, plus the ISO "T" separator.
+    text = value.strip()
+    if "T" in text:
+        return datetime.fromisoformat(text).replace(tzinfo=UTC)
+    fmt = "%Y-%m-%d %H:%M:%S" if " " in text else "%Y-%m-%d"
+    return datetime.strptime(text, fmt).replace(tzinfo=UTC)

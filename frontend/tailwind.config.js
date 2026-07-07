@@ -5,17 +5,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Values are CSS variables (RGB channels) so the whole palette can
+        // switch between dark and light at runtime, while keeping Tailwind's
+        // /opacity modifiers working. Channels are defined in index.css.
         mentor: {
-          bg: '#0b1614',
-          panel: '#102420',
-          panelLight: '#173430',
-          fg: '#e6efe9',
-          muted: '#8aa098',
-          accent: '#1f8a70',
-          accentSoft: '#2faa8e',
-          warn: '#d4a14a',
-          danger: '#d75f5f',
-          border: '#1d3a33',
+          bg: 'rgb(var(--mentor-bg) / <alpha-value>)',
+          panel: 'rgb(var(--mentor-panel) / <alpha-value>)',
+          panelLight: 'rgb(var(--mentor-panelLight) / <alpha-value>)',
+          fg: 'rgb(var(--mentor-fg) / <alpha-value>)',
+          muted: 'rgb(var(--mentor-muted) / <alpha-value>)',
+          accent: 'rgb(var(--mentor-accent) / <alpha-value>)',
+          accentHover: 'rgb(var(--mentor-accentHover) / <alpha-value>)',
+          accentSoft: 'rgb(var(--mentor-accentSoft) / <alpha-value>)',
+          warn: 'rgb(var(--mentor-warn) / <alpha-value>)',
+          danger: 'rgb(var(--mentor-danger) / <alpha-value>)',
+          border: 'rgb(var(--mentor-border) / <alpha-value>)',
         },
       },
       fontFamily: {
@@ -24,7 +28,7 @@ export default {
         serif: ['Source Serif Pro', 'Georgia', 'serif'],
       },
       boxShadow: {
-        panel: '0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.25)',
+        panel: '0 1px 2px rgba(0,0,0,0.4)',
       },
     },
   },

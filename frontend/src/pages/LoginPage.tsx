@@ -30,7 +30,7 @@ export function LoginPage() {
             <div className="h-7 w-7 rounded-md bg-mentor-accent/20 ring-1 ring-mentor-accent">
               <div className="m-1 h-5 w-5 rounded-sm bg-mentor-accent" />
             </div>
-            <div className="font-serif text-2xl tracking-tight">Mentor</div>
+            <div className="text-xl font-medium tracking-tight">Mentor</div>
           </div>
           <p className="mt-2 text-xs text-mentor-muted">
             Single-user sign-in. All API keys are server-side. Nothing
@@ -68,7 +68,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={mutation.isPending || !password}
-          className="w-full rounded-lg bg-mentor-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-mentor-accentSoft disabled:opacity-50"
+          className="btn-primary w-full"
         >
           {mutation.isPending ? 'Signing in…' : 'Sign in'}
         </button>

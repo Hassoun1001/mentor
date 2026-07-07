@@ -14,7 +14,10 @@ import {
 import { type NewsItem, ingestNews, listNews } from '../api/news';
 import { listInstruments } from '../api/risk';
 import { CalibrationChart } from '../components/CalibrationChart';
+import { MacroContextPanel } from '../components/MacroContextPanel';
+import { ReliabilityDiagram } from '../components/ReliabilityDiagram';
 import { Metric } from '../components/Metric';
+import { VolatilityCard } from '../components/VolatilityCard';
 import { WhyButton } from '../components/WhyButton';
 import { formatNumber, formatPercent } from '../lib/format';
 
@@ -58,7 +61,7 @@ export function ForecastPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h1 className="font-serif text-3xl tracking-tight">Forecast</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">Forecast</h1>
         <p className="max-w-2xl text-sm text-mentor-muted">
           Probability + reasoning, never a price target. The baseline rule
           model is the yardstick; any ML model must beat it out-of-sample
@@ -96,7 +99,8 @@ export function ForecastPage() {
                 <option value="baseline">baseline (rule)</option>
                 {(models.data ?? []).map((m) => (
                   <option key={m.name} value={m.name}>
-                    {m.name} (acc {Math.round(m.test_accuracy * 100)}%)
+                    {m.name} (acc {Math.round(m.test_accuracy * 100)}%
+                    {m.calibration_applied ? ', calibrated' : ''})
                   </option>
                 ))}
               </select>
@@ -118,7 +122,7 @@ export function ForecastPage() {
             type="button"
             disabled={snapshot.isPending}
             onClick={runForecast}
-            className="w-full rounded-lg bg-mentor-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-mentor-accentSoft disabled:opacity-50"
+            className="btn-primary w-full"
           >
             {snapshot.isPending ? 'Reading…' : 'Read the market'}
           </button>
@@ -171,13 +175,17 @@ export function ForecastPage() {
           )}
         </div>
 
-        <NewsPanel
-          items={news.data ?? []}
-          loading={news.isLoading}
-          onIngest={() => ingest.mutate()}
-          ingestPending={ingest.isPending}
-        />
+        <VolatilityCard symbol={symbol} />
       </div>
+
+      <MacroContextPanel />
+
+      <NewsPanel
+        items={news.data ?? []}
+        loading={news.isLoading}
+        onIngest={() => ingest.mutate()}
+        ingestPending={ingest.isPending}
+      />
 
       <AuditPanel
         rows={audit.data ?? []}
@@ -186,7 +194,10 @@ export function ForecastPage() {
         resolvePending={resolver.isPending}
       />
 
-      <CalibrationChart />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CalibrationChart />
+        <ReliabilityDiagram />
+      </div>
     </section>
   );
 }

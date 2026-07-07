@@ -86,7 +86,7 @@ export function RiskOfRuinPanel({ currency = 'USD' }: { currency?: string }) {
         type="button"
         onClick={run}
         disabled={mutation.isPending}
-        className="w-full rounded-lg bg-mentor-accent px-4 py-2 text-sm font-medium text-white hover:bg-mentor-accentSoft disabled:opacity-50"
+        className="w-full btn-primary"
       >
         {mutation.isPending ? 'Simulating…' : 'Simulate'}
       </button>

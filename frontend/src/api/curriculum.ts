@@ -38,9 +38,20 @@ const lessonResponse = z.object({
   body_md: z.string(),
   est_minutes: z.number(),
   key_concepts: z.array(z.string()),
+  figures: z.array(z.object({ key: z.string(), caption: z.string() })),
+  quiz: z.array(
+    z.object({
+      prompt: z.string(),
+      options: z.array(z.string()),
+      correct_index: z.number(),
+      explanation: z.string(),
+    })
+  ),
   status,
 });
 export type LessonResponse = z.infer<typeof lessonResponse>;
+export type LessonFigureData = LessonResponse['figures'][number];
+export type QuizQuestion = LessonResponse['quiz'][number];
 
 export async function getOverview(): Promise<ModuleSummary[]> {
   return apiGet('/curriculum/overview', z.array(moduleSummary));

@@ -15,18 +15,18 @@ interface ComparisonChartProps {
   height?: number;
 }
 
-const COLORS = {
-  primary: { line: '#2faa8e', top: 'rgba(47, 170, 142, 0.30)', bottom: 'rgba(47, 170, 142, 0.02)' },
-  secondary: { line: '#d4a14a', top: 'rgba(212, 161, 74, 0.25)', bottom: 'rgba(212, 161, 74, 0.02)' },
-};
+function themeColor(name: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!v) return fallback;
+  return `rgb(${v.split(/[\s,]+/).filter(Boolean).join(', ')})`;
+}
+const alpha = (rgb: string, a: number) =>
+  `rgba(${rgb.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).join(', ') ?? '0, 0, 0'}, ${a})`;
 
 /**
- * Two-curve overlay equity chart.
- *
- * Primary is rendered in mentor-accent green; secondary (optional) in
- * mentor-warn gold. We keep the two series so the user can read absolute
- * dollar values for each — relative comparisons are misleading when the
- * starting balances diverge.
+ * Two-curve overlay equity chart. Primary in accent green, secondary in
+ * amber. We keep both series so absolute dollar values stay readable.
  */
 export function ComparisonChart({ primary, secondary, height = 320 }: ComparisonChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -34,33 +34,35 @@ export function ComparisonChart({ primary, secondary, height = 320 }: Comparison
   const primaryRef = useRef<ISeriesApi<'Area'> | null>(null);
   const secondaryRef = useRef<ISeriesApi<'Area'> | null>(null);
 
+  const primaryLine = themeColor('--mentor-accentSoft', '#2ebd85');
+  const secondaryLine = themeColor('--mentor-warn', '#d29922');
+
   useEffect(() => {
     if (!containerRef.current) return;
+    const border = themeColor('--mentor-border', '#1e2530');
+    const muted = themeColor('--mentor-muted', '#8b949e');
     const chart = createChart(containerRef.current, {
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#8aa098',
+        textColor: muted,
         fontFamily: 'JetBrains Mono, ui-monospace, monospace',
       },
-      grid: {
-        vertLines: { color: '#1d3a33' },
-        horzLines: { color: '#1d3a33' },
-      },
-      rightPriceScale: { borderColor: '#1d3a33' },
-      timeScale: { borderColor: '#1d3a33', timeVisible: true, secondsVisible: false },
+      grid: { vertLines: { color: border }, horzLines: { color: border } },
+      rightPriceScale: { borderColor: border },
+      timeScale: { borderColor: border, timeVisible: true, secondsVisible: false },
       crosshair: { mode: 1 },
     });
     primaryRef.current = chart.addAreaSeries({
-      lineColor: COLORS.primary.line,
-      topColor: COLORS.primary.top,
-      bottomColor: COLORS.primary.bottom,
+      lineColor: primaryLine,
+      topColor: alpha(primaryLine, 0.3),
+      bottomColor: alpha(primaryLine, 0.02),
       lineWidth: 2,
     });
     secondaryRef.current = chart.addAreaSeries({
-      lineColor: COLORS.secondary.line,
-      topColor: COLORS.secondary.top,
-      bottomColor: COLORS.secondary.bottom,
+      lineColor: secondaryLine,
+      topColor: alpha(secondaryLine, 0.25),
+      bottomColor: alpha(secondaryLine, 0.02),
       lineWidth: 2,
     });
     chartRef.current = chart;
@@ -70,27 +72,35 @@ export function ComparisonChart({ primary, secondary, height = 320 }: Comparison
       primaryRef.current = null;
       secondaryRef.current = null;
     };
-  }, []);
+  }, [primaryLine, secondaryLine]);
 
   useEffect(() => {
     const series = primaryRef.current;
     const chart = chartRef.current;
     if (!series || !chart) return;
-    series.setData(toData(primary.points));
-    chart.timeScale().fitContent();
+    try {
+      series.setData(toData(primary.points));
+      chart.timeScale().fitContent();
+    } catch (err) {
+      console.error('comparison chart setData failed', err);
+    }
   }, [primary]);
 
   useEffect(() => {
     const series = secondaryRef.current;
     if (!series) return;
-    series.setData(secondary ? toData(secondary.points) : []);
+    try {
+      series.setData(secondary ? toData(secondary.points) : []);
+    } catch (err) {
+      console.error('comparison chart setData failed', err);
+    }
   }, [secondary]);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-4 text-xs">
-        <Legend dot={COLORS.primary.line} label={primary.label} />
-        {secondary && <Legend dot={COLORS.secondary.line} label={secondary.label} />}
+        <Legend dot={primaryLine} label={primary.label} />
+        {secondary && <Legend dot={secondaryLine} label={secondary.label} />}
       </div>
       <div ref={containerRef} style={{ height }} />
     </div>
@@ -100,18 +110,18 @@ export function ComparisonChart({ primary, secondary, height = 320 }: Comparison
 function Legend({ dot, label }: { dot: string; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span
-        className="inline-block h-3 w-3 rounded-full"
-        style={{ backgroundColor: dot }}
-      />
+      <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: dot }} />
       <span className="font-mono text-mentor-fg">{label}</span>
     </div>
   );
 }
 
 function toData(points: EquityPoint[]): { time: Time; value: number }[] {
-  return points.map((p) => ({
-    time: (new Date(p.ts).getTime() / 1000) as Time,
-    value: Number(p.balance),
-  }));
+  const byTime = new Map<number, { time: Time; value: number }>();
+  for (const p of points) {
+    const time = Math.floor(new Date(p.ts).getTime() / 1000);
+    if (!Number.isFinite(time)) continue;
+    byTime.set(time, { time: time as Time, value: Number(p.balance) });
+  }
+  return [...byTime.values()].sort((a, b) => (a.time as number) - (b.time as number));
 }

@@ -152,9 +152,19 @@ class RegimeAdjustedForecaster(Forecaster):
     def horizon_bars(self) -> int:
         return self.base.horizon_bars
 
-    def forecast(self, *, bars: Sequence[PriceBar], symbol: str, timeframe: Timeframe) -> Forecast:
+    def forecast(
+        self,
+        *,
+        bars: Sequence[PriceBar],
+        symbol: str,
+        timeframe: Timeframe,
+        news: Mapping[str, float] | None = None,
+        macro: Mapping[str, float] | None = None,
+    ) -> Forecast:
         row = build_feature_row(bars)
-        base = self.base.forecast(bars=bars, symbol=symbol, timeframe=timeframe)
+        base = self.base.forecast(
+            bars=bars, symbol=symbol, timeframe=timeframe, news=news, macro=macro
+        )
 
         if row is None:
             return base  # nothing to check against; defer

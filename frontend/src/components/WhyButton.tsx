@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
-import { type SupportedTopic, explainMetric } from '../api/explain';
+import { type ExplainStyle, type SupportedTopic, explainMetric } from '../api/explain';
 
 interface WhyButtonProps {
   topic: SupportedTopic;
@@ -17,15 +17,21 @@ interface WhyButtonProps {
  */
 export function WhyButton({ topic, context, label = 'Why?' }: WhyButtonProps) {
   const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<ExplainStyle>('concise');
   const mutation = useMutation({
-    mutationFn: () => explainMetric(topic, context),
+    mutationFn: (s: ExplainStyle) => explainMetric(topic, context, s),
   });
 
   const toggle = () => {
     if (!open && !mutation.data && !mutation.isPending) {
-      mutation.mutate();
+      mutation.mutate(style);
     }
     setOpen(!open);
+  };
+
+  const ask = (s: ExplainStyle) => {
+    setStyle(s);
+    mutation.mutate(s);
   };
 
   return (
@@ -48,9 +54,29 @@ export function WhyButton({ topic, context, label = 'Why?' }: WhyButtonProps) {
           {mutation.data && (
             <>
               <p className="whitespace-pre-wrap">{mutation.data.explanation}</p>
-              <p className="mt-3 text-[10px] uppercase tracking-wider text-mentor-muted">
-                source · {mutation.data.source}
-              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex gap-2">
+                  {(['concise', 'thorough', 'socratic'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={mutation.isPending}
+                      onClick={() => ask(s)}
+                      className={
+                        'rounded px-1.5 py-0.5 text-[10px] capitalize ' +
+                        (s === style
+                          ? 'bg-mentor-accent/20 text-mentor-accentSoft'
+                          : 'text-mentor-muted hover:text-mentor-fg')
+                      }
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-mentor-muted">
+                  {mutation.data.source}
+                </span>
+              </div>
             </>
           )}
         </div>

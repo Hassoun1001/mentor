@@ -157,7 +157,7 @@ export function RiskCalculatorPage() {
   return (
     <section id="risk" className="space-y-8">
       <header className="flex flex-col gap-2">
-        <h1 className="font-serif text-3xl tracking-tight">Risk Calculator</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">Risk Calculator</h1>
         <p className="max-w-2xl text-sm text-mentor-muted">
           Most traders fail on risk management, not forecasting. Size every trade from how
           much you're willing to lose — not from a hunch about how big it could win.

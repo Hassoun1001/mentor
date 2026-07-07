@@ -3,51 +3,162 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme (default). RGB channels so Tailwind /opacity keeps working. */
+  :root {
+    --mentor-bg: 246 248 250;
+    --mentor-panel: 255 255 255;
+    --mentor-panelLight: 240 243 246;
+    --mentor-fg: 28 33 40;
+    --mentor-muted: 87 96 106;
+    --mentor-accent: 31 111 235;
+    --mentor-accentHover: 9 105 218;
+    --mentor-accentSoft: 26 127 55;
+    --mentor-warn: 154 103 0;
+    --mentor-danger: 207 34 46;
+    --mentor-border: 208 215 222;
+    color-scheme: light;
+  }
+
+  /* Dark theme (trading terminal). */
+  .dark {
+    --mentor-bg: 13 17 23;
+    --mentor-panel: 17 22 29;
+    --mentor-panelLight: 27 34 44;
+    --mentor-fg: 230 237 243;
+    --mentor-muted: 139 148 158;
+    --mentor-accent: 47 129 247;
+    --mentor-accentHover: 75 150 249;
+    --mentor-accentSoft: 46 189 133;
+    --mentor-warn: 210 153 34;
+    --mentor-danger: 246 70 93;
+    --mentor-border: 30 37 48;
+    color-scheme: dark;
+  }
+
   html,
   body,
   #root {
     height: 100%;
   }
 
+  /* Ambient accent glow behind the app — subtle depth, both themes. */
   body {
     font-feature-settings: 'cv11', 'ss01';
+    background:
+      radial-gradient(900px 380px at 50% -160px, rgb(var(--mentor-accent) / 0.08), transparent 70%),
+      rgb(var(--mentor-bg));
+    background-attachment: fixed;
+  }
+
+  /* Numbers line up like a terminal — tabular figures everywhere mono is used. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-mentor-accent ring-offset-2 ring-offset-mentor-bg;
+    @apply outline-none ring-2 ring-mentor-accent/60 ring-offset-2 ring-offset-mentor-bg;
   }
 }
 
 @layer components {
+  /* Card with a faint top sheen + depth. */
   .panel {
-    @apply rounded-2xl border border-mentor-border bg-mentor-panel shadow-panel;
+    border-radius: 12px;
+    border: 1px solid rgb(var(--mentor-border));
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 42%),
+      rgb(var(--mentor-panel));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 24px -18px rgb(0 0 0 / 0.6);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   }
 
   .panel-pad {
-    @apply panel p-6;
+    @apply panel p-5;
+  }
+
+  /* Opt-in lift for clickable cards. */
+  .panel-hover:hover {
+    border-color: rgb(var(--mentor-accent) / 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 16px 40px -22px rgb(var(--mentor-accent) / 0.45);
+  }
+
+  /* Hero surface — accent-lit, the eye-catching centrepiece. */
+  .hero {
+    position: relative;
+    border-radius: 14px;
+    border: 1px solid rgb(var(--mentor-accent) / 0.28);
+    background:
+      radial-gradient(560px 220px at 8% -60%, rgb(var(--mentor-accent) / 0.18), transparent 72%),
+      linear-gradient(180deg, rgb(var(--mentor-panel)), rgb(var(--mentor-panelLight)));
+    box-shadow: 0 18px 44px -22px rgb(var(--mentor-accent) / 0.4);
   }
 
   .input {
-    @apply w-full rounded-lg border border-mentor-border bg-mentor-panelLight px-3 py-2
+    @apply w-full rounded-md border border-mentor-border bg-mentor-panelLight px-3 py-2
       font-mono text-sm text-mentor-fg placeholder-mentor-muted
       transition-colors focus:border-mentor-accent;
   }
 
   .label {
-    @apply mb-1.5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider
+    @apply mb-1.5 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider
       text-mentor-muted;
   }
 
+  /* Neutral bordered tag. */
   .pill {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-mentor-border
-      bg-mentor-panelLight px-3 py-1 text-xs font-medium text-mentor-muted;
+    @apply inline-flex items-center gap-1.5 rounded border border-mentor-border
+      bg-mentor-panelLight px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide
+      text-mentor-muted;
+  }
+
+  /* Filled, tinted status chips — more colour, more modern. */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold
+      uppercase tracking-wide;
+  }
+  .chip-up {
+    background: rgb(var(--mentor-accentSoft) / 0.16);
+    color: rgb(var(--mentor-accentSoft));
+  }
+  .chip-down {
+    background: rgb(var(--mentor-danger) / 0.16);
+    color: rgb(var(--mentor-danger));
+  }
+  .chip-accent {
+    background: rgb(var(--mentor-accent) / 0.16);
+    color: rgb(var(--mentor-accent));
+  }
+  .chip-warn {
+    background: rgb(var(--mentor-warn) / 0.16);
+    color: rgb(var(--mentor-warn));
+  }
+
+  /* Primary action — blue gradient with a soft glow. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm
+      font-medium text-white transition-all disabled:opacity-50;
+    background: linear-gradient(180deg, rgb(var(--mentor-accentHover)), rgb(var(--mentor-accent)));
+    box-shadow: 0 6px 18px -6px rgb(var(--mentor-accent) / 0.55);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-mentor-border
+      bg-mentor-panelLight px-3 py-1.5 text-xs font-medium text-mentor-muted
+      transition-colors hover:text-mentor-fg hover:border-mentor-accent/40;
   }
 
   .metric-value {
-    @apply font-mono text-2xl font-semibold tracking-tight text-mentor-fg;
+    @apply font-mono text-2xl font-medium tracking-tight text-mentor-fg;
   }
 
   .metric-label {
-    @apply text-xs uppercase tracking-wider text-mentor-muted;
+    @apply text-[11px] uppercase tracking-wider text-mentor-muted;
   }
 }

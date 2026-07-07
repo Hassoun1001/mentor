@@ -2,29 +2,38 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { getAuthStatus } from './api/auth';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TopNav } from './components/TopNav';
 import { useAuth } from './lib/useAuth';
+import { useTheme } from './lib/useTheme';
 import { BacktesterPage } from './pages/BacktesterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DataHealthPage } from './pages/DataHealthPage';
 import { ForecastPage } from './pages/ForecastPage';
 import { JournalPage } from './pages/JournalPage';
 import { LessonsPage } from './pages/LessonsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PricesPage } from './pages/PricesPage';
 import { RiskCalculatorPage } from './pages/RiskCalculatorPage';
+import { SystemPredictionsPage } from './pages/SystemPredictionsPage';
+import { TipsPage } from './pages/TipsPage';
 
 export type Page =
   | 'dashboard'
   | 'forecast'
+  | 'system'
+  | 'tips'
   | 'risk'
   | 'journal'
   | 'lessons'
   | 'prices'
+  | 'data'
   | 'backtest';
 
 export function App() {
   const [page, setPage] = useState<Page>('dashboard');
   const { hasToken, logout } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const status = useQuery({
     queryKey: ['auth-status'],
     queryFn: getAuthStatus,
@@ -39,15 +48,26 @@ export function App() {
 
   return (
     <div className="min-h-screen">
-      <TopNav page={page} onNavigate={setPage} onLogout={hasToken ? logout : undefined} />
+      <TopNav
+        page={page}
+        onNavigate={setPage}
+        onLogout={hasToken ? logout : undefined}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
       <main className="mx-auto max-w-6xl px-6 py-8">
-        {page === 'dashboard' && <DashboardPage />}
-        {page === 'forecast' && <ForecastPage />}
-        {page === 'risk' && <RiskCalculatorPage />}
-        {page === 'journal' && <JournalPage />}
-        {page === 'lessons' && <LessonsPage />}
-        {page === 'prices' && <PricesPage />}
-        {page === 'backtest' && <BacktesterPage />}
+        <ErrorBoundary key={page}>
+          {page === 'dashboard' && <DashboardPage />}
+          {page === 'forecast' && <ForecastPage />}
+          {page === 'system' && <SystemPredictionsPage />}
+          {page === 'tips' && <TipsPage />}
+          {page === 'risk' && <RiskCalculatorPage />}
+          {page === 'journal' && <JournalPage />}
+          {page === 'lessons' && <LessonsPage />}
+          {page === 'prices' && <PricesPage />}
+          {page === 'data' && <DataHealthPage />}
+          {page === 'backtest' && <BacktesterPage />}
+        </ErrorBoundary>
       </main>
       <footer className="mx-auto max-w-6xl px-6 pb-10 pt-4 text-xs text-mentor-muted">
         Mentor is a personal, educational tool — not licensed financial advice.

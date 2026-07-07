@@ -19,6 +19,39 @@ from mentor.domain.errors import ValidationError
 
 
 @dataclass(frozen=True, slots=True)
+class Figure:
+    """A diagram shown inside a lesson.
+
+    ``key`` names a themed SVG the frontend knows how to draw; ``caption``
+    is the one-line explanation shown beneath it. Content stays code-shipped
+    — the backend never sends pixels, only the key + caption.
+    """
+
+    key: str
+    caption: str
+
+
+@dataclass(frozen=True, slots=True)
+class QuizQuestion:
+    """A self-check multiple-choice question for a lesson.
+
+    Active recall beats re-reading. ``correct_index`` points into ``options``;
+    ``explanation`` is shown after the learner answers, right or wrong.
+    """
+
+    prompt: str
+    options: tuple[str, ...]
+    correct_index: int
+    explanation: str
+
+    def __post_init__(self) -> None:
+        if len(self.options) < 2:
+            raise ValidationError("a quiz question needs >= 2 options")
+        if not (0 <= self.correct_index < len(self.options)):
+            raise ValidationError("correct_index out of range")
+
+
+@dataclass(frozen=True, slots=True)
 class Lesson:
     slug: str
     module_id: str
@@ -28,6 +61,8 @@ class Lesson:
     body_md: str
     est_minutes: int
     key_concepts: tuple[str, ...]
+    figures: tuple[Figure, ...] = ()
+    quiz: tuple[QuizQuestion, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +91,9 @@ _MARKET_BASICS = (
         summary="A currency pair is not a thing — it's a ratio.",
         est_minutes=4,
         key_concepts=("pair", "base", "quote", "ratio"),
+        figures=(
+            Figure(key="pair-ratio", caption="A pair is a ratio: how many dollars one euro costs."),
+        ),
         body_md="""
 A currency pair like **EUR/USD** is a ratio: how many US dollars one euro
 costs *right now*. When the quote moves from 1.0850 to 1.0900, the euro
@@ -83,6 +121,12 @@ move at all. That's why economic data on either side moves the pair.
         summary="The three numbers that decide your exposure.",
         est_minutes=5,
         key_concepts=("pip", "lot", "leverage", "margin", "contract size"),
+        figures=(
+            Figure(
+                key="leverage",
+                caption="Leverage magnifies a small margin into large exposure — both ways.",
+            ),
+        ),
         body_md="""
 - **Pip** — the smallest standard increment. `0.0001` for most majors,
   `0.01` for JPY pairs.
@@ -110,6 +154,9 @@ The position-size calculator turns the *risk you're willing to take* into
         summary="Every round-trip starts in the red.",
         est_minutes=3,
         key_concepts=("bid", "ask", "spread", "transaction cost"),
+        figures=(
+            Figure(key="spread", caption="The bid–ask gap is a fee you pay on every round trip."),
+        ),
         body_md="""
 The **bid** is the price someone will pay you for the pair right now.
 The **ask** is the price someone will sell it to you. The gap is the
@@ -146,6 +193,25 @@ _RISK_FIRST = (
         summary="Most traders fail on sizing, not on direction.",
         est_minutes=6,
         key_concepts=("position sizing", "expectancy", "drawdown", "ruin"),
+        quiz=(
+            QuizQuestion(
+                prompt="Who is more likely to survive long-term?",
+                options=(
+                    "55% win rate, risking 10% per trade",
+                    "45% win rate, risking 1% per trade",
+                    "they're equivalent — only win rate matters",
+                ),
+                correct_index=1,
+                explanation="Sizing beats accuracy. Risking 10% per trade, a normal losing streak "
+                "ruins the account regardless of a good win rate. 1% survives to compound.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="risk-vs-predict",
+                caption="Small risk + lower win rate can beat big risk + higher win rate.",
+            ),
+        ),
         body_md="""
 The myth says good traders predict the market. The truth is they manage
 their *losses*. A trader who is right 55% of the time but risks 10% of
@@ -175,6 +241,12 @@ wrong. Not the discipline.
         summary="It's not magic — it's how long you can survive a losing streak.",
         est_minutes=7,
         key_concepts=("risk per trade", "drawdown", "losing streak", "risk of ruin"),
+        figures=(
+            Figure(
+                key="drawdown-recovery",
+                caption="The deeper the loss, the disproportionately larger the gain to recover.",
+            ),
+        ),
         body_md="""
 Risking 1% per trade is not a sacred number. It's a *survival* number.
 
@@ -202,6 +274,12 @@ Monte-Carlo simulator. Until then, use the rule.
         summary="The stop is a fact. The target is a hope.",
         est_minutes=5,
         key_concepts=("position size", "stop", "pip value", "ceiling"),
+        figures=(
+            Figure(
+                key="size-formula",
+                caption="Size comes from the stop — the target never enters the formula.",
+            ),
+        ),
         body_md="""
 The position-size formula:
 
@@ -235,6 +313,12 @@ the budget, or skip the trade.
         summary="One bad trade is normal. Three in a row is a pattern.",
         est_minutes=5,
         key_concepts=("max risk per trade", "max open risk", "daily loss limit", "tilt"),
+        figures=(
+            Figure(
+                key="guardrails",
+                caption="Three layered limits — the daily loss cap is the one that stops tilt.",
+            ),
+        ),
         body_md="""
 Three guardrails layer on top of per-trade sizing:
 
@@ -269,6 +353,12 @@ _READING_CHARTS = (
         summary="If it's obvious to you, it's obvious to a million machines.",
         est_minutes=5,
         key_concepts=("trend", "pattern recognition", "efficiency", "noise"),
+        figures=(
+            Figure(
+                key="trend-context",
+                caption="Use the chart for context; the 'obvious' pattern is already priced.",
+            ),
+        ),
         body_md="""
 A chart pattern that's "clearly" a head-and-shoulders is also clearly a
 head-and-shoulders to every algo with a TA library. The information was
@@ -293,6 +383,12 @@ uses charts.
         summary="Old prices matter because traders remember them.",
         est_minutes=5,
         key_concepts=("support", "resistance", "level", "self-fulfilling", "stop hunt"),
+        figures=(
+            Figure(
+                key="sr-zones",
+                caption="Support and resistance are zones the market remembers, not exact lines.",
+            ),
+        ),
         body_md="""
 Support and resistance aren't physical laws. They're places where lots
 of stops cluster, where breakouts happen, and where the market hunts
@@ -315,6 +411,12 @@ until they don't.
         summary="Open / high / low / close — that's the whole signal.",
         est_minutes=4,
         key_concepts=("OHLC", "wick", "body", "context"),
+        figures=(
+            Figure(
+                key="candle-anatomy",
+                caption="One candle = open, high, low, close. That's the whole signal.",
+            ),
+        ),
         body_md="""
 A candle compresses an interval of price into four numbers: open, high,
 low, close. The body is open→close, the wicks reach to the extremes.
@@ -350,6 +452,12 @@ _INDICATORS = (
         summary="They smooth the past; they cannot summon the future.",
         est_minutes=5,
         key_concepts=("SMA", "EMA", "lag", "trend filter", "whipsaw"),
+        figures=(
+            Figure(
+                key="ma-lag",
+                caption="A moving average always trails price — a filter, not a turn signal.",
+            ),
+        ),
         body_md="""
 A 200-period moving average tells you where price was on average over
 the last 200 periods. By construction, it is the slowest possible
@@ -376,6 +484,12 @@ the average crosses, the move is well underway.
         summary='"Overbought" is not a sell signal in a trending market.',
         est_minutes=4,
         key_concepts=("RSI", "momentum", "divergence", "regime"),
+        figures=(
+            Figure(
+                key="rsi-regime",
+                caption="RSI can stay 'overbought' throughout a trend — not a sell button.",
+            ),
+        ),
         body_md="""
 RSI measures recent up-moves vs. down-moves. Above 70 it's "overbought,"
 below 30 it's "oversold." In a *range*, that works as a contrarian
@@ -398,6 +512,12 @@ price keeps running.
         summary="Stop distance should scale with how much price normally moves.",
         est_minutes=4,
         key_concepts=("ATR", "volatility", "stop", "noise floor"),
+        figures=(
+            Figure(
+                key="atr-stop",
+                caption="Place the stop beyond the normal noise band (2–3× ATR), not inside it.",
+            ),
+        ),
         body_md="""
 **Average True Range** is the average size of the last N bars'
 true ranges. It's a noise floor: a stop closer than ~1× ATR sits
@@ -431,6 +551,21 @@ _EXPECTANCY = (
         summary="Expectancy is the only number that matters over many trades.",
         est_minutes=6,
         key_concepts=("expectancy", "win rate", "R:R", "edge"),
+        quiz=(
+            QuizQuestion(
+                prompt="Win 40% of the time, avg win 2R, avg loss 1R. Expectancy per trade?",
+                options=("negative — it loses money", "+0.2R per trade", "exactly break-even"),
+                correct_index=1,
+                explanation="(0.40 × 2R) − (0.60 × 1R) = +0.2R per trade. "
+                "A low win rate can still be very profitable.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="expectancy-formula",
+                caption="Expectancy is the average result per trade — positive means it pays.",
+            ),
+        ),
         body_md="""
 **Expectancy** = (win rate × avg win) − (loss rate × avg loss).
 
@@ -468,6 +603,12 @@ variance.
         summary="One number that compares strategies across account sizes.",
         est_minutes=4,
         key_concepts=("R-multiple", "Tharp", "normalisation"),
+        figures=(
+            Figure(
+                key="r-ruler",
+                caption="R normalises every trade: a stop-out is −1R, a double is +2R.",
+            ),
+        ),
         body_md="""
 An **R-multiple** is a trade's outcome divided by the trade's initial
 risk. Stop-out = −1R. A trade that gained twice what it risked = +2R.
@@ -493,6 +634,11 @@ expectancy, profit factor, largest win/loss — all from that one column.
         summary="Expectancy doesn't care how often you're right.",
         est_minutes=4,
         key_concepts=("win rate", "R:R", "expectancy", "psychology"),
+        figures=(
+            Figure(
+                key="winrate-myth", caption="Six losses and two big wins can still net positive R."
+            ),
+        ),
         body_md="""
 A 40% win rate at 3R wins / 1R losses returns +0.8R per trade. That's
 a phenomenal strategy. Almost no one can trade it — because losing 60%
@@ -523,6 +669,25 @@ _BACKTESTING = (
         summary="If your backtest used data from the future, it isn't a backtest.",
         est_minutes=5,
         key_concepts=("lookahead", "point-in-time", "data leakage"),
+        quiz=(
+            QuizQuestion(
+                prompt="Which of these is lookahead bias?",
+                options=(
+                    "using today's closing price to decide today's entry",
+                    "paying the spread on every trade",
+                    "holding only one position at a time",
+                ),
+                correct_index=0,
+                explanation="Using data you couldn't have had at decision time (today's close) is "
+                "lookahead — it makes a backtest print money that live trading never will.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="lookahead",
+                caption="Using future data to decide the past is the subtlest fatal backtest bug.",
+            ),
+        ),
         body_md="""
 **Lookahead bias** happens when a backtest uses information the trader
 could not actually have had at the moment of the trade. Examples:
@@ -551,6 +716,12 @@ Every signal must survive this before it's allowed on the dashboard.
         summary="A model that fits noise won't fit the next year.",
         est_minutes=5,
         key_concepts=("overfitting", "out-of-sample", "walk-forward", "complexity"),
+        figures=(
+            Figure(
+                key="overfitting",
+                caption="A model that fits every training wiggle fits the noise — not next year.",
+            ),
+        ),
         body_md="""
 Tune any model long enough and it will fit the training data perfectly.
 The problem is the training data contains *noise* — coincidences that
@@ -584,6 +755,12 @@ simpler one wins.
         summary="Spread + commission + slippage is the silent killer.",
         est_minutes=4,
         key_concepts=("spread", "commission", "slippage", "frictionless"),
+        figures=(
+            Figure(
+                key="costs-erase-edge",
+                caption="Spread + commission + slippage can erase a paper edge entirely.",
+            ),
+        ),
         body_md="""
 A frictionless backtest assumes you buy at the close and sell at the
 close. Live, you cross the spread on entry and exit, you pay a
@@ -613,6 +790,12 @@ _PSYCHOLOGY = (
         summary="Memory edits your trading record. The journal doesn't.",
         est_minutes=4,
         key_concepts=("journal", "review", "self-report bias"),
+        figures=(
+            Figure(
+                key="journal-vs-memory",
+                caption="Memory edits the losses away; the journal keeps the honest record.",
+            ),
+        ),
         body_md="""
 Without a journal, you remember the wins and reframe the losses.
 "I would have been right if not for that fed announcement." With the
@@ -632,6 +815,12 @@ collapse. That's the lesson the signal can't teach you.
         summary="The trade after a loss is almost always wrong.",
         est_minutes=4,
         key_concepts=("tilt", "revenge trading", "daily loss limit", "circuit breaker"),
+        figures=(
+            Figure(
+                key="tilt-spiral",
+                caption="After a loss, risk creeps up — the daily limit is the circuit breaker.",
+            ),
+        ),
         body_md="""
 **Tilt** is what poker players call the emotional state that follows a
 big loss. You take more risk, on worse setups, faster than usual.
@@ -656,6 +845,12 @@ to you. The journal will show you when you broke them.
         summary="The trades you don't review are the ones you keep losing.",
         est_minutes=3,
         key_concepts=("weekly review", "mistake tags", "pattern", "improvement"),
+        figures=(
+            Figure(
+                key="review-tags",
+                caption="Mistake tags reveal patterns before they show up in your P&L.",
+            ),
+        ),
         body_md="""
 A weekly review takes thirty minutes. Open the journal, sort by R,
 read the bottom five. Tag what went wrong. Read the top five. Tag
@@ -672,6 +867,1072 @@ automatically. For now, do it by hand. Thirty minutes a week.
     ),
 )
 
+
+# ---------------------------------------------------------------------------
+# Module 8 — Under the hood: how the mentor predicts
+# ---------------------------------------------------------------------------
+
+_UNDER_THE_HOOD = (
+    Lesson(
+        slug="under-the-hood/what-we-can-predict",
+        module_id="under-the-hood",
+        order_in_module=1,
+        title="What this system can and can't predict",
+        summary="It predicts what's genuinely predictable and measures the rest — honestly.",
+        est_minutes=5,
+        key_concepts=("efficient market", "direction vs volatility", "honesty", "baseline"),
+        figures=(
+            Figure(
+                key="honest-thesis",
+                caption="Direction is nearly random; we forecast the range instead.",
+            ),
+        ),
+        body_md="""
+Most trading apps promise to tell you *which way* price will go. This one
+starts with an uncomfortable truth we measured on ten years of EUR/USD:
+
+> Guessing the **direction** of the next move is about **53%** accurate —
+> barely better than a coin flip, and not enough to beat costs.
+
+So we don't sell you a crystal ball. Instead the system does three honest
+things:
+
+- **Predicts what's actually predictable.** The *size* of the next move
+  (volatility) really does cluster and can be forecast. Direction mostly
+  can't. We lean into the first and stay humble about the second.
+- **Measures everything out-of-sample.** Every model is tested on data it
+  never trained on. A new model ships **only if it beats a simple, honest
+  baseline**. If it doesn't help, we keep the simpler one and say so.
+- **Tells you the odds, not a verdict.** A forecast here is a probability
+  with a confidence band and a plain-English reason — never "buy now."
+
+### Why this is the honest choice
+
+Markets are *efficient*: obvious information is already in the price. If a
+simple pattern worked, a million machines would have traded it away. Being
+honest about that is the whole product — it's what keeps you solvent.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/where-the-data-comes-from",
+        module_id="under-the-hood",
+        order_in_module=2,
+        title="Where the numbers come from",
+        summary="Prices, interest rates, the dollar, and the news — from free, real sources.",
+        est_minutes=5,
+        key_concepts=("data sources", "failover", "FRED", "GDELT", "point-in-time"),
+        figures=(
+            Figure(
+                key="data-pipeline",
+                caption="Real data flows in, gets cleaned and aligned, then feeds the models.",
+            ),
+        ),
+        body_md="""
+A forecast is only as good as the data behind it. The system pulls four
+kinds of **real** data, all from free sources:
+
+- **Prices** — the EUR/USD candles themselves, from **Twelve Data** with
+  **Yahoo Finance** as a backup. If one source is down, the other fills in
+  (this is called *failover*). Ten years of daily history is stored locally.
+- **Interest rates** — US 2-year and 10-year yields and the 2s10s curve,
+  from the **FRED** database. Rate differences move currencies more than
+  headlines do.
+- **The dollar & fear gauge** — a broad US-dollar index and the **VIX**
+  (Wall Street's "fear index"), also from FRED.
+- **News mood** — a daily sentiment score from **GDELT**, which reads world
+  news and measures how positive or negative coverage has been.
+
+### Cleaning matters as much as collecting
+
+Two sources rarely agree perfectly, and different feeds timestamp a "daily"
+bar differently. The system **aligns** everything to the same clock and
+**de-duplicates** overlapping days, so the model sees one clean history —
+not a double-counted mess. Every value is stored so we never have to
+re-download it to train.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/what-the-model-sees",
+        module_id="under-the-hood",
+        order_in_module=3,
+        title="What the model looks at (and no peeking at the future)",
+        summary="A short list of clues — and an ironclad rule against using tomorrow's data.",
+        est_minutes=6,
+        key_concepts=("features", "indicators", "lookahead bias", "point-in-time"),
+        figures=(
+            Figure(
+                key="feature-families",
+                caption="Three small groups of clues: price/indicators, news mood, macro drivers.",
+            ),
+            Figure(
+                key="point-in-time",
+                caption="The model sees only the past; the answer lies in the future.",
+            ),
+        ),
+        body_md="""
+The model doesn't stare at the raw price. It reads a short, deliberate list
+of **features** — numbers summarising the recent past. They come in three
+small families:
+
+- **Price & indicators** — recent returns, moving-average distances, RSI,
+  MACD, ATR (how much price normally moves), distance from recent highs/lows.
+- **News mood** — the GDELT sentiment score and how it's trending.
+- **Macro drivers** — the change in US rates, the yield curve, the dollar
+  index, and the VIX.
+
+We keep the list *small* on purpose. More knobs let a model memorise noise
+that never repeats (*overfitting*). A handful of meaningful clues generalises
+better.
+
+### The golden rule: no peeking
+
+The single most common way backtests lie is **lookahead bias** — accidentally
+using information from the future to "predict" the past. This system forbids
+it *structurally*: at any moment in time, a feature can be built **only from
+bars on or before that moment**. The thing we're trying to predict always
+lives strictly in the future. That's why our honest accuracy numbers are
+lower than a naive backtest would show — and why they hold up live.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/predicting-direction",
+        module_id="under-the-hood",
+        order_in_module=4,
+        title="Predicting direction: rules, then trees, then humility",
+        summary="A transparent rule sets the bar; a machine-learning model ships only if it wins.",
+        est_minutes=6,
+        key_concepts=("baseline", "gradient boosting", "regime", "probability"),
+        figures=(
+            Figure(
+                key="direction-model",
+                caption="Rule baseline → boosted trees → a regime check for odd days.",
+            ),
+        ),
+        body_md="""
+For the *direction* question ("is price more likely up or down over the next
+few days?") the system runs a small pipeline:
+
+1. **A transparent rule model** — a handful of if-this-then-that rules you
+   could check by hand (trend filter, momentum, RSI extremes). This is the
+   **baseline**: the honest yardstick everything else must beat.
+2. **A gradient-boosting model** — a machine-learning method that builds many
+   small decision trees, each fixing the last one's mistakes. It reads all the
+   features and outputs a probability of "up".
+3. **A regime check** — before trusting the model, the system asks *"are today's
+   conditions like the ones it trained on?"* If today is off-script (unusually
+   volatile, outside the normal range), it **shrinks the confidence** or abstains
+   rather than pretending to know.
+
+### The honesty gate
+
+The fancy model is only used **if it beats the simple rule out-of-sample**.
+On EUR/USD direction, it barely does — because direction is nearly random.
+That's fine: the system reports the real number and never dresses a coin flip
+up as a signal. The output is always a probability plus the reasons behind it,
+so you can judge it yourself.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/predicting-the-range",
+        module_id="under-the-hood",
+        order_in_module=5,
+        title="Predicting the range, not the arrow",
+        summary="Volatility clusters — so we can honestly forecast how big the next move will be.",
+        est_minutes=6,
+        key_concepts=("volatility", "EWMA", "clustering", "expected move", "conformal band"),
+        quiz=(
+            QuizQuestion(
+                prompt="Why can the system honestly forecast a *range* but not the *direction*?",
+                options=(
+                    "it can't — both are guesses",
+                    "volatility clusters (big moves follow big moves); direction is ~random",
+                    "ranges are easier to guess than arrows for no real reason",
+                ),
+                correct_index=1,
+                explanation="Volatility clustering is a robust, measurable effect, so "
+                "future range is forecastable. Direction is ~53% out-of-sample — a coin flip.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="vol-cone",
+                caption="An expected move of ±X pips, plus a wider band covering ~90% of outcomes.",
+            ),
+        ),
+        body_md="""
+Here's the honest win. Direction is nearly random, but **volatility clusters**:
+big days tend to follow big days, and quiet follows quiet. That's one of the
+most reliable facts in finance — and it means the *size* of the coming move
+really is forecastable.
+
+So the system predicts a **range**, not an arrow:
+
+> "Expected move over the next 5 days is about **±X pips** — a calm / normal /
+> wide day versus history."
+
+How it works:
+
+- **The baseline (EWMA)** — a transparent formula that gives recent moves more
+  weight than old ones. It's already a strong volatility forecast.
+- **A machine-learning model** — trained to predict future realised volatility
+  from features like recent volatility and ATR. It **only ships when it beats
+  the EWMA baseline** on proper volatility scores. On our data it genuinely does
+  at longer horizons.
+- **A coverage band** — using a method called *conformal prediction*, the system
+  adds an honest band: e.g. "the move lands between 13 and 179 pips about 90% of
+  the time." Not a guess at one number — a range with a stated hit rate.
+
+### Why you care
+
+Knowing the expected range tells you how far to place a stop so normal noise
+doesn't hit it, and whether today is a "sit on your hands" kind of day.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/trustworthy-probabilities",
+        module_id="under-the-hood",
+        order_in_module=6,
+        title="Making 60% actually mean 60%",
+        summary="Calibration turns raw model scores into probabilities you can trust.",
+        est_minutes=6,
+        key_concepts=("calibration", "reliability diagram", "ECE", "isotonic"),
+        figures=(
+            Figure(
+                key="reliability",
+                caption="A reliability diagram: when it says 60%, does it happen 60% of the time?",
+            ),
+        ),
+        body_md="""
+A probability is only useful if it's **honest**. If the model says "60% chance
+up" a hundred times, up should happen about 60 of those times. Raw machine-learning
+scores usually aren't this honest out of the box — a "70%" might really be a "55%".
+Fixing that is called **calibration**.
+
+### How we check it
+
+The **reliability diagram** plots what the model *said* against what *actually
+happened*. Perfect honesty is the diagonal line: predicted equals realised. Points
+above or below the line show over- or under-confidence. We summarise the whole
+picture in one number, the **ECE** (expected calibration error) — the average gap
+from the diagonal. Lower is better.
+
+### How we fix it
+
+After training, the system fits a small correction called **isotonic regression**
+on data the model never saw, which gently reshapes the raw scores so they line up
+with reality. We only keep it **if it lowers the ECE without hurting accuracy**.
+On our data it roughly **halves** the calibration error — so when the app shows a
+percentage, it means what it says.
+
+This is the heart of the product: not louder predictions, but **trustworthy** ones.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/the-self-learning-loop",
+        module_id="under-the-hood",
+        order_in_module=7,
+        title="The system that grades itself",
+        summary="Every prediction is logged, checked against reality, and used to improve.",
+        est_minutes=6,
+        key_concepts=("audit log", "resolver", "post-mortem", "champion challenger"),
+        figures=(
+            Figure(
+                key="learning-loop",
+                caption="Predict → wait → grade → retrain a challenger → keep it only if it wins.",
+            ),
+        ),
+        body_md="""
+A forecaster that never checks its own work can't be trusted. This one runs a
+continuous loop:
+
+1. **Predict** — every forecast is written to an audit log the moment it's made,
+   so it can't be quietly forgotten or edited later.
+2. **Resolve** — once enough time passes for the outcome to be known, the system
+   compares the prediction to what actually happened (a *hit* or a *miss*).
+3. **Post-mortem** — it aggregates the hits and misses: how accurate was it, is it
+   well-calibrated, which conditions went with its mistakes? Honest self-criticism,
+   not a highlight reel.
+4. **Champion vs challenger** — periodically it trains a fresh "challenger" model.
+   The challenger **replaces the reigning champion only if it's measurably better**
+   on held-out data. Otherwise the champion stays. No model gets promoted on hope.
+
+### What the loop can and can't do
+
+It steadily improves *calibration* and *robustness* — the trustworthiness of the
+numbers. It does **not** manufacture a market-beating edge on direction, and the
+system never pretends it does. Improving honesty is the goal, and the loop is how
+it's enforced automatically.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/forecast-to-position-size",
+        module_id="under-the-hood",
+        order_in_module=8,
+        title="From a forecast to a position size",
+        summary="The volatility forecast flows straight into your stop, your size, and your risk.",
+        est_minutes=5,
+        key_concepts=("position sizing", "ATR stop", "risk of ruin", "event freeze"),
+        figures=(
+            Figure(
+                key="risk-sizing",
+                caption="Expected move → a sensible stop → a size that risks only your chosen %.",
+            ),
+        ),
+        body_md="""
+A prediction is worthless if it doesn't change what you *do*. The volatility
+forecast connects directly to the risk engine:
+
+- **A sensible stop.** The expected move tells you how far price normally travels.
+  Put your stop *beyond* that noise (the app suggests roughly 1.5× the expected
+  move) so you're not knocked out by routine wiggle.
+- **A size that respects your budget.** Given that stop and the percentage of your
+  account you're willing to risk, the position-size calculator works out the exact
+  lot size — and always **rounds down**, because the risk budget is a ceiling, never
+  a target.
+- **An event freeze.** When predicted volatility is unusually high (a wide regime),
+  the app flags it: consider sitting out or halving size, because a fixed stop is far
+  more likely to be hit.
+- **Risk of ruin.** A separate simulator runs thousands of imaginary trade sequences
+  to show the odds of a deep drawdown under your rules — so "1% per trade" stops being
+  a slogan and becomes a survival curve you can see.
+
+The chain is the whole point: **honest forecast → honest stop → honest size**.
+""".strip(),
+    ),
+    Lesson(
+        slug="under-the-hood/tracking-tipsters",
+        module_id="under-the-hood",
+        order_in_module=9,
+        title="Tracking tipsters — measurement, not advice",
+        summary="Paste a tip, price it at the moment it was said, and see if following it paid.",
+        est_minutes=5,
+        key_concepts=("track record", "leaderboard", "follow-him backtest", "expectancy"),
+        figures=(
+            Figure(
+                key="tipster",
+                caption="Parse the message → price each call → score → rank → simulate following.",
+            ),
+        ),
+        body_md="""
+Friends and group chats hand out stock tips constantly. This tool doesn't judge
+whether a tip is *good* — it **measures** what actually happened, honestly:
+
+1. **Parse** — paste the message; an assistant pulls out each ticker and what was
+   suggested (buy, buy-on-dip, watch, avoid).
+2. **Price** — it snapshots the price on the day the tip was given, so the entry is
+   the real one, not a flattering later price.
+3. **Score** — it tracks the return since then and builds a **scorecard**: hit rate,
+   average return, and whether the "buy on dip" calls actually dipped.
+4. **Leaderboard** — with several tipsters, it ranks them by **risk-adjusted** return
+   (steady beats lucky), so one big win doesn't crown someone reckless.
+5. **"What if I'd followed him?"** — a backtest mechanically buys every actionable
+   call, sized by the same 1%-risk discipline, and draws the **equity curve**, the
+   worst drawdown, and the **expectancy** (average result per trade in risk units).
+
+### The honest frame
+
+There are **no predictions** here — every price already happened. It's a track record
+so you can decide how much weight a tipster deserves. Past calls don't predict future
+ones, and none of this is advice.
+""".strip(),
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# Module — Studying & predicting the markets (methods)
+# ---------------------------------------------------------------------------
+
+_MARKET_STUDY = (
+    Lesson(
+        slug="market-study/schools-of-analysis",
+        module_id="market-study",
+        order_in_module=1,
+        title="The four ways people read a market",
+        summary="Technical, fundamental, quantitative, sentiment — four lenses on one price.",
+        est_minutes=6,
+        key_concepts=("technical", "fundamental", "quantitative", "sentiment"),
+        figures=(
+            Figure(
+                key="schools-of-analysis",
+                caption="Four lenses on the same price — the best traders borrow from all of them.",
+            ),
+        ),
+        body_md="""
+Every method of studying a market is one of four lenses. None is "the
+truth" — each answers a different question, and serious traders combine
+them.
+
+- **Technical** — reads *price itself*: trend, levels, volatility. Good
+  for *timing and risk* (where to enter, where the stop goes). Weak at
+  *why* anything moves.
+- **Fundamental** — reads the *drivers*: interest rates, growth,
+  inflation, trade flows. For EUR/USD the rate difference between the US
+  and Europe matters most. Good for *direction over weeks/months*, poor
+  for timing.
+- **Quantitative** — reads the *statistics*: does this signal have a
+  measurable, repeatable edge after costs? This is what turns opinions
+  into tested numbers. It's the honesty check on the other three.
+- **Sentiment / positioning** — reads the *crowd*: are traders already
+  all-in one way? Extremes often precede reversals.
+
+### How to use them together
+
+Fundamentals tell you the *bias*, technicals tell you *when and where*,
+quant tells you *whether it actually works*, and sentiment warns you when
+everyone already agrees. This app leans **quantitative and risk-first** on
+purpose — because untested technical or fundamental "edges" are how most
+accounts die.
+""".strip(),
+    ),
+    Lesson(
+        slug="market-study/top-down-workflow",
+        module_id="market-study",
+        order_in_module=2,
+        title="Top-down: zoom out before you zoom in",
+        summary="Big-picture trend first, precise trigger last — never the reverse.",
+        est_minutes=5,
+        key_concepts=("multi-timeframe", "context", "setup", "trigger"),
+        figures=(
+            Figure(
+                key="top-down",
+                caption="Work from the big trend down to the exact trigger, not the other way.",
+            ),
+        ),
+        body_md="""
+Staring at a 5-minute chart is how you get chopped up. Professionals work
+**top-down** — from the big picture to the precise entry:
+
+1. **Higher timeframe (monthly / weekly)** — what's the dominant trend?
+   Only fight it with a very good reason.
+2. **Daily** — what's the current context: trending, ranging, near a big
+   level, calm or volatile?
+3. **Setup** — a *location* worth trading (a pullback into support in an
+   uptrend, say). Not a trade yet — a candidate.
+4. **Trigger** — the precise entry and, more importantly, the stop that
+   invalidates the idea.
+
+### Why the order matters
+
+Each level sets the *risk* for the next. If the weekly trend is up, a
+daily pullback is a buying zone, not a short. Flip the order — start from
+the 5-minute — and you trade noise with no context, which is indistinguishable
+from gambling. The volatility read in this app tells you how wide step 4's
+stop should be for today's conditions.
+""".strip(),
+    ),
+    Lesson(
+        slug="market-study/building-an-edge",
+        module_id="market-study",
+        order_in_module=3,
+        title="Building an edge you can trust",
+        summary="Idea → backtest → forward test → small live → scale. Most ideas die on the way.",
+        est_minutes=6,
+        key_concepts=("hypothesis", "backtest", "forward test", "validation"),
+        figures=(
+            Figure(
+                key="edge-pipeline",
+                caption="An edge must survive each gate before real size — most ideas don't.",
+            ),
+        ),
+        body_md="""
+An "edge" is just a rule with a *positive expected value after costs*.
+You don't find one by staring at charts — you build it through a pipeline
+that's designed to *kill* bad ideas cheaply:
+
+1. **Hypothesis** — a specific, testable claim: "buying EUR/USD after a
+   3-day drop into the weekly uptrend beats random." Write it down.
+2. **Backtest** — test it on history, honestly: point-in-time data, real
+   spread and slippage, out-of-sample hold-out. (The lessons on lookahead
+   and overfitting are the traps here.)
+3. **Forward test** — run it on *new* data it never saw, or paper-trade
+   it live. This is where most "great" backtests fall apart.
+4. **Small live** — trade it with tiny size. Real fills and real emotions
+   are data the backtest can't give you.
+5. **Scale** — only once it's proven itself do you size up — still within
+   the 1% rule.
+
+### The honest part
+
+Most ideas die at step 2 or 3, and that's the pipeline *working*. Killing
+a bad idea for the price of a backtest is the cheapest money you'll ever
+make. This app's champion/challenger loop is exactly this discipline,
+automated.
+""".strip(),
+    ),
+    Lesson(
+        slug="market-study/what-actually-predicts",
+        module_id="market-study",
+        order_in_module=4,
+        title="What actually predicts markets (and what doesn't)",
+        summary="A short list has real evidence; a long list is mostly noise after costs.",
+        est_minutes=6,
+        key_concepts=("momentum", "mean reversion", "volatility", "carry"),
+        figures=(
+            Figure(
+                key="predictable-vs-not",
+                caption="A few effects have real evidence; the popular rest is mostly noise.",
+            ),
+        ),
+        body_md="""
+Decades of academic and practitioner research point to a *short* list of
+effects with genuine, repeatable evidence — and a long list of popular
+ideas that mostly don't survive honest testing after costs.
+
+### Has real evidence
+
+- **Trend / momentum** — what's been rising tends to keep rising for a
+  while. The most robust anomaly across markets.
+- **Volatility clustering** — big moves follow big moves. This is why *the
+  range* is forecastable even when direction isn't (it's what this app's
+  volatility model exploits).
+- **Mean reversion** — stretched moves partly snap back, especially over
+  short horizons and at extremes.
+- **Carry** — higher-yielding assets/currencies tend to earn their yield
+  premium, punctuated by sharp reversals.
+
+### Mostly noise (after costs)
+
+Precise chart patterns, trading the news *after* it's public, round-number
+"magic", and gut feel. They *feel* predictive because we remember the hits
+and forget the misses.
+
+### The takeaway
+
+Anchor your study in the effects that have evidence, and demand that
+anything else prove itself out-of-sample before you risk money on it.
+""".strip(),
+    ),
+    Lesson(
+        slug="market-study/probabilistic-thinking",
+        module_id="market-study",
+        order_in_module=5,
+        title="Think in probabilities, not predictions",
+        summary="Trade distributions and base rates, not certainties.",
+        est_minutes=5,
+        key_concepts=("probability", "base rate", "expected value", "variance"),
+        figures=(
+            Figure(
+                key="distributions",
+                caption="Every trade is one draw from a distribution — think in odds.",
+            ),
+        ),
+        body_md="""
+The single biggest mindset shift is to stop asking "will this trade win?"
+and start asking "what are the *odds*, and what's the *payoff*?"
+
+- **Every trade is one sample** from a distribution of outcomes. A good
+  trade can lose; a bad trade can win. Judge the *decision*, not the single
+  result.
+- **Base rates first.** If direction is ~53% at best, any claim of "80%
+  sure" should make you suspicious, not excited. Start from the honest base
+  rate and demand real evidence to move off it.
+- **Expected value, not hope.** A 40%-chance trade paying 3:1 is excellent;
+  a 90%-chance trade paying 1:5 is a slow bleed. The payoff matters as much
+  as the probability.
+- **Respect variance.** Even a positive-edge strategy has long losing
+  streaks. Sizing (the 1% rule) and the journal are what let you survive the
+  variance long enough for the edge to show up.
+
+This is the whole philosophy of the app: it hands you *calibrated
+probabilities and ranges*, not verdicts, so you can make good bets and let
+the math play out.
+""".strip(),
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Module — The trader's toolkit (best tools)
+# ---------------------------------------------------------------------------
+
+_TOOLKIT = (
+    Lesson(
+        slug="toolkit/charts-and-platforms",
+        module_id="toolkit",
+        order_in_module=1,
+        title="Charts & platforms",
+        summary="Where you see the market and place trades — and what each is good for.",
+        est_minutes=5,
+        key_concepts=("TradingView", "MetaTrader", "broker platform", "charting"),
+        figures=(
+            Figure(
+                key="charts-platforms",
+                caption="A tool to study, a platform to execute — keep them separate.",
+            ),
+        ),
+        body_md="""
+Two different jobs, often two different tools:
+
+- **Charting / analysis** — **TradingView** is the modern default: fast
+  charts, every indicator, drawing tools, alerts, and a huge script library
+  (Pine). Great for *studying* and setting alerts.
+- **Execution** — your **broker's platform** or **MetaTrader (MT4/MT5)**.
+  This is where orders actually fill. Its charts are secondary; its job is
+  reliable fills, clear order tickets, and correct margin.
+
+### What to actually use them for
+
+- Draw *major* levels and the trend on a clean chart — resist the urge to
+  stack ten indicators.
+- Set **alerts** instead of watching all day (staring causes overtrading).
+- Always confirm the platform shows the **spread** and your **stop** before
+  you click. The chart is analysis; the ticket is real money.
+
+This app is your *analysis and risk* layer — the forecast, the volatility
+range, the position-size calculator, the journal — sitting alongside
+whatever platform you execute on.
+""".strip(),
+    ),
+    Lesson(
+        slug="toolkit/data-and-calendars",
+        module_id="toolkit",
+        order_in_module=2,
+        title="Data & economic calendars",
+        summary="Know what's scheduled, and get clean data from real sources.",
+        est_minutes=5,
+        key_concepts=("economic calendar", "FRED", "data feed", "news"),
+        figures=(
+            Figure(
+                key="data-calendar",
+                caption="Scheduled events + clean data feeds → one honest picture to trade from.",
+            ),
+        ),
+        body_md="""
+You can't manage risk around events you didn't know were coming.
+
+- **Economic calendar** — **ForexFactory** (free) lists every scheduled
+  release with its expected impact. The essentials for EUR/USD: central-bank
+  decisions (Fed, ECB), inflation (CPI), jobs (US NFP), and GDP. Around
+  high-impact prints, spreads widen and stops get hunted — many traders
+  simply **freeze** (this app flags high-volatility regimes for the same
+  reason).
+- **Macro data** — **FRED** (the St. Louis Fed) is the gold standard: US
+  rates, the dollar index, VIX, and thousands of series, free and clean.
+  This app already pulls its rate/DXY/VIX features from FRED.
+- **Prices** — **Yahoo Finance** and **Twelve Data** give free historical
+  candles for forex and stocks.
+- **News mood** — **GDELT** turns world news into a daily sentiment score
+  (the app uses it), though remember: news *timing* is rarely tradable once
+  it's public.
+
+### Rule of thumb
+
+Check the calendar every morning. Green-light days are for setups;
+red-flag days (big releases) are for smaller size or sitting out.
+""".strip(),
+    ),
+    Lesson(
+        slug="toolkit/risk-and-journaling-tools",
+        module_id="toolkit",
+        order_in_module=3,
+        title="Risk & journaling tools",
+        summary="The boring tools that actually keep you solvent.",
+        est_minutes=5,
+        key_concepts=("position-size calculator", "journal", "spreadsheet", "expectancy"),
+        figures=(
+            Figure(
+                key="risk-tools",
+                caption="Position-size calculator + journal + spreadsheet — the survival kit.",
+            ),
+        ),
+        body_md="""
+The unglamorous tools are the ones that keep you in the game.
+
+- **Position-size calculator** — turns *risk % + stop distance* into an
+  exact lot size, so you never size by feel. This app has one built in, and
+  it rounds *down* so the risk budget stays a ceiling.
+- **Trade journal** — a row per trade with entry, stop, target, size,
+  reason, and the realised R. Written *before* the trade, reviewed after.
+  Memory lies; the journal doesn't. (The app's journal + pre-trade checklist
+  do this for you.)
+- **Spreadsheet** — even a simple sheet computes the numbers that matter:
+  expectancy, profit factor, average R, max drawdown, and your mistake-tag
+  frequencies.
+
+### The one habit
+
+Log **every** trade, including the ones you're not proud of — *especially*
+those. After a hundred rows, filtering by tag ("FOMO", "moved stop") shows
+you exactly where your money leaks. No indicator can teach you that.
+""".strip(),
+    ),
+    Lesson(
+        slug="toolkit/screening-and-automation",
+        module_id="toolkit",
+        order_in_module=4,
+        title="Screening & automation",
+        summary="Automate the tedious parts — never the risk discipline.",
+        est_minutes=5,
+        key_concepts=("screener", "alerts", "Python", "backtesting library"),
+        figures=(
+            Figure(
+                key="automation-stack",
+                caption="Screen, alert, and test with code — but keep a human on the risk.",
+            ),
+        ),
+        body_md="""
+Once you have a process, tools can remove the grunt work:
+
+- **Screeners** — filter hundreds of instruments down to the few that meet
+  your criteria (e.g. "near the 200-day, pulling back"). Saves hours of
+  chart-flipping.
+- **Alerts** — let the platform watch price for you and ping when a level
+  is hit. This is the antidote to overtrading from boredom.
+- **Code (Python)** — `pandas` for data, `backtesting.py` / `vectorbt` for
+  testing, `scikit-learn` for models. This is how you test an idea on ten
+  years of data in seconds — exactly what this app's backend does.
+
+### The hard line
+
+Automate *analysis, screening, alerts, and testing* freely. Be extremely
+careful automating *execution* — a bot with a sizing bug can empty an
+account faster than any human. If you do automate trades, the risk limits
+(per-trade, daily loss) must live in the code, not in your intentions.
+""".strip(),
+    ),
+    Lesson(
+        slug="toolkit/weekly-workflow",
+        module_id="toolkit",
+        order_in_module=5,
+        title="Putting it together: a weekly workflow",
+        summary="Plan, trade, journal, review — a loop that compounds skill.",
+        est_minutes=5,
+        key_concepts=("routine", "preparation", "review", "process"),
+        figures=(
+            Figure(
+                key="weekly-routine",
+                caption="Plan → trade → journal → review, every week.",
+            ),
+        ),
+        body_md="""
+Tools only help inside a routine. A simple weekly loop beats sporadic
+brilliance every time:
+
+- **Plan (weekend)** — mark the higher-timeframe trend and major levels,
+  read next week's economic calendar, and write the handful of setups you'll
+  *wait* for. Decide your risk per trade in advance.
+- **Trade (during the week)** — take only the planned setups. Size with the
+  calculator, set the stop from the volatility read, and log the entry
+  *before* you click. If it's not on the plan, it's not a trade.
+- **Journal (daily)** — a two-minute entry per trade: what you saw, what you
+  did, how you felt. Tag the mistakes honestly.
+- **Review (weekend)** — sort the journal by R, read your best and worst
+  five, tag the patterns, and adjust one thing. Then plan again.
+
+### Why the loop matters
+
+Markets are mostly noise; your *process* is the only thing you fully
+control. The weekly loop turns scattered trades into a dataset you learn
+from — and it's the same predict → resolve → review loop the app runs on
+its own forecasts.
+""".strip(),
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Module — The language of the charts (terminology + how to read it)
+# ---------------------------------------------------------------------------
+
+_CHART_LANGUAGE = (
+    Lesson(
+        slug="chart-language/direction-words",
+        module_id="chart-language",
+        order_in_module=1,
+        title="Bullish, bearish, long, short",
+        summary="The words for market direction — and the bias each one sets.",
+        est_minutes=4,
+        key_concepts=("bullish", "bearish", "long", "short", "rally", "sell-off"),
+        quiz=(
+            QuizQuestion(
+                prompt="You 'go short' EUR/USD. You make money if…",
+                options=("the euro rises", "the euro falls", "the price stays flat"),
+                correct_index=1,
+                explanation="Short = sell first to buy back cheaper, so you profit "
+                "when price falls. Long is the opposite.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="bull-bear",
+                caption="Bullish = buyers push price up; bearish = sellers push it down.",
+            ),
+        ),
+        body_md="""
+Before anything else, traders name the *direction*:
+
+- **Bullish** — expecting price to **rise** (the bull attacks *upward*
+  with its horns). A **rally** is a strong up-move.
+- **Bearish** — expecting price to **fall** (the bear swipes *down*). A
+  **sell-off** is a sharp down-move.
+- **Long** — a trade that *profits if price rises* (you bought). "Going
+  long EUR/USD" = betting the euro strengthens.
+- **Short** — a trade that *profits if price falls* (you sold first,
+  planning to buy back cheaper). Yes, you can profit from a fall.
+
+### How to use it to read the market
+
+Direction words are your **bias label**, not a prediction. Say it out loud
+before every trade: *"I'm bullish EUR/USD, so I'm looking for longs on a
+pullback — and I'm wrong if it breaks below the last swing low."* Naming the
+bias *and its invalidation* is what separates a plan from a hope. The
+forecast card's probability is just a calibrated version of this same
+bullish/bearish lean.
+""".strip(),
+    ),
+    Lesson(
+        slug="chart-language/trend-structure",
+        module_id="chart-language",
+        order_in_module=2,
+        title="Trend, uptrend, downtrend, range",
+        summary="A trend is just higher highs and higher lows — until they break.",
+        est_minutes=5,
+        key_concepts=("trend", "uptrend", "downtrend", "range", "higher high", "higher low"),
+        quiz=(
+            QuizQuestion(
+                prompt="What actually defines an uptrend?",
+                options=(
+                    "price is above a moving average",
+                    "a series of higher highs and higher lows",
+                    "RSI is above 70",
+                ),
+                correct_index=1,
+                explanation="An uptrend is structurally higher highs AND higher lows. "
+                "It stays intact until price makes a lower low and breaks that structure.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="trend-structure",
+                caption="An uptrend is a staircase of higher highs and higher lows.",
+            ),
+        ),
+        body_md="""
+A **trend** is the market's direction over time, and it has a precise,
+checkable definition — not a vibe:
+
+- **Uptrend** — a series of **higher highs (HH)** and **higher lows (HL)**.
+  Each rise goes further; each dip stops higher. A rising staircase.
+- **Downtrend** — **lower highs (LH)** and **lower lows (LL)**. A falling
+  staircase.
+- **Range (sideways)** — highs and lows roughly level. No trend; price
+  oscillates between support and resistance.
+
+### How to use it to anticipate
+
+This is one of the genuinely useful structural reads:
+
+- **The trend is intact while the pattern holds.** In an uptrend, a dip that
+  stops above the previous low and turns up is a **continuation** — often a
+  buying spot.
+- **The warning is a broken structure.** The first time an uptrend makes a
+  **lower low** (breaks the last higher low), the uptrend is in doubt. That's
+  your signal to tighten stops or stand aside — not to blindly buy the dip.
+
+"The trend is your friend" is really "trade *with* the staircase until it
+stops climbing." Trend/momentum is one of the few effects with real evidence.
+""".strip(),
+    ),
+    Lesson(
+        slug="chart-language/moves-within-a-trend",
+        module_id="chart-language",
+        order_in_module=3,
+        title="Breakout, pullback, reversal",
+        summary="The three moves that make up every trend — and how to trade each.",
+        est_minutes=5,
+        key_concepts=("breakout", "pullback", "retracement", "reversal", "consolidation"),
+        quiz=(
+            QuizQuestion(
+                prompt="A dip that holds above the last higher low, then turns back up, is a…",
+                options=("reversal", "pullback (a continuation)", "breakout"),
+                correct_index=1,
+                explanation="That's a pullback — the trend resumes. It becomes a possible "
+                "reversal only if it breaks below the last higher low.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="moves-in-trend",
+                caption="Breakout → pullback → continuation; a lower low warns of reversal.",
+            ),
+        ),
+        body_md="""
+Zoom in and a trend is built from a few repeating moves. Knowing their
+names tells you what to *expect next*:
+
+- **Breakout** — price pushes *through* a level (support/resistance) that
+  had been holding. Often the start of a new leg — but beware the **fakeout**,
+  a breakout that immediately fails.
+- **Pullback / retracement** — a temporary counter-move *against* the trend.
+  In an uptrend, a pullback into support is the classic lower-risk **buy
+  zone** (buy the dip, not the top).
+- **Consolidation** — price pauses and coils sideways, gathering energy
+  before the next move. Tight ranges often precede breakouts.
+- **Reversal** — the trend actually *turns*: an uptrend starts making lower
+  lows. Different from a pullback, which resumes the trend.
+
+### How to use it to predict
+
+The edge is in *distinguishing a pullback from a reversal*. A dip that holds
+above the last higher low and turns up = pullback (trade with the trend). A
+dip that breaks below it = possible reversal (step aside). Combine with the
+volatility read: in a **wide** regime, expect deeper pullbacks and give the
+setup more room.
+""".strip(),
+    ),
+    Lesson(
+        slug="chart-language/candles-vocabulary",
+        module_id="chart-language",
+        order_in_module=4,
+        title="Candle words: body, wick, doji, pin bar",
+        summary="What the shapes are called — and what each says about the fight.",
+        est_minutes=5,
+        key_concepts=("candle", "body", "wick", "doji", "engulfing", "pin bar", "gap"),
+        quiz=(
+            QuizQuestion(
+                prompt="A small-bodied candle with a long lower wick, at support, hints that…",
+                options=(
+                    "sellers are firmly in control",
+                    "buyers rejected the lower prices",
+                    "nothing — candle shapes are random",
+                ),
+                correct_index=1,
+                explanation="A long lower wick means price was pushed down and bought back up — a "
+                "rejection of lows. It's only worth noting at a level you already care about.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="candle-types",
+                caption="Long wicks = rejection; a big engulfing body = one side taking over.",
+            ),
+        ),
+        body_md="""
+A **candle** shows one interval's open, high, low, close. The vocabulary
+describes its *shape*, and the shape hints at who won the interval:
+
+- **Body** — the open-to-close range (filled). A big body = strong
+  conviction one way. **Wick / shadow** — the thin lines to the high and
+  low = prices that were *rejected*.
+- **Doji** — open ≈ close, so a tiny body with wicks. **Indecision**;
+  meaningful only at the end of a strong move.
+- **Engulfing** — a candle whose body completely covers the previous one.
+  A **bullish engulfing** after a drop = buyers taking over.
+- **Pin bar / hammer** — a small body with a long wick. A long *lower* wick
+  = the market tried lower and got **rejected** (buyers stepped in).
+- **Gap** — a jump between one candle's close and the next's open (common
+  after weekends/news).
+
+### How to use it — carefully
+
+Candles are best as **confirmation at a level you already care about**, never
+alone. A hammer *at support in an uptrend* is worth noticing; the same hammer
+in the middle of nowhere is noise. Honest caveat: single-candle "signals"
+have a small edge after costs — this app deliberately doesn't trade them.
+Use them to *read the fight*, not as buy buttons.
+""".strip(),
+    ),
+    Lesson(
+        slug="chart-language/fibonacci-and-levels",
+        module_id="chart-language",
+        order_in_module=5,
+        title="Fibonacci, support, resistance & lines",
+        summary="Where pullbacks tend to pause — and why the levels partly work.",
+        est_minutes=6,
+        key_concepts=("Fibonacci", "retracement", "support", "resistance", "trendline"),
+        quiz=(
+            QuizQuestion(
+                prompt="Why do Fibonacci retracement levels sometimes 'work'?",
+                options=(
+                    "the golden ratio has real predictive power over markets",
+                    "so many traders watch them that orders cluster at the levels",
+                    "they guarantee price will reverse there",
+                ),
+                correct_index=1,
+                explanation="It's largely self-fulfilling — a place to watch and manage "
+                "risk, not a guarantee. Levels fail often; use them to place stops.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="fibonacci",
+                caption="After a swing, price often retraces to the 38–62% Fibonacci zone.",
+            ),
+        ),
+        body_md="""
+Once there's a move, traders look for *where a pullback might stop*. The
+vocabulary of levels:
+
+- **Support** — a price area where buyers have stepped in before (a floor).
+  **Resistance** — where sellers have (a ceiling). They're **zones**, not
+  exact lines.
+- **Trendline / channel** — a line connecting the swing lows (up) or highs
+  (down); a channel adds a parallel line on the other side.
+- **Fibonacci retracement** — horizontal levels at **23.6%, 38.2%, 50%,
+  61.8%** of the last swing. After a rally, price often **retraces** to the
+  38–62% zone before continuing. **Extensions** (127%, 161.8%) project
+  targets beyond the move.
+- **Pivot points** — levels calculated from the prior period's high/low/close;
+  common intraday reference points.
+
+### How to use it to anticipate — and the honest catch
+
+Levels give you **where** to look for a pullback to end, so you can plan an
+entry with a tight, logical stop just beyond the level. But be honest about
+*why* Fibonacci "works": there's no magic in the ratio — it works partly
+because **so many traders watch the same levels** that their orders cluster
+there (self-fulfilling), and it fails often enough that a level is a *place to
+watch*, never a guarantee. Use levels to place risk, not to predict with
+certainty.
+""".strip(),
+    ),
+    Lesson(
+        slug="chart-language/units-and-orders",
+        module_id="chart-language",
+        order_in_module=6,
+        title="Pips, lots, stops & order types",
+        summary="The mechanics vocabulary that turns a read into an actual trade.",
+        est_minutes=5,
+        key_concepts=("pip", "lot", "spread", "stop-loss", "take-profit", "R:R"),
+        quiz=(
+            QuizQuestion(
+                prompt="Stop 30 pips away, target 60 pips away. The reward-to-risk is…",
+                options=("2:1", "1:2", "1:1"),
+                correct_index=0,
+                explanation="Reward ÷ risk = 60 ÷ 30 = 2, i.e. 2:1 — risk 1 to make 2.",
+            ),
+        ),
+        figures=(
+            Figure(
+                key="trade-anatomy",
+                caption="Entry, stop-loss, take-profit and pips — the anatomy of one trade.",
+            ),
+        ),
+        body_md="""
+Finally, the words that turn a read into an order:
+
+- **Pip** — the standard price increment (`0.0001` on most pairs; a
+  **pipette** is a tenth of that). Moves and spreads are measured in pips.
+- **Tick** — the smallest price change an instrument can make. **Point** —
+  often used loosely for a pip or a whole-number move, depending on market.
+- **Lot** — trade size. 1 standard lot = 100,000 units (mini 10k, micro 1k).
+- **Spread** — the bid–ask gap you pay to enter. **Leverage / margin** — the
+  borrowed exposure and the deposit that backs it.
+- **Stop-loss** — the order that caps your loss (where your idea is *wrong*).
+  **Take-profit** — where you bank the win. **Market order** fills now;
+  **limit order** waits for a chosen price.
+- **R:R (risk-to-reward)** — reward distance ÷ risk distance. A stop 30 pips
+  away and a target 60 away is **2:1**.
+
+### How it all comes together
+
+A complete trade is one sentence: *"Go **long** at 1.0850, **stop-loss** 30
+**pips** below (−1R), **take-profit** 60 pips above (**2:1 R:R**), sized so
+that −1R is 1% of the account."* Every term above is just a piece of that
+sentence — and this app's position-size calculator turns the pip stop into
+the exact lot size for you.
+""".strip(),
+    ),
+)
 
 # ---------------------------------------------------------------------------
 # Catalog
@@ -701,32 +1962,60 @@ CATALOG: Final[tuple[Module, ...]] = (
         lessons=_READING_CHARTS,
     ),
     Module(
-        id="indicators",
+        id="chart-language",
         order=4,
+        title="The language of the charts",
+        summary="Bullish, bearish, trend, Fibonacci, pip — every term, with how to read it.",
+        lessons=_CHART_LANGUAGE,
+    ),
+    Module(
+        id="indicators",
+        order=5,
         title="Indicators & their failure modes",
         summary="Every indicator lies somewhere. Knowing where is the skill.",
         lessons=_INDICATORS,
     ),
     Module(
         id="expectancy",
-        order=5,
+        order=6,
         title="Expectancy & the math of survival",
         summary="Why a 40%-win system can be highly profitable — and why most aren't.",
         lessons=_EXPECTANCY,
     ),
     Module(
         id="backtesting",
-        order=6,
+        order=7,
         title="Backtesting honestly",
         summary="The three failure modes that turn paper edges into live losses.",
         lessons=_BACKTESTING,
     ),
     Module(
         id="psychology",
-        order=7,
+        order=8,
         title="Psychology & process",
         summary="Your behaviour is the biggest risk in the system. The journal is the cure.",
         lessons=_PSYCHOLOGY,
+    ),
+    Module(
+        id="market-study",
+        order=9,
+        title="Studying & predicting the markets",
+        summary="The four schools of analysis, a top-down workflow, and how to build a real edge.",
+        lessons=_MARKET_STUDY,
+    ),
+    Module(
+        id="toolkit",
+        order=10,
+        title="The trader's toolkit",
+        summary="The best tools for charting, data, risk, journaling, and automation.",
+        lessons=_TOOLKIT,
+    ),
+    Module(
+        id="under-the-hood",
+        order=11,
+        title="Under the hood: how the mentor predicts",
+        summary="Every data source and prediction method the system uses, with diagrams.",
+        lessons=_UNDER_THE_HOOD,
     ),
 )
 

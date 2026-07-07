@@ -24,10 +24,12 @@ const explainResponse = z.object({
 });
 export type ExplainResponse = z.infer<typeof explainResponse>;
 
+export type ExplainStyle = 'concise' | 'thorough' | 'socratic';
+
 export async function explainMetric(
   topic: SupportedTopic,
   context: Record<string, unknown> = {},
-  style: 'concise' | 'thorough' = 'concise'
+  style: ExplainStyle = 'concise'
 ): Promise<ExplainResponse> {
   return apiPost('/explain', { topic, context, style }, explainResponse);
 }

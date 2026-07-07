@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { apiGet } from './client';
+import { apiGet, apiPost } from './client';
 
 const decimalStr = z.string();
 
@@ -47,4 +47,68 @@ export async function getPrices(opts: {
     `/prices/${encodeURIComponent(opts.symbol)}?${params.toString()}`,
     pricesSchema
   );
+}
+
+// ---------- data health: coverage, cross-source, ingest ----------
+
+const coverageRow = z.object({
+  timeframe: z.string(),
+  bars: z.number(),
+  first_ts: z.string().nullable(),
+  last_ts: z.string().nullable(),
+  sources: z.record(z.string(), z.number()),
+});
+export type CoverageRow = z.infer<typeof coverageRow>;
+
+const coverageSchema = z.object({
+  symbol: z.string(),
+  coverage: z.array(coverageRow),
+});
+export type CoverageResponse = z.infer<typeof coverageSchema>;
+
+export async function getCoverage(symbol: string): Promise<CoverageResponse> {
+  return apiGet(`/prices/${encodeURIComponent(symbol)}/coverage`, coverageSchema);
+}
+
+const crossSourceSchema = z.object({
+  symbol: z.string(),
+  timeframe: timeframeEnum,
+  source_a: z.string(),
+  source_b: z.string(),
+  bars_a: z.number(),
+  bars_b: z.number(),
+  overlapping: z.number(),
+  max_abs_diff: decimalStr,
+  mean_abs_diff: decimalStr,
+  max_diff_pips: z.number(),
+  mean_diff_pips: z.number(),
+  agree: z.boolean(),
+});
+export type CrossSourceResponse = z.infer<typeof crossSourceSchema>;
+
+export async function getCrossSource(
+  symbol: string,
+  timeframe: Timeframe = '1d',
+  daysBack = 45
+): Promise<CrossSourceResponse> {
+  return apiGet(
+    `/prices/${encodeURIComponent(symbol)}/cross-source?timeframe=${timeframe}&days_back=${daysBack}`,
+    crossSourceSchema
+  );
+}
+
+const ingestSchema = z.object({
+  symbol: z.string(),
+  timeframe: timeframeEnum,
+  source: z.string(),
+  fetched: z.number(),
+  persisted: z.number(),
+});
+export type IngestResponse = z.infer<typeof ingestSchema>;
+
+export async function ingestPrices(
+  symbol: string,
+  body: { timeframe: Timeframe; days_back: number; source: 'failover' | 'twelve_data' | 'yahoo' }
+): Promise<IngestResponse> {
+  return apiPost(`/prices/${encodeURIComponent(symbol)}/ingest`, body, ingestSchema);
 }

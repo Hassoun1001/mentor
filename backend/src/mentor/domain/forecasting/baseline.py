@@ -19,7 +19,7 @@ the fancier model is overfit.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -48,7 +48,15 @@ class BaselineForecaster(Forecaster):
     def name(self) -> str:
         return f"baseline_rule(h={self.horizon_bars})"
 
-    def forecast(self, *, bars: Sequence[PriceBar], symbol: str, timeframe: Timeframe) -> Forecast:
+    def forecast(
+        self,
+        *,
+        bars: Sequence[PriceBar],
+        symbol: str,
+        timeframe: Timeframe,
+        news: Mapping[str, float] | None = None,  # rule model ignores news
+        macro: Mapping[str, float] | None = None,  # ...and macro drivers
+    ) -> Forecast:
         if len(bars) < _TREND_PERIOD + 5:
             raise ValidationError(f"need at least {_TREND_PERIOD + 5} bars for baseline forecaster")
 

@@ -108,6 +108,11 @@ def _dict_to_meta(payload: dict[str, Any]) -> StoredModelMeta:
         feature_importances={
             k: float(v) for k, v in report_payload.get("feature_importances", {}).items()
         },
+        n_calibration=int(report_payload.get("n_calibration", 0)),
+        test_brier_uncalibrated=float(report_payload.get("test_brier_uncalibrated", 0.0)),
+        ece=float(report_payload.get("ece", 0.0)),
+        ece_uncalibrated=float(report_payload.get("ece_uncalibrated", 0.0)),
+        calibration_applied=bool(report_payload.get("calibration_applied", False)),
     )
     return StoredModelMeta(
         name=payload["name"],

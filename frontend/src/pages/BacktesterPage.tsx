@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   type BacktestResponse,
   type BacktestRequest,
+  compareStrategies,
   listStrategies,
   runBacktest,
 } from '../api/backtest';
@@ -116,7 +117,7 @@ export function BacktesterPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h1 className="font-serif text-3xl tracking-tight">Backtester</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">Backtester</h1>
         <p className="max-w-2xl text-sm text-mentor-muted">
           The backtester is the judge of everything. No signal reaches the
           dashboard until it survives this — out-of-sample, cost-aware,
@@ -294,7 +295,7 @@ export function BacktesterPage() {
             type="button"
             disabled={mutation.isPending}
             onClick={submit}
-            className="w-full rounded-lg bg-mentor-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-mentor-accentSoft disabled:opacity-50"
+            className="btn-primary w-full"
           >
             {mutation.isPending ? 'Running…' : 'Run backtest'}
           </button>
@@ -340,7 +341,123 @@ export function BacktesterPage() {
           <TradesPanel result={result} />
         </>
       )}
+
+      <CompareAllPanel form={form} strategyNames={(strategies.data ?? []).map((s) => s.name)} />
     </section>
+  );
+}
+
+function CompareAllPanel({
+  form,
+  strategyNames,
+}: {
+  form: FormState;
+  strategyNames: string[];
+}) {
+  const compare = useMutation({ mutationFn: compareStrategies });
+
+  const run = () => {
+    const days = Number(form.daysBack) || 30;
+    const now = new Date();
+    const start = new Date(now.getTime() - days * 86400 * 1000);
+    compare.mutate({
+      symbol: form.symbol,
+      timeframe: form.timeframe,
+      start: start.toISOString(),
+      end: now.toISOString(),
+      strategies: strategyNames.map((name) => ({ strategy: name, strategy_params: {} })),
+      starting_balance: { amount: form.startingAmount, currency: form.currency },
+      risk_per_trade_percent: form.riskPercent,
+      cost_model: {
+        spread_pips: form.spreadPips,
+        slippage_pips: form.slippagePips,
+        commission_per_lot_round_trip: form.commission,
+      },
+    });
+  };
+
+  const ranked = [...(compare.data?.entries ?? [])].sort(
+    (a, b) => Number(b.metrics.total_return_pct) - Number(a.metrics.total_return_pct)
+  );
+
+  return (
+    <div className="panel-pad space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-medium text-mentor-fg">Compare all strategies</h2>
+          <p className="text-xs text-mentor-muted">
+            Every strategy over the <b>same</b> window, costs and risk — an honest apples-to-apples
+            ranking. A fancy idea has to beat these baselines to be worth trading.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={compare.isPending || strategyNames.length < 2}
+          onClick={run}
+          className="btn-primary"
+        >
+          {compare.isPending ? 'Running…' : 'Compare'}
+        </button>
+      </div>
+
+      {compare.error instanceof ApiError && (
+        <div className="rounded-lg border border-mentor-danger/40 bg-mentor-danger/10 p-3 text-sm text-mentor-danger">
+          {compare.error.message}
+        </div>
+      )}
+
+      {ranked.length > 0 && (
+        <table className="w-full text-xs">
+          <thead className="text-mentor-muted">
+            <tr className="border-b border-mentor-border">
+              <th className="py-2 text-left">#</th>
+              <th className="py-2 text-left">Strategy</th>
+              <th className="py-2 text-right">Return</th>
+              <th className="py-2 text-right">Max DD</th>
+              <th className="py-2 text-right">Expectancy</th>
+              <th className="py-2 text-right">Trades</th>
+              <th className="py-2 text-right">Win rate</th>
+              <th className="py-2 text-right">End balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((e, i) => {
+              const ret = Number(e.metrics.total_return_pct);
+              return (
+                <tr key={e.label} className="border-b border-mentor-border">
+                  <td className="py-1.5 text-mentor-muted">{i + 1}</td>
+                  <td className="py-1.5 font-mono">{e.label}</td>
+                  <td
+                    className={
+                      'py-1.5 text-right font-mono ' +
+                      (ret > 0 ? 'text-mentor-accentSoft' : ret < 0 ? 'text-mentor-danger' : '')
+                    }
+                  >
+                    {ret > 0 ? '+' : ''}
+                    {ret.toFixed(1)}%
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-mentor-warn">
+                    {Number(e.metrics.max_drawdown_pct).toFixed(1)}%
+                  </td>
+                  <td className="py-1.5 text-right font-mono">
+                    {Number(e.metrics.expectancy_r).toFixed(2)}R
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-mentor-muted">
+                    {e.metrics.trade_count}
+                  </td>
+                  <td className="py-1.5 text-right font-mono">
+                    {Math.round(Number(e.metrics.win_rate_pct))}%
+                  </td>
+                  <td className="py-1.5 text-right font-mono">
+                    {formatMoney(e.ending_balance, compare.data?.currency ?? 'USD')}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

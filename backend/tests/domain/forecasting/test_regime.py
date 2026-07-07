@@ -100,7 +100,9 @@ class _FixedForecaster:
     name = "fixed"
     horizon_bars = 24
 
-    def forecast(self, *, bars: Sequence[PriceBar], symbol: str, timeframe: Timeframe):  # type: ignore[no-untyped-def]
+    def forecast(  # type: ignore[no-untyped-def]
+        self, *, bars: Sequence[PriceBar], symbol: str, timeframe: Timeframe, news=None, macro=None
+    ):
         return Forecast(
             symbol=symbol.upper(),
             timeframe=timeframe,

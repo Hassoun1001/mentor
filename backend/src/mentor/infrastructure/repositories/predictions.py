@@ -44,10 +44,54 @@ class PredictionRepository:
         await self._session.flush()
         return prediction_id
 
+    async def record_and_resolve(
+        self, forecast: Forecast, *, realised_close: Decimal, resolved_at: datetime
+    ) -> uuid.UUID:
+        """Log a prediction whose outcome is already known (replay path).
+
+        Used to backfill the audit log from history: predict at a past
+        point, then immediately resolve against the bar that has since
+        printed. No lookahead — the caller supplies a forecast built only
+        from data up to `forecast.asof` and the close `horizon_bars` later.
+        """
+        prediction_id = await self.record(forecast)
+        await self.resolve(prediction_id, realised_close=realised_close, resolved_at=resolved_at)
+        return prediction_id
+
     async def list_recent(self, limit: int = 50) -> Sequence[PredictionORM]:
         stmt = select(PredictionORM).order_by(PredictionORM.asof.desc()).limit(limit)
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def list_resolved(self, limit: int = 1000) -> Sequence[PredictionORM]:
+        stmt = (
+            select(PredictionORM)
+            .where(PredictionORM.resolved_at.is_not(None))
+            .order_by(PredictionORM.asof.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def exists_at(
+        self, *, symbol: str, timeframe: str, asof: datetime, model_name: str
+    ) -> bool:
+        """True if a prediction for this exact (symbol, timeframe, asof, model)
+        already exists — lets replay/scheduling be idempotent."""
+        stmt = (
+            select(PredictionORM.id)
+            .where(
+                and_(
+                    PredictionORM.symbol == symbol.upper(),
+                    PredictionORM.timeframe == timeframe,
+                    PredictionORM.asof == asof,
+                    PredictionORM.model_name == model_name,
+                )
+            )
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        return result.first() is not None
 
     async def unresolved_due_by(self, before: datetime) -> Sequence[PredictionORM]:
         stmt = select(PredictionORM).where(

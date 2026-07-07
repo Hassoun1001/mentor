@@ -63,6 +63,51 @@ class Settings(BaseSettings):
 
     model_store_dir: str = "models"
 
+    # --- market-data sources ---
+    # Failover order: the ingester tries each in turn until one returns bars.
+    # Twelve Data (keyed) first for intraday quality; Yahoo (free, no key)
+    # second for redundancy and deep daily history.
+    price_source_order: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["twelve_data", "yahoo"]
+    )
+
+    # --- autonomous prediction loop ---
+    # When enabled, an in-process scheduler predicts on a cadence, resolves
+    # due predictions, and periodically retrains + promotes the best model.
+    loop_enabled: bool = False
+    loop_symbol: str = "EURUSD"
+    loop_timeframe: str = "1h"
+    loop_horizon_bars: int = 24
+    loop_predict_interval_minutes: int = 60
+    loop_resolve_interval_minutes: int = 15
+    loop_retrain_interval_hours: int = 168  # weekly
+
+    # --- news sentiment (GDELT, free, no key) ---
+    news_query_key: str = "eurusd"
+    news_query: str = (
+        '(ECB OR "European Central Bank" OR "Federal Reserve" OR "euro dollar" OR EURUSD) '
+        "sourcelang:eng"
+    )
+
+    # --- external service keys ---
+    # Read from their conventional, un-prefixed env var names (via
+    # validation_alias) so the keys work straight from .env. SecretStr keeps
+    # them out of logs and repr. The factories read these from Settings rather
+    # than os.environ, so a value in .env is actually surfaced.
+    llm_model: str = "claude-opus-4-8"
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="ANTHROPIC_API_KEY"
+    )
+    twelve_data_api_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="TWELVE_DATA_API_KEY"
+    )
+    newsapi_key: SecretStr = Field(default=SecretStr(""), validation_alias="NEWSAPI_KEY")
+    finnhub_key: SecretStr = Field(default=SecretStr(""), validation_alias="FINNHUB_KEY")
+
+    @property
+    def has_anthropic(self) -> bool:
+        return bool(self.anthropic_api_key.get_secret_value().strip())
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:

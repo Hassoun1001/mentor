@@ -5,10 +5,12 @@ import ReactMarkdown from 'react-markdown';
 import {
   type LessonStatus,
   type ModuleSummary,
+  type QuizQuestion,
   getLesson,
   getOverview,
   markLesson,
 } from '../api/curriculum';
+import { LessonFigure } from '../components/lessons/LessonFigure';
 
 export function LessonsPage() {
   const [openSlug, setOpenSlug] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function LessonsPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h1 className="font-serif text-3xl tracking-tight">Lessons</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">Lessons</h1>
         <p className="max-w-2xl text-sm text-mentor-muted">
           The mentor IS the product. Forecasting is a feature inside a teaching
           tool — work through the modules in order. Risk first, prediction last.
@@ -56,7 +58,7 @@ function ModuleCard({
             <span className="font-mono text-xs text-mentor-muted">
               0{module.order}
             </span>
-            <h2 className="font-serif text-xl">{module.title}</h2>
+            <h2 className="text-lg font-medium">{module.title}</h2>
             {module.is_complete && (
               <span className="pill border-mentor-accent/40 text-mentor-accentSoft">
                 complete
@@ -144,7 +146,7 @@ function LessonModal({ slug, onClose }: { slug: string; onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="relative max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-mentor-border bg-mentor-panel shadow-panel"
+        className="relative max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-mentor-border bg-mentor-panel shadow-panel"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-mentor-border bg-mentor-panel/95 px-6 py-3 backdrop-blur">
@@ -164,16 +166,26 @@ function LessonModal({ slug, onClose }: { slug: string; onClose: () => void }) {
 
         {lesson.data && (
           <article className="px-8 py-6">
-            <h1 className="font-serif text-3xl tracking-tight">{lesson.data.title}</h1>
+            <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">{lesson.data.title}</h1>
             <p className="mt-2 text-sm italic text-mentor-muted">{lesson.data.summary}</p>
 
+            {lesson.data.figures.length > 0 && (
+              <div className="mt-6 space-y-4">
+                {lesson.data.figures.map((f) => (
+                  <LessonFigure key={f.key} figureKey={f.key} caption={f.caption} />
+                ))}
+              </div>
+            )}
+
             <div className="prose prose-invert mt-6 max-w-none text-mentor-fg
-              prose-h3:font-serif prose-h3:text-mentor-fg/95
+              prose-h3:font-medium prose-h3:text-mentor-fg/95
               prose-p:leading-relaxed prose-li:leading-relaxed
               prose-strong:text-mentor-fg prose-code:rounded prose-code:bg-mentor-panelLight prose-code:px-1.5 prose-code:py-0.5 prose-code:text-mentor-accentSoft
               prose-pre:rounded-lg prose-pre:bg-mentor-panelLight prose-pre:text-xs">
               <ReactMarkdown>{lesson.data.body_md}</ReactMarkdown>
             </div>
+
+            {lesson.data.quiz.length > 0 && <LessonQuiz questions={lesson.data.quiz} />}
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-mentor-border pt-4">
               <div className="text-xs text-mentor-muted">
@@ -202,6 +214,78 @@ function LessonModal({ slug, onClose }: { slug: string; onClose: () => void }) {
           </article>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------- quiz ----------
+
+function LessonQuiz({ questions }: { questions: QuizQuestion[] }) {
+  return (
+    <div className="mt-8 space-y-4 border-t border-mentor-border pt-6">
+      <h2 className="text-lg font-medium text-mentor-fg">Check yourself</h2>
+      <p className="text-xs text-mentor-muted">
+        Active recall beats re-reading. Pick an answer to see if it&apos;s right.
+      </p>
+      {questions.map((q, i) => (
+        <QuizItem key={i} q={q} index={i} />
+      ))}
+    </div>
+  );
+}
+
+function QuizItem({ q, index }: { q: QuizQuestion; index: number }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const answered = picked !== null;
+  const correct = picked === q.correct_index;
+
+  return (
+    <div className="rounded-xl border border-mentor-border bg-mentor-panelLight/40 p-4">
+      <div className="text-sm font-medium text-mentor-fg">
+        {index + 1}. {q.prompt}
+      </div>
+      <div className="mt-3 space-y-2">
+        {q.options.map((opt, i) => {
+          const isCorrect = i === q.correct_index;
+          const isPicked = i === picked;
+          const tone = !answered
+            ? 'border-mentor-border hover:border-mentor-accent/60 text-mentor-fg'
+            : isCorrect
+              ? 'border-mentor-accent/60 bg-mentor-accent/10 text-mentor-accentSoft'
+              : isPicked
+                ? 'border-mentor-danger/60 bg-mentor-danger/10 text-mentor-danger'
+                : 'border-mentor-border text-mentor-muted';
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={answered}
+              onClick={() => setPicked(i)}
+              className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${tone} disabled:cursor-default`}
+            >
+              <span className="font-mono text-xs">{String.fromCharCode(65 + i)}</span>
+              <span>{opt}</span>
+              {answered && isCorrect && <span className="ml-auto">✓</span>}
+              {answered && isPicked && !isCorrect && <span className="ml-auto">✗</span>}
+            </button>
+          );
+        })}
+      </div>
+      {answered && (
+        <div className="mt-3 space-y-2">
+          <div className={`text-xs font-medium ${correct ? 'text-mentor-accentSoft' : 'text-mentor-danger'}`}>
+            {correct ? 'Correct.' : 'Not quite.'}
+          </div>
+          <p className="text-xs leading-relaxed text-mentor-muted">{q.explanation}</p>
+          <button
+            type="button"
+            onClick={() => setPicked(null)}
+            className="text-xs text-mentor-muted underline hover:text-mentor-fg"
+          >
+            Try again
+          </button>
+        </div>
+      )}
     </div>
   );
 }

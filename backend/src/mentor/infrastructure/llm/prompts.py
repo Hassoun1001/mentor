@@ -90,11 +90,16 @@ _TOPIC_HINT: dict[SupportedTopic, str] = {
 
 def format_user_message(*, topic: SupportedTopic, context: dict[str, Any], style: str) -> str:
     hint = _TOPIC_HINT.get(topic, "Explain this topic.")
-    style_note = (
-        "Be concise (≈ 4 short sentences)."
-        if style == "concise"
-        else "Be more thorough but still under 8 sentences."
-    )
+    style_note = {
+        "concise": "Be concise (≈ 4 short sentences).",
+        "thorough": "Be more thorough but still under 8 sentences.",
+        "socratic": (
+            "Socratic mode: do NOT state the answer outright. Ask 2–3 short guiding "
+            "questions that lead the trader to reason it out from the numbers in the "
+            "context, then close with one sentence naming the key insight. Stay under "
+            "8 sentences total."
+        ),
+    }.get(style, "Be concise (≈ 4 short sentences).")
     safe_context = json.dumps(_sanitise(context), default=str, sort_keys=True, indent=2)
     return (
         f"TOPIC: {topic.value}\n"

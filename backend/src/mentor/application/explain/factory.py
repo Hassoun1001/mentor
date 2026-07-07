@@ -8,22 +8,20 @@ missing.
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 
+from mentor.config import get_settings
 from mentor.domain.explain.service import ExplainerService
 from mentor.infrastructure.llm import AnthropicExplainer, StubExplainer
 
 
 @lru_cache(maxsize=1)
 def build_explainer() -> ExplainerService:
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    settings = get_settings()
+    api_key = settings.anthropic_api_key.get_secret_value().strip()
     if not api_key:
         return StubExplainer()
-    return AnthropicExplainer(
-        api_key=api_key,
-        model=os.environ.get("MENTOR_LLM_MODEL", "claude-opus-4-7") or "claude-opus-4-7",
-    )
+    return AnthropicExplainer(api_key=api_key, model=settings.llm_model)
 
 
 __all__ = ["build_explainer"]

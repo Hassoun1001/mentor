@@ -35,7 +35,7 @@ export function PricesPage() {
   return (
     <section className="space-y-6">
       <header>
-        <h1 className="font-serif text-3xl tracking-tight">Prices</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">Prices</h1>
         <p className="max-w-2xl text-sm text-mentor-muted">
           Multi-timeframe view of the bars already ingested into the local
           TimescaleDB. Data-quality gaps are flagged below the chart — silent

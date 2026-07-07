@@ -3,15 +3,25 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, select
+from sqlalchemy import CursorResult, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.infrastructure.models import PriceBar as PriceBarORM
+
+
+@dataclass(frozen=True, slots=True)
+class CoverageRow:
+    timeframe: str
+    bars: int
+    first_ts: datetime | None
+    last_ts: datetime | None
+    sources: dict[str, int]
 
 
 class PriceBarRepository:
@@ -72,6 +82,43 @@ class PriceBarRepository:
         )
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def coverage(self, *, symbol: str) -> list[CoverageRow]:
+        """Per-timeframe bar counts, date span, and per-source breakdown —
+        the "how much data do I actually have, and where from" summary."""
+        agg = select(
+            PriceBarORM.timeframe,
+            func.count().label("bars"),
+            func.min(PriceBarORM.ts).label("first_ts"),
+            func.max(PriceBarORM.ts).label("last_ts"),
+        ).where(PriceBarORM.symbol == symbol.upper()).group_by(PriceBarORM.timeframe)
+        agg_rows = (await self._session.execute(agg)).all()
+
+        src = select(
+            PriceBarORM.timeframe,
+            PriceBarORM.source,
+            func.count().label("n"),
+        ).where(PriceBarORM.symbol == symbol.upper()).group_by(
+            PriceBarORM.timeframe, PriceBarORM.source
+        )
+        by_source: dict[str, dict[str, int]] = {}
+        for tf, source, n in (await self._session.execute(src)).all():
+            by_source.setdefault(tf, {})[source] = int(n)
+
+        out = [
+            CoverageRow(
+                timeframe=r.timeframe,
+                bars=int(r.bars),
+                first_ts=r.first_ts,
+                last_ts=r.last_ts,
+                sources=by_source.get(r.timeframe, {}),
+            )
+            for r in agg_rows
+        ]
+        # Stable ordering by typical granularity.
+        order = {tf.value: i for i, tf in enumerate(Timeframe)}
+        out.sort(key=lambda c: order.get(c.timeframe, 99))
+        return out
 
     async def latest(self, *, symbol: str, timeframe: Timeframe) -> PriceBarORM | None:
         stmt = (

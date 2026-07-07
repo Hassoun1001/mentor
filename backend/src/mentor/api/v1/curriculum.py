@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from mentor.api.deps import SessionDep
 from mentor.application.curriculum import CurriculumService
+from mentor.application.curriculum.service import LessonWithProgress
 from mentor.domain.curriculum.progress import LessonStatus
 from mentor.domain.errors import ValidationError
 from mentor.infrastructure.repositories import LessonProgressRepository
@@ -36,6 +37,18 @@ class ModuleSummary(BaseModel):
     lessons: list[LessonSummary]
 
 
+class FigureDTO(BaseModel):
+    key: str
+    caption: str
+
+
+class QuizQuestionDTO(BaseModel):
+    prompt: str
+    options: list[str]
+    correct_index: int
+    explanation: str
+
+
 class LessonResponse(BaseModel):
     slug: str
     module_id: str
@@ -45,6 +58,8 @@ class LessonResponse(BaseModel):
     body_md: str
     est_minutes: int
     key_concepts: list[str]
+    figures: list[FigureDTO]
+    quiz: list[QuizQuestionDTO]
     status: LessonStatus
 
 
@@ -92,6 +107,10 @@ async def get_lesson(slug: str, session: SessionDep) -> LessonResponse:
         lp = await _service(session).get(slug)
     except ValidationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _lesson_response(lp)
+
+
+def _lesson_response(lp: LessonWithProgress) -> LessonResponse:
     return LessonResponse(
         slug=lp.lesson.slug,
         module_id=lp.lesson.module_id,
@@ -101,6 +120,16 @@ async def get_lesson(slug: str, session: SessionDep) -> LessonResponse:
         body_md=lp.lesson.body_md,
         est_minutes=lp.lesson.est_minutes,
         key_concepts=list(lp.lesson.key_concepts),
+        figures=[FigureDTO(key=f.key, caption=f.caption) for f in lp.lesson.figures],
+        quiz=[
+            QuizQuestionDTO(
+                prompt=q.prompt,
+                options=list(q.options),
+                correct_index=q.correct_index,
+                explanation=q.explanation,
+            )
+            for q in lp.lesson.quiz
+        ],
         status=lp.progress.status if lp.progress else LessonStatus.NOT_STARTED,
     )
 
@@ -113,14 +142,4 @@ async def mark_progress(slug: str, body: MarkRequest, session: SessionDep) -> Le
         lp = await service.get(slug)
     except ValidationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return LessonResponse(
-        slug=lp.lesson.slug,
-        module_id=lp.lesson.module_id,
-        order_in_module=lp.lesson.order_in_module,
-        title=lp.lesson.title,
-        summary=lp.lesson.summary,
-        body_md=lp.lesson.body_md,
-        est_minutes=lp.lesson.est_minutes,
-        key_concepts=list(lp.lesson.key_concepts),
-        status=lp.progress.status if lp.progress else LessonStatus.NOT_STARTED,
-    )
+    return _lesson_response(lp)

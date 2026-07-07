@@ -1,0 +1,37 @@
+{
+  "name": "daily_news_v1",
+  "horizon_bars": 5,
+  "trained_at": "2026-06-28 12:41:37.637899+00:00",
+  "train_start": "2024-07-01 00:00:00+00:00",
+  "train_end": "2026-06-28 00:00:00+00:00",
+  "symbol": "EURUSD",
+  "timeframe": "1d",
+  "report": {
+    "n_samples": 558,
+    "n_train": 446,
+    "n_test": 112,
+    "train_accuracy": 0.9641255605381166,
+    "test_accuracy": 0.625,
+    "test_log_loss": 0.7100082138478376,
+    "test_brier": 0.24799784448812415,
+    "horizon_bars": 5,
+    "feature_importances": {
+      "ret_1": 0.0,
+      "ret_5": 0.0,
+      "ret_10": 0.0,
+      "ema_fast_dist": 0.0,
+      "ema_slow_dist": 0.0,
+      "ema_fast_minus_slow": 0.0,
+      "rsi_14": 0.0,
+      "macd_line": 0.0,
+      "atr_pct": 0.0,
+      "high_20_dist": 0.0,
+      "low_20_dist": 0.0,
+      "vol_20": 0.0,
+      "news_tone": 0.0,
+      "news_tone_5d": 0.0,
+      "news_tone_mom": 0.0,
+      "news_vol_5d": 0.0
+    }
+  }
+}

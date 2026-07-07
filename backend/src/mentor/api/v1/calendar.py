@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from mentor.api.deps import SessionDep
+from mentor.api.deps import SessionDep, SettingsDep
 from mentor.application.calendar import CalendarService
 from mentor.domain.calendar.event import ImpactLevel
 from mentor.infrastructure.adapters.calendar import FinnhubCalendarAdapter
@@ -29,8 +28,8 @@ class IngestResponse(BaseModel):
 
 
 @router.post("/ingest", response_model=IngestResponse)
-async def ingest(body: IngestRequest, session: SessionDep) -> IngestResponse:
-    api_key = os.environ.get("FINNHUB_KEY", "").strip()
+async def ingest(body: IngestRequest, session: SessionDep, settings: SettingsDep) -> IngestResponse:
+    api_key = settings.finnhub_key.get_secret_value().strip()
     if not api_key:
         raise HTTPException(
             status_code=400,

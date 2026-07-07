@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -10,12 +9,15 @@ from decimal import Decimal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from mentor.api.deps import SessionDep
+from mentor.api.deps import SessionDep, SettingsDep
 from mentor.application.news import NewsService
+from mentor.application.news.tone_ingest import ToneIngestService
+from mentor.domain.errors import DomainError
 from mentor.domain.news.classifier import NewsCategory
 from mentor.infrastructure.adapters.news import NewsApiAdapter
 from mentor.infrastructure.llm import build_news_classifier
 from mentor.infrastructure.repositories import NewsRepository
+from mentor.infrastructure.repositories.news_tone import NewsToneRepository
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -32,8 +34,8 @@ class IngestResponse(BaseModel):
 
 
 @router.post("/ingest", response_model=IngestResponse)
-async def ingest(body: IngestRequest, session: SessionDep) -> IngestResponse:
-    api_key = os.environ.get("NEWSAPI_KEY", "").strip()
+async def ingest(body: IngestRequest, session: SessionDep, settings: SettingsDep) -> IngestResponse:
+    api_key = settings.newsapi_key.get_secret_value().strip()
     if not api_key:
         raise HTTPException(
             status_code=400,
@@ -52,6 +54,55 @@ async def ingest(body: IngestRequest, session: SessionDep) -> IngestResponse:
     return IngestResponse(
         fetched=result.fetched, inserted=result.inserted, classified=result.classified
     )
+
+
+class ToneIngestRequest(BaseModel):
+    days_back: int = Field(default=730, ge=7, le=3650)
+
+
+class ToneIngestResponse(BaseModel):
+    query_key: str
+    days_fetched: int
+    rows_written: int
+    first_day: str | None
+    last_day: str | None
+
+
+@router.post("/tone/ingest", response_model=ToneIngestResponse)
+async def ingest_tone(
+    body: ToneIngestRequest, session: SessionDep, settings: SettingsDep
+) -> ToneIngestResponse:
+    """Backfill daily news sentiment from GDELT (free, no key) so the
+    forecast model can use it as a feature."""
+    service = ToneIngestService(
+        repo=NewsToneRepository(session),
+        query=settings.news_query,
+        query_key=settings.news_query_key,
+    )
+    start = datetime.now(UTC) - timedelta(days=body.days_back)
+    try:
+        result = await service.backfill(start=start, end=datetime.now(UTC))
+    except DomainError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return ToneIngestResponse(
+        query_key=result.query_key,
+        days_fetched=result.days_fetched,
+        rows_written=result.rows_written,
+        first_day=result.first_day,
+        last_day=result.last_day,
+    )
+
+
+class TonePointDTO(BaseModel):
+    day: datetime
+    tone: Decimal
+    volume: Decimal
+
+
+@router.get("/tone", response_model=list[TonePointDTO])
+async def tone_series(session: SessionDep, settings: SettingsDep) -> list[TonePointDTO]:
+    rows = await NewsToneRepository(session).series(query_key=settings.news_query_key)
+    return [TonePointDTO(day=r.day, tone=Decimal(r.tone), volume=Decimal(r.volume)) for r in rows]
 
 
 class NewsClassificationDTO(BaseModel):

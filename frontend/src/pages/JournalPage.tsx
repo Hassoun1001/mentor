@@ -90,7 +90,7 @@ export function JournalPage() {
   return (
     <section className="space-y-8">
       <header className="flex flex-col gap-2">
-        <h1 className="font-serif text-3xl tracking-tight">Journal</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-mentor-fg">Journal</h1>
         <p className="max-w-2xl text-sm text-mentor-muted">
           The user's win rate, expectancy, and R-multiple distribution — the real
           measure of progress. Every trade requires a written reason. No trade
@@ -232,7 +232,7 @@ export function JournalPage() {
             className={
               'w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ' +
               (checklistPassed
-                ? 'bg-mentor-accent text-white hover:bg-mentor-accentSoft'
+                ? 'bg-mentor-accent text-white hover:bg-mentor-accentHover'
                 : 'cursor-not-allowed bg-mentor-panelLight text-mentor-muted')
             }
           >

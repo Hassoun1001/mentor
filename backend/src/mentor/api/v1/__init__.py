@@ -12,10 +12,12 @@ from mentor.api.v1 import (
     forecasting,
     health,
     journal,
+    macro,
     news,
     prices,
     risk,
     risk_simulator,
+    tips,
     trades,
 )
 
@@ -32,5 +34,7 @@ api_v1.include_router(explain.router)
 api_v1.include_router(backtest.router)
 api_v1.include_router(forecasting.router)
 api_v1.include_router(news.router)
+api_v1.include_router(macro.router)
 api_v1.include_router(alerts.router)
 api_v1.include_router(calendar.router)
+api_v1.include_router(tips.router)

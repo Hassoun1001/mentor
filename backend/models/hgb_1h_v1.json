@@ -1,0 +1,33 @@
+{
+  "name": "hgb_1h_v1",
+  "horizon_bars": 24,
+  "trained_at": "2026-06-28 05:39:07.077765+00:00",
+  "train_start": "2026-03-30 00:00:00+00:00",
+  "train_end": "2026-06-28 00:00:00+00:00",
+  "symbol": "EURUSD",
+  "timeframe": "1h",
+  "report": {
+    "n_samples": 2099,
+    "n_train": 1679,
+    "n_test": 420,
+    "train_accuracy": 0.8648004764740918,
+    "test_accuracy": 0.5142857142857142,
+    "test_log_loss": 0.8182826616976389,
+    "test_brier": 0.29969290987247965,
+    "horizon_bars": 24,
+    "feature_importances": {
+      "ret_1": 0.0,
+      "ret_5": 0.0,
+      "ret_10": 0.0,
+      "ema_fast_dist": 0.0,
+      "ema_slow_dist": 0.0,
+      "ema_fast_minus_slow": 0.0,
+      "rsi_14": 0.0,
+      "macd_line": 0.0,
+      "atr_pct": 0.0,
+      "high_20_dist": 0.0,
+      "low_20_dist": 0.0,
+      "vol_20": 0.0
+    }
+  }
+}

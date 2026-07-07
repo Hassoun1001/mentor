@@ -13,6 +13,7 @@ from typing import Any, Final
 
 from mentor.domain.backtest.strategies.buy_and_hold import BuyAndHold
 from mentor.domain.backtest.strategies.ma_crossover import MaCrossover
+from mentor.domain.backtest.strategies.rsi_reversion import RsiReversion
 from mentor.domain.backtest.strategy import Strategy
 from mentor.domain.errors import ValidationError
 from mentor.domain.instruments import Instrument
@@ -37,8 +38,22 @@ def _build_bh(instrument: Instrument, params: dict[str, Any]) -> Strategy:
     )
 
 
+def _build_rsi(instrument: Instrument, params: dict[str, Any]) -> Strategy:
+    return RsiReversion(
+        instrument=instrument,
+        rsi_period=int(params.get("rsi_period", 14)),
+        oversold=Decimal(str(params.get("oversold", "30"))),
+        overbought=Decimal(str(params.get("overbought", "70"))),
+        atr_period=int(params.get("atr_period", 14)),
+        atr_stop_multiple=Decimal(str(params.get("atr_stop_multiple", "2"))),
+        target_rr=Decimal(str(params.get("target_rr", "2"))),
+        quote_to_account_rate=Decimal(str(params.get("quote_to_account_rate", "1"))),
+    )
+
+
 STRATEGY_REGISTRY: Final[dict[str, Callable[[Instrument, dict[str, Any]], Strategy]]] = {
     "ma_crossover": _build_ma,
+    "rsi_reversion": _build_rsi,
     "buy_and_hold": _build_bh,
 }
 

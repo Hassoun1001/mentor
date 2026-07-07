@@ -13,7 +13,26 @@ interface MetricProps {
 
 export function Metric({ label, value, sub, explainer, tone = 'default' }: MetricProps) {
   return (
-    <div className="rounded-xl border border-mentor-border bg-mentor-panelLight/60 p-4">
+    <div
+      className={clsx(
+        'group relative overflow-hidden rounded-xl border p-4 transition-colors',
+        'border-mentor-border bg-mentor-panelLight/50 hover:border-mentor-border/80',
+        tone === 'positive' && 'border-mentor-accentSoft/25',
+        tone === 'warn' && 'border-mentor-warn/25',
+        tone === 'danger' && 'border-mentor-danger/25'
+      )}
+    >
+      {/* subtle toned accent bar down the left edge */}
+      <span
+        aria-hidden
+        className={clsx(
+          'absolute inset-y-0 left-0 w-0.5',
+          tone === 'positive' && 'bg-mentor-accentSoft/70',
+          tone === 'warn' && 'bg-mentor-warn/70',
+          tone === 'danger' && 'bg-mentor-danger/70',
+          tone === 'default' && 'bg-transparent'
+        )}
+      />
       <div className="metric-label">
         {explainer ? <Tooltip label={explainer}>{label}</Tooltip> : label}
       </div>

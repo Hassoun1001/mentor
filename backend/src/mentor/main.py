@@ -15,6 +15,7 @@ from mentor import __version__
 from mentor.api.errors import install_error_handlers
 from mentor.api.middleware.auth import JWTAuthMiddleware
 from mentor.api.v1 import api_v1
+from mentor.application.scheduler import LoopScheduler
 from mentor.config import Settings, get_settings
 from mentor.infrastructure.db import build_engine, build_session_factory
 from mentor.logging import configure_logging, get_logger
@@ -30,9 +31,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
 
+    scheduler = LoopScheduler(settings=settings, session_factory=app.state.session_factory)
+    app.state.scheduler = scheduler
+    scheduler.start()  # no-op unless MENTOR_LOOP_ENABLED
+
     try:
         yield
     finally:
+        scheduler.shutdown()
         await engine.dispose()
         log.info("shutdown")
 

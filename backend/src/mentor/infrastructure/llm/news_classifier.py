@@ -11,13 +11,13 @@ keyword scorer so the rest of the pipeline still works.
 from __future__ import annotations
 
 import json
-import os
 import re
 from decimal import Decimal
 
 from anthropic import AsyncAnthropic
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
+from mentor.config import get_settings
 from mentor.domain.news.classifier import (
     NewsCategory,
     NewsClassification,
@@ -147,10 +147,8 @@ class AnthropicNewsClassifier(NewsClassifier):
 
 
 def build_news_classifier() -> NewsClassifier:
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    settings = get_settings()
+    api_key = settings.anthropic_api_key.get_secret_value().strip()
     if not api_key:
         return StubNewsClassifier()
-    return AnthropicNewsClassifier(
-        api_key=api_key,
-        model=os.environ.get("MENTOR_LLM_MODEL", "claude-opus-4-7") or "claude-opus-4-7",
-    )
+    return AnthropicNewsClassifier(api_key=api_key, model=settings.llm_model)

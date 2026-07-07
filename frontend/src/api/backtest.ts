@@ -101,3 +101,41 @@ export interface BacktestRequest {
 export async function runBacktest(body: BacktestRequest): Promise<BacktestResponse> {
   return apiPost('/backtest', body, backtestResponse);
 }
+
+// ---------- compare (strategies side by side, same window) ----------
+
+const compareEntry = z.object({
+  strategy: z.string(),
+  label: z.string(),
+  ending_balance: decimalStr,
+  equity_curve: z.array(equityPoint),
+  metrics,
+});
+export type CompareEntry = z.infer<typeof compareEntry>;
+
+const compareResponse = z.object({
+  symbol: z.string(),
+  currency: z.string(),
+  starting_balance: decimalStr,
+  entries: z.array(compareEntry),
+});
+export type CompareResponse = z.infer<typeof compareResponse>;
+
+export interface CompareRequest {
+  symbol: string;
+  timeframe: z.infer<typeof timeframeEnum>;
+  start: string;
+  end: string;
+  strategies: { strategy: string; strategy_params: Record<string, unknown>; label?: string }[];
+  starting_balance: { amount: string; currency: string };
+  risk_per_trade_percent: string;
+  cost_model: {
+    spread_pips: string;
+    slippage_pips: string;
+    commission_per_lot_round_trip: string;
+  };
+}
+
+export async function compareStrategies(body: CompareRequest): Promise<CompareResponse> {
+  return apiPost('/backtest/compare', body, compareResponse);
+}

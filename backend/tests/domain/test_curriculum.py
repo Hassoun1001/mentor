@@ -11,17 +11,69 @@ from mentor.domain.curriculum.catalog import Lesson
 from mentor.domain.errors import ValidationError
 
 
-def test_all_seven_plan_modules_present() -> None:
+def test_all_plan_modules_present() -> None:
     expected = {
         "market-basics",
         "risk-first",
         "reading-charts",
+        "chart-language",
         "indicators",
         "expectancy",
         "backtesting",
         "psychology",
+        "market-study",
+        "toolkit",
+        "under-the-hood",
     }
     assert {m.id for m in CATALOG} == expected
+
+
+def test_every_lesson_has_a_figure() -> None:
+    missing = [
+        lesson.slug for module in CATALOG for lesson in module.lessons if not lesson.figures
+    ]
+    assert missing == []
+
+
+def test_under_the_hood_module_is_last() -> None:
+    last = max(CATALOG, key=lambda m: m.order)
+    assert last.id == "under-the-hood"
+    assert len(last.lessons) >= 8  # covers every prediction method
+
+
+def test_under_the_hood_lessons_have_figures() -> None:
+    module = next(m for m in CATALOG if m.id == "under-the-hood")
+    for lesson in module.lessons:
+        assert lesson.figures, f"{lesson.slug} has no figure"
+        for fig in lesson.figures:
+            assert fig.key.strip(), f"{lesson.slug} figure key empty"
+            assert fig.caption.strip(), f"{lesson.slug} figure caption empty"
+
+
+def test_quiz_questions_are_well_formed() -> None:
+    total = 0
+    for module in CATALOG:
+        for lesson in module.lessons:
+            for q in lesson.quiz:
+                total += 1
+                assert len(q.options) >= 2
+                assert 0 <= q.correct_index < len(q.options)
+                assert q.prompt.strip() and q.explanation.strip()
+    assert total >= 6  # at least the terminology module is quizzed
+
+
+def test_chart_language_lessons_all_have_a_quiz() -> None:
+    module = next(m for m in CATALOG if m.id == "chart-language")
+    for lesson in module.lessons:
+        assert lesson.quiz, f"{lesson.slug} missing a quiz"
+
+
+def test_figure_keys_are_kebab_case() -> None:
+    module = next(m for m in CATALOG if m.id == "under-the-hood")
+    keys = {fig.key for lesson in module.lessons for fig in lesson.figures}
+    for key in keys:
+        assert key == key.lower()
+        assert " " not in key and "_" not in key
 
 
 def test_modules_are_ordered_uniquely() -> None:

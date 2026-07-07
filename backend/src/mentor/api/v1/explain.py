@@ -33,7 +33,7 @@ class ExplainRequestBody(BaseModel):
 
     topic: SupportedTopic
     context: dict[str, Any] = Field(default_factory=dict, max_length=64)
-    style: Literal["concise", "thorough"] = "concise"
+    style: Literal["concise", "thorough", "socratic"] = "concise"
 
 
 class ExplainResponseBody(BaseModel):
