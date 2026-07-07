@@ -16,6 +16,7 @@ const LINKS: { id: Page; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'forecast', label: 'Forecast' },
   { id: 'system', label: 'System' },
+  { id: 'loop', label: 'Loop' },
   { id: 'tips', label: 'Tips' },
   { id: 'risk', label: 'Risk' },
   { id: 'journal', label: 'Journal' },
@@ -95,6 +96,12 @@ function NavIcon({ id }: { id: Page }) {
       </>
     ),
     system: <path d="M3 12h4l3 8 4-16 3 8h4" />,
+    loop: (
+      <>
+        <path d="M21 12a9 9 0 1 1-3-6.7" />
+        <path d="M21 3v5h-5" />
+      </>
+    ),
     tips: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
     risk: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
     journal: (

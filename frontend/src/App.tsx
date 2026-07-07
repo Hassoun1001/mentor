@@ -13,6 +13,7 @@ import { ForecastPage } from './pages/ForecastPage';
 import { JournalPage } from './pages/JournalPage';
 import { LessonsPage } from './pages/LessonsPage';
 import { LoginPage } from './pages/LoginPage';
+import { LoopPage } from './pages/LoopPage';
 import { PricesPage } from './pages/PricesPage';
 import { RiskCalculatorPage } from './pages/RiskCalculatorPage';
 import { SystemPredictionsPage } from './pages/SystemPredictionsPage';
@@ -22,6 +23,7 @@ export type Page =
   | 'dashboard'
   | 'forecast'
   | 'system'
+  | 'loop'
   | 'tips'
   | 'risk'
   | 'journal'
@@ -60,6 +62,7 @@ export function App() {
           {page === 'dashboard' && <DashboardPage />}
           {page === 'forecast' && <ForecastPage />}
           {page === 'system' && <SystemPredictionsPage />}
+          {page === 'loop' && <LoopPage />}
           {page === 'tips' && <TipsPage />}
           {page === 'risk' && <RiskCalculatorPage />}
           {page === 'journal' && <JournalPage />}

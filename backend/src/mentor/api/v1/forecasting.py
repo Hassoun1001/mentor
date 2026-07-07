@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from mentor.api.deps import SessionDep, SettingsDep
@@ -20,6 +20,7 @@ from mentor.application.forecasting import (
 from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.replay import ReplayService
+from mentor.application.forecasting.self_backtest import simulate_own_signals
 from mentor.application.forecasting.vol_service import VolService
 from mentor.domain.errors import ValidationError
 from mentor.domain.forecasting.forecast import Direction
@@ -551,6 +552,19 @@ class LoopJobDTO(BaseModel):
     next_run: str | None
 
 
+class LoopHeartbeatDTO(BaseModel):
+    job: str
+    at: str
+    ok: bool
+    note: str
+
+
+class LoopEventDTO(BaseModel):
+    kind: str
+    at: str
+    detail: str
+
+
 class LoopStatusResponse(BaseModel):
     enabled: bool
     running: bool
@@ -559,12 +573,80 @@ class LoopStatusResponse(BaseModel):
     horizon_bars: int
     champion: str
     jobs: list[LoopJobDTO]
+    heartbeats: list[LoopHeartbeatDTO] = []
+    events: list[LoopEventDTO] = []
+    alerts_enabled: bool = False
 
 
 @router.get("/loop/status", response_model=LoopStatusResponse)
 async def loop_status(request: Request) -> LoopStatusResponse:
     scheduler = request.app.state.scheduler
     return LoopStatusResponse(**scheduler.status())
+
+
+class PromotionEntryDTO(BaseModel):
+    at: str
+    promoted: bool
+    challenger: str
+    family: str
+    challenger_brier: float
+    champion: str | None
+    champion_brier: float | None
+    champion_brier_fresh: float | None
+    candidates: dict[str, float]
+    reason: str
+
+
+@router.get("/loop/promotions", response_model=list[PromotionEntryDTO])
+async def loop_promotions(settings: SettingsDep) -> list[PromotionEntryDTO]:
+    """Every retrain decision the loop has ever made, newest first —
+    the audit trail proving a worse model never shipped."""
+    promo = PromotionService(model_store_dir=settings.model_store_dir)
+    return [PromotionEntryDTO(**entry) for entry in promo.promotion_history()]
+
+
+class PaperPointDTO(BaseModel):
+    ts: datetime
+    equity: float
+
+
+class PaperReportResponse(BaseModel):
+    trades: int
+    skipped_low_confidence: int
+    skipped_neutral: int
+    wins: int
+    losses: int
+    win_rate: float
+    total_return_pct: float
+    max_drawdown_pct: float
+    avg_trade_pct: float
+    curve: list[PaperPointDTO]
+    note: str
+
+
+@router.get("/loop/paper", response_model=PaperReportResponse)
+async def loop_paper(
+    session: SessionDep,
+    min_confidence: Annotated[float, Query(ge=0.0, le=1.0)] = 0.0,
+    spread: Annotated[float, Query(ge=0.0, le=0.01)] = 0.0001,
+) -> PaperReportResponse:
+    """Paper-trade the system's own resolved predictions: what following
+    every directional call (above the confidence floor) would have done."""
+    rows = await PredictionRepository(session).list_resolved(limit=5000)
+    report = simulate_own_signals(rows, min_confidence=min_confidence, spread=spread)
+    return PaperReportResponse(
+        trades=report.trades,
+        skipped_low_confidence=report.skipped_low_confidence,
+        skipped_neutral=report.skipped_neutral,
+        wins=report.wins,
+        losses=report.losses,
+        win_rate=report.win_rate,
+        total_return_pct=report.total_return_pct,
+        max_drawdown_pct=report.max_drawdown_pct,
+        avg_trade_pct=report.avg_trade_pct,
+        curve=[PaperPointDTO(ts=p.ts, equity=p.equity) for p in report.curve],
+        note=report.note,
+    )
 
 
 class FeatureContrastDTO(BaseModel):

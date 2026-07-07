@@ -92,6 +92,17 @@ class Settings(BaseSettings):
     loop_drift_min_samples: int = 25  # below this, Brier is too noisy to act on
     loop_drift_margin: float = 0.02  # tolerated degradation before triggering
     loop_drift_cooldown_hours: int = 24  # minimum spacing between drift retrains
+    # Alert when a live prediction's confidence (|p_up - 0.5| * 2) reaches
+    # this level — 0.30 ≈ P(up) ≥ 65% or ≤ 35%. Requires Telegram config.
+    loop_alert_min_confidence: float = 0.30
+    # Alert after this many consecutive ingest failures (feed likely down).
+    loop_ingest_failure_alert_after: int = 3
+
+    # --- Telegram alerts (optional; both unset -> alerts silently disabled) ---
+    telegram_bot_token: SecretStr = Field(
+        default=SecretStr(""), validation_alias="TELEGRAM_BOT_TOKEN"
+    )
+    telegram_chat_id: str = ""
 
     # --- news sentiment (GDELT, free, no key) ---
     news_query_key: str = "eurusd"

@@ -122,3 +122,9 @@ async def test_second_retrain_regrades_champion_on_fresh_window(tmp_path: Path) 
     champion = service.current_champion()
     assert champion is not None
     assert champion["model_name"] == first.challenger_name  # a worse model never ships
+    # Every decision lands in the durable audit log, newest first.
+    history = service.promotion_history()
+    assert len(history) == 2
+    assert history[0]["promoted"] is False
+    assert history[1]["promoted"] is True
+    assert history[1]["challenger"] == first.challenger_name

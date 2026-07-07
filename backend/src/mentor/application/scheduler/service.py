@@ -6,7 +6,9 @@ Runs four jobs on a cadence, each in its own DB transaction:
   step works on current data (idempotent upsert; overlap fills gaps).
 - **predict** — generate a live forecast from the latest bars and log it
   to the audit table (champion model if one has been promoted, else the
-  baseline rule).
+  baseline rule). Guarded by the **data-quality gate**: a broken window
+  (intraweek feed hole, stale feed) skips the prediction loudly instead
+  of forecasting on garbage.
 - **resolve** — fill the realised outcome of any prediction whose horizon
   has elapsed and whose outcome bar now exists. After each resolve pass
   the **drift watch** grades the rolling live Brier and triggers an
@@ -14,6 +16,12 @@ Runs four jobs on a cadence, each in its own DB transaction:
 - **retrain** — train a challenger *family* (technical / +macro / +news)
   and promote the best only if it beats the champion re-graded on the
   same fresh out-of-sample window.
+
+Every job reports a heartbeat to `LoopHealth` and notable moments
+(drift, promotions, quality skips, feed failures, strong signals) are
+recorded as events and — when Telegram is configured — pushed to the
+user's phone. Observability is not optional for a system that runs
+unattended.
 
 The scheduler is opt-in (`MENTOR_LOOP_ENABLED`). The same job bodies are
 exposed as `run_*_once` so the API can trigger a single cycle on demand —
@@ -32,12 +40,16 @@ from mentor.application.forecasting.inference_service import ForecastService
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
 from mentor.application.market import IngestionService
+from mentor.application.market.quality import scan_quality
 from mentor.application.scheduler.drift import assess_drift
+from mentor.application.scheduler.health import LoopHealth
+from mentor.application.scheduler.quality_gate import assess_quality
 from mentor.config import Settings
 from mentor.domain.errors import DomainError
 from mentor.domain.market.bars import Timeframe
 from mentor.infrastructure.adapters import FailoverMarketDataAdapter
 from mentor.infrastructure.adapters.factory import build_sources, close_sources
+from mentor.infrastructure.alerts import build_notifier
 from mentor.infrastructure.repositories.macro_series import MacroSeriesRepository
 from mentor.infrastructure.repositories.news_tone import NewsToneRepository
 from mentor.infrastructure.repositories.predictions import PredictionRepository
@@ -53,6 +65,9 @@ _INGEST_DAYS: dict[Timeframe, int] = {
     Timeframe.H1: 10,
     Timeframe.D1: 60,
 }
+
+# How many recent bars the pre-prediction quality scan examines.
+_QUALITY_WINDOW_BARS = 72
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,8 +88,13 @@ class LoopScheduler:
         self._settings = settings
         self._sessions = session_factory
         self._scheduler = AsyncIOScheduler(timezone="UTC")
+        self._health = LoopHealth()
+        self._notifier = build_notifier(settings)
         # Cooldown marker so a rough patch can't trigger a retrain storm.
         self._last_drift_retrain: datetime | None = None
+        # Consecutive ingest failures — alert once when the streak crosses
+        # the threshold, reset on the next success.
+        self._ingest_failures = 0
 
     # ---- champion resolution ----
 
@@ -85,6 +105,10 @@ class LoopScheduler:
         if champion and isinstance(champion.get("model_name"), str):
             return str(champion["model_name"])
         return "baseline"
+
+    async def _alert(self, text: str) -> None:
+        if await self._notifier.send(text):
+            self._health.event("alert", text)
 
     # ---- job bodies (also callable on demand) ----
 
@@ -101,6 +125,7 @@ class LoopScheduler:
         sources = build_sources(s)
         if not sources:
             log.warning("loop.ingest_skipped", error="no market data sources configured")
+            self._health.beat("ingest", ok=False, note="no market data sources configured")
             return 0
         adapter = FailoverMarketDataAdapter(sources)
         try:
@@ -117,15 +142,51 @@ class LoopScheduler:
                 )
                 await session.commit()
             log.info("loop.ingested", persisted=result.persisted, fetched=result.fetched)
+            self._health.beat(
+                "ingest", ok=True, note=f"{result.persisted} new bars ({result.fetched} fetched)"
+            )
+            self._ingest_failures = 0
             return result.persisted
         except DomainError as exc:
             log.warning("loop.ingest_skipped", error=str(exc))
+            self._health.beat("ingest", ok=False, note=str(exc))
+            self._ingest_failures += 1
+            if self._ingest_failures == s.loop_ingest_failure_alert_after:
+                detail = f"ingest failed {self._ingest_failures}x in a row: {exc}"
+                self._health.event("ingest_error", detail)
+                await self._alert(f"⚠️ Mentor: data feed problem — {detail}")
             return 0
         finally:
             await close_sources(sources)
 
+    async def _quality_check(self) -> tuple[bool, str]:
+        """Scan the recent bar window; False means 'do not predict on this'."""
+        s = self._settings
+        tf = Timeframe(s.loop_timeframe)
+        now = datetime.now(UTC)
+        async with self._sessions() as session:
+            repo = PriceBarRepository(session)
+            newest = await repo.latest(symbol=s.loop_symbol, timeframe=tf)
+            if newest is None:
+                return False, "no bars stored yet — backfill first"
+            window_start = newest.ts - timedelta(seconds=tf.seconds * _QUALITY_WINDOW_BARS)
+            rows = await repo.range(
+                symbol=s.loop_symbol, timeframe=tf, start=window_start, end=newest.ts
+            )
+        report = scan_quality(symbol=s.loop_symbol, timeframe=tf, bars=rows)
+        verdict = assess_quality(report, now=now)
+        return verdict.predict_ok, verdict.reason
+
     async def run_predict_once(self) -> str | None:
         s = self._settings
+
+        predict_ok, quality_reason = await self._quality_check()
+        if not predict_ok:
+            log.warning("loop.predict_quality_skip", reason=quality_reason)
+            self._health.beat("predict", ok=False, note=f"quality gate: {quality_reason}")
+            self._health.event("quality_skip", quality_reason)
+            return None
+
         async with self._sessions() as session:
             try:
                 service = ForecastService(
@@ -141,12 +202,26 @@ class LoopScheduler:
                     record=True,
                 )
                 await session.commit()
-                log.info("loop.predicted", id=str(payload.prediction_id))
-                return str(payload.prediction_id)
             except DomainError as exc:
                 await session.rollback()
                 log.warning("loop.predict_skipped", error=str(exc))
+                self._health.beat("predict", ok=False, note=str(exc))
                 return None
+
+        f = payload.forecast
+        log.info("loop.predicted", id=str(payload.prediction_id))
+        self._health.beat(
+            "predict",
+            ok=True,
+            note=f"{f.direction.value} P(up)={float(f.p_up):.2f} h={f.horizon_bars}",
+        )
+        if float(f.confidence) >= s.loop_alert_min_confidence:
+            await self._alert(
+                f"📈 Mentor signal: {f.symbol} {f.direction.value.upper()} — "
+                f"P(up) {float(f.p_up) * 100:.0f}% over the next {f.horizon_bars} bars "
+                f"({s.loop_timeframe}). Not advice; check the dashboard."
+            )
+        return str(payload.prediction_id)
 
     async def run_resolve_once(self) -> int:
         async with self._sessions() as session:
@@ -155,6 +230,11 @@ class LoopScheduler:
                 prices=PriceBarRepository(session),
             )
             await session.commit()
+        self._health.beat(
+            "resolve",
+            ok=True,
+            note=f"{result.resolved} resolved, {result.still_pending} still pending",
+        )
         if result.resolved:
             # Fresh outcomes just landed — the moment to check whether the
             # system's own live performance says the regime has drifted.
@@ -191,6 +271,8 @@ class LoopScheduler:
             log.debug("loop.drift_ok", reason=verdict.reason)
             return
         log.warning("loop.drift_detected", reason=verdict.reason, live_brier=verdict.live_brier)
+        self._health.event("drift_detected", verdict.reason)
+        await self._alert(f"🔄 Mentor: {verdict.reason}. Retraining now.")
         self._last_drift_retrain = now
         reason = await self.run_retrain_once()
         log.info("loop.drift_retrain_done", outcome=reason)
@@ -214,11 +296,17 @@ class LoopScheduler:
                     horizon_bars=s.loop_horizon_bars,
                 )
                 await session.commit()
-                return result.reason
             except DomainError as exc:
                 await session.rollback()
                 log.warning("loop.retrain_skipped", error=str(exc))
+                self._health.beat("retrain", ok=False, note=str(exc))
                 return f"skipped: {exc}"
+
+        self._health.beat("retrain", ok=True, note=result.reason)
+        if result.promoted:
+            self._health.event("promotion", result.reason)
+            await self._alert(f"🏆 Mentor: new champion model promoted. {result.reason}")
+        return result.reason
 
     async def run_cycle_once(self) -> CycleResult:
         """One predict + resolve cycle — what the API's run-once endpoint calls."""
@@ -292,6 +380,7 @@ class LoopScheduler:
                     "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
                 }
             )
+        heartbeats, events = self._health.snapshot()
         return {
             "enabled": self._settings.loop_enabled,
             "running": self.running,
@@ -300,4 +389,7 @@ class LoopScheduler:
             "horizon_bars": self._settings.loop_horizon_bars,
             "champion": self._champion_model(),
             "jobs": jobs,
+            "heartbeats": heartbeats,
+            "events": events,
+            "alerts_enabled": self._notifier.enabled,
         }

@@ -44,6 +44,9 @@ services:
       MENTOR_LLM_MODEL: ${MENTOR_LLM_MODEL:-claude-opus-4-8}
       # Keep data fresh: enable the in-process ingest/predict loop.
       MENTOR_LOOP_ENABLED: ${MENTOR_LOOP_ENABLED:-false}
+      # Optional Telegram alerts (signals, drift retrains, promotions, feed problems).
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      MENTOR_TELEGRAM_CHAT_ID: ${MENTOR_TELEGRAM_CHAT_ID:-}
     ports:
       - "${APP_PORT:-8000}:8000"
 

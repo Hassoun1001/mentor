@@ -53,6 +53,7 @@ from mentor.logging import get_logger
 log = get_logger("mentor.forecasting.promotion")
 
 _CHAMPION_FILE = "champion.json"
+_PROMOTIONS_FILE = "promotions.jsonl"  # append-only audit of every retrain decision
 # A challenger must beat the champion's Brier by at least this much to ship.
 _PROMOTION_MARGIN = 0.002
 
@@ -120,6 +121,42 @@ class PromotionService:
             return None
         data: dict[str, object] = json.loads(self._champion_path.read_text(encoding="utf-8"))
         return data
+
+    @property
+    def _promotions_path(self) -> Path:
+        return self._dir / _PROMOTIONS_FILE
+
+    def _log_decision(self, result: PromotionResult) -> None:
+        """Append the retrain decision to the durable promotions audit log."""
+        entry = {
+            "at": datetime.now(UTC).isoformat(),
+            "promoted": result.promoted,
+            "challenger": result.challenger_name,
+            "family": result.challenger_family,
+            "challenger_brier": result.challenger_brier,
+            "champion": result.champion_name,
+            "champion_brier": result.champion_brier,
+            "champion_brier_fresh": result.champion_brier_fresh,
+            "candidates": result.candidate_briers,
+            "reason": result.reason,
+        }
+        with self._promotions_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+
+    def promotion_history(self, *, limit: int = 50) -> list[dict[str, object]]:
+        """Most recent retrain decisions, newest first."""
+        if not self._promotions_path.exists():
+            return []
+        lines = self._promotions_path.read_text(encoding="utf-8").splitlines()
+        out: list[dict[str, object]] = []
+        for line in reversed(lines[-limit:]):
+            if not line.strip():
+                continue
+            try:
+                out.append(json.loads(line))
+            except ValueError:  # a torn write must not break the endpoint
+                continue
+        return out
 
     def _write_champion(self, *, name: str, brier: float, family: str) -> None:
         self._champion_path.write_text(
@@ -249,7 +286,7 @@ class PromotionService:
         if champion is None:
             self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
             log.info("promotion.first_champion", name=challenger_name, brier=challenger_brier)
-            return PromotionResult(
+            first = PromotionResult(
                 challenger_name=challenger_name,
                 challenger_brier=challenger_brier,
                 champion_name=None,
@@ -259,6 +296,8 @@ class PromotionService:
                 challenger_family=family,
                 candidate_briers=candidate_briers,
             )
+            self._log_decision(first)
+            return first
 
         # Fair gate: champion re-graded on the same fresh window when possible.
         champion_fresh = self._regrade_champion(
@@ -298,7 +337,7 @@ class PromotionService:
             champion_brier=champion_brier,
             champion_brier_basis=basis,
         )
-        return PromotionResult(
+        decision = PromotionResult(
             challenger_name=challenger_name,
             challenger_brier=challenger_brier,
             champion_name=str(champion.get("model_name")),
@@ -309,3 +348,5 @@ class PromotionService:
             candidate_briers=candidate_briers,
             champion_brier_fresh=champion_fresh,
         )
+        self._log_decision(decision)
+        return decision
