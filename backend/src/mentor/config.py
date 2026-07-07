@@ -63,6 +63,10 @@ class Settings(BaseSettings):
 
     model_store_dir: str = "models"
 
+    # Optional: serve the built frontend (frontend/dist) from this same app so
+    # a single-user deploy is one service. Empty -> auto-detect <repo>/frontend/dist.
+    frontend_dist_dir: str = ""
+
     # --- market-data sources ---
     # Failover order: the ingester tries each in turn until one returns bars.
     # Twelve Data (keyed) first for intraday quality; Yahoo (free, no key)
@@ -126,6 +130,47 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.env == "production"
+
+    @property
+    def resolved_frontend_dist(self) -> Path | None:
+        """The built-frontend directory to serve, if it exists."""
+        p = (
+            Path(self.frontend_dist_dir)
+            if self.frontend_dist_dir
+            else (_REPO_ROOT / "frontend" / "dist")
+        )
+        return p if p.is_dir() else None
+
+    def insecure_production_reasons(self) -> list[str]:
+        """Fatal security problems for a public deploy — startup refuses these.
+
+        Empty in dev. These are the ones that leave the API open or forgeable.
+        """
+        if not self.is_production:
+            return []
+        reasons: list[str] = []
+        if not self.auth_password_hash.strip():
+            reasons.append("MENTOR_AUTH_PASSWORD_HASH is unset — the API would be OPEN")
+        secret = self.jwt_secret.get_secret_value()
+        if not secret or secret == "please-generate-a-32-byte-secret":  # noqa: S105 (placeholder)
+            reasons.append("MENTOR_JWT_SECRET is unset or the default placeholder")
+        elif len(secret) < 32:
+            reasons.append("MENTOR_JWT_SECRET should be at least 32 characters")
+        if self.db_password.get_secret_value() in ("", "change-me"):
+            reasons.append("MENTOR_DB_PASSWORD is unset or the default placeholder")
+        return reasons
+
+    def production_warnings(self) -> list[str]:
+        """Non-fatal hardening advice (logged, not enforced)."""
+        if not self.is_production:
+            return []
+        warnings: list[str] = []
+        if any(o == "*" or "localhost" in o for o in self.cors_origins):
+            warnings.append(
+                "MENTOR_CORS_ORIGINS still allows localhost/* — harmless for a "
+                "same-origin deploy, but set your real origin if the frontend is separate"
+            )
+        return warnings
 
 
 @lru_cache(maxsize=1)

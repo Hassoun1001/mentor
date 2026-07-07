@@ -1,0 +1,51 @@
+# Production single-host run: Postgres/Timescale + the app (API + built
+# frontend) in one command. Provide secrets in a .env next to this file.
+#   docker compose -f docker-compose.prod.yml up -d --build
+# The app image builds the frontend and serves it from the backend, applies
+# migrations on start, and refuses to boot if auth/JWT/DB secrets are unset.
+
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MENTOR_DB_NAME:-mentor}
+      POSTGRES_USER: ${MENTOR_DB_USER:-mentor}
+      POSTGRES_PASSWORD: ${MENTOR_DB_PASSWORD:?set MENTOR_DB_PASSWORD in .env}
+    volumes:
+      - mentor_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MENTOR_DB_USER:-mentor} -d ${MENTOR_DB_NAME:-mentor}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MENTOR_ENV: production
+      MENTOR_DB_HOST: db
+      MENTOR_DB_NAME: ${MENTOR_DB_NAME:-mentor}
+      MENTOR_DB_USER: ${MENTOR_DB_USER:-mentor}
+      MENTOR_DB_PASSWORD: ${MENTOR_DB_PASSWORD:?}
+      MENTOR_AUTH_USERNAME: ${MENTOR_AUTH_USERNAME:-mentor}
+      MENTOR_AUTH_PASSWORD_HASH: ${MENTOR_AUTH_PASSWORD_HASH:?set MENTOR_AUTH_PASSWORD_HASH in .env}
+      MENTOR_JWT_SECRET: ${MENTOR_JWT_SECRET:?set MENTOR_JWT_SECRET in .env}
+      MENTOR_JWT_TTL_HOURS: ${MENTOR_JWT_TTL_HOURS:-12}
+      MENTOR_CORS_ORIGINS: ${MENTOR_CORS_ORIGINS:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY:-}
+      MENTOR_LLM_MODEL: ${MENTOR_LLM_MODEL:-claude-opus-4-8}
+      # Keep data fresh: enable the in-process ingest/predict loop.
+      MENTOR_LOOP_ENABLED: ${MENTOR_LOOP_ENABLED:-false}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+volumes:
+  mentor_db_data:

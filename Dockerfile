@@ -1,0 +1,37 @@
+# Single-service image: builds the frontend, then serves it from the FastAPI
+# backend (same origin, so no CORS needed). Run migrations on start.
+
+# ---- stage 1: build the frontend ----
+FROM node:20-alpine AS frontend
+WORKDIR /fe
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ---- stage 2: python runtime ----
+FROM python:3.13-slim AS runtime
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MENTOR_ENV=production \
+    MENTOR_FRONTEND_DIST_DIR=/app/frontend/dist
+WORKDIR /app
+
+# libgomp1 is required at runtime by scikit-learn / scipy.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install the backend (includes src, models, alembic via the copied tree).
+COPY backend/ ./backend/
+RUN pip install ./backend
+
+# Built frontend from stage 1.
+COPY --from=frontend /fe/dist ./frontend/dist
+
+COPY backend/scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /app/backend
+EXPOSE 8000
+ENTRYPOINT ["/entrypoint.sh"]
