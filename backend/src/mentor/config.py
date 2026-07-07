@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     loop_symbol: str = "EURUSD"
     loop_timeframe: str = "1h"
     loop_horizon_bars: int = 24
+    loop_ingest_interval_minutes: int = 60  # pull fresh bars so the loop learns on new data
     loop_predict_interval_minutes: int = 60
     loop_resolve_interval_minutes: int = 15
     loop_retrain_interval_hours: int = 168  # weekly

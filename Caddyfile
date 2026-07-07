@@ -1,0 +1,8 @@
+# Reverse proxy with automatic HTTPS (Let's Encrypt).
+# MENTOR_DOMAIN is your public hostname, e.g. tradementor.duckdns.org.
+# Caddy provisions and renews the TLS certificate on its own; port 80 must be
+# reachable from the internet for the ACME challenge.
+{$MENTOR_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8000
+}

@@ -8,6 +8,11 @@ API.
 
 This guide is for a personal, single-user deploy (only you log in).
 
+> **Want it free *and* always-on?** For a $0/month box that never sleeps — so
+> the learning loop keeps ingesting/predicting/retraining 24/7 — follow
+> [ORACLE_DEPLOY.md](ORACLE_DEPLOY.md) (Oracle Cloud Always Free VM + Caddy +
+> DuckDNS). This file covers the generic single-host / PaaS options.
+
 ---
 
 ## 1. Generate your secrets (once)

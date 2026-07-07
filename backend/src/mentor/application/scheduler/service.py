@@ -18,6 +18,7 @@ useful for testing without waiting for the next tick.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,14 +26,25 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from mentor.application.forecasting.inference_service import ForecastService
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
+from mentor.application.market import IngestionService
 from mentor.config import Settings
 from mentor.domain.errors import DomainError
 from mentor.domain.market.bars import Timeframe
+from mentor.infrastructure.adapters import FailoverMarketDataAdapter
+from mentor.infrastructure.adapters.factory import build_sources, close_sources
 from mentor.infrastructure.repositories.predictions import PredictionRepository
 from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.logging import get_logger
 
 log = get_logger("mentor.scheduler")
+
+# How much history to (idempotently) pull each ingest tick, per timeframe.
+_INGEST_DAYS: dict[Timeframe, int] = {
+    Timeframe.M1: 3,
+    Timeframe.M5: 7,
+    Timeframe.H1: 10,
+    Timeframe.D1: 60,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +77,42 @@ class LoopScheduler:
         return "baseline"
 
     # ---- job bodies (also callable on demand) ----
+
+    async def run_ingest_once(self) -> int:
+        """Pull fresh bars for the loop symbol so predictions/retrains use new data.
+
+        Idempotent: the repository upserts on (symbol, timeframe, ts), so an
+        overlapping window each tick just fills any gap without duplicating.
+        """
+        s = self._settings
+        tf = Timeframe(s.loop_timeframe)
+        end = datetime.now(UTC)
+        start = end - timedelta(days=_INGEST_DAYS.get(tf, 10))
+        sources = build_sources(s)
+        if not sources:
+            log.warning("loop.ingest_skipped", error="no market data sources configured")
+            return 0
+        adapter = FailoverMarketDataAdapter(sources)
+        try:
+            async with self._sessions() as session:
+                service = IngestionService(
+                    adapter=adapter,
+                    repo=PriceBarRepository(session),
+                )
+                result = await service.ingest(
+                    symbol=s.loop_symbol,
+                    timeframe=tf,
+                    start=start,
+                    end=end,
+                )
+                await session.commit()
+            log.info("loop.ingested", persisted=result.persisted, fetched=result.fetched)
+            return result.persisted
+        except DomainError as exc:
+            log.warning("loop.ingest_skipped", error=str(exc))
+            return 0
+        finally:
+            await close_sources(sources)
 
     async def run_predict_once(self) -> str | None:
         s = self._settings
@@ -138,6 +186,13 @@ class LoopScheduler:
             return
         s = self._settings
         self._scheduler.add_job(
+            self.run_ingest_once,
+            "interval",
+            minutes=s.loop_ingest_interval_minutes,
+            id="ingest",
+            replace_existing=True,
+        )
+        self._scheduler.add_job(
             self.run_predict_once,
             "interval",
             minutes=s.loop_predict_interval_minutes,
@@ -161,6 +216,7 @@ class LoopScheduler:
         self._scheduler.start()
         log.info(
             "loop.started",
+            ingest_min=s.loop_ingest_interval_minutes,
             predict_min=s.loop_predict_interval_minutes,
             resolve_min=s.loop_resolve_interval_minutes,
             retrain_hr=s.loop_retrain_interval_hours,
