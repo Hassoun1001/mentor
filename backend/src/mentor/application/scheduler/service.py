@@ -1,14 +1,19 @@
 """In-process scheduler for the autonomous prediction loop.
 
-Runs three jobs on a cadence, each in its own DB transaction:
+Runs four jobs on a cadence, each in its own DB transaction:
 
+- **ingest** — pull fresh price bars for the loop symbol so every later
+  step works on current data (idempotent upsert; overlap fills gaps).
 - **predict** — generate a live forecast from the latest bars and log it
   to the audit table (champion model if one has been promoted, else the
   baseline rule).
 - **resolve** — fill the realised outcome of any prediction whose horizon
-  has elapsed and whose outcome bar now exists.
-- **retrain** — retrain a challenger and promote it only if it beats the
-  champion's out-of-sample calibration.
+  has elapsed and whose outcome bar now exists. After each resolve pass
+  the **drift watch** grades the rolling live Brier and triggers an
+  early retrain when calibration has degraded (see `drift.py`).
+- **retrain** — train a challenger *family* (technical / +macro / +news)
+  and promote the best only if it beats the champion re-graded on the
+  same fresh out-of-sample window.
 
 The scheduler is opt-in (`MENTOR_LOOP_ENABLED`). The same job bodies are
 exposed as `run_*_once` so the API can trigger a single cycle on demand —
@@ -27,11 +32,14 @@ from mentor.application.forecasting.inference_service import ForecastService
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
 from mentor.application.market import IngestionService
+from mentor.application.scheduler.drift import assess_drift
 from mentor.config import Settings
 from mentor.domain.errors import DomainError
 from mentor.domain.market.bars import Timeframe
 from mentor.infrastructure.adapters import FailoverMarketDataAdapter
 from mentor.infrastructure.adapters.factory import build_sources, close_sources
+from mentor.infrastructure.repositories.macro_series import MacroSeriesRepository
+from mentor.infrastructure.repositories.news_tone import NewsToneRepository
 from mentor.infrastructure.repositories.predictions import PredictionRepository
 from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.logging import get_logger
@@ -65,6 +73,8 @@ class LoopScheduler:
         self._settings = settings
         self._sessions = session_factory
         self._scheduler = AsyncIOScheduler(timezone="UTC")
+        # Cooldown marker so a rough patch can't trigger a retrain storm.
+        self._last_drift_retrain: datetime | None = None
 
     # ---- champion resolution ----
 
@@ -145,7 +155,45 @@ class LoopScheduler:
                 prices=PriceBarRepository(session),
             )
             await session.commit()
-            return result.resolved
+        if result.resolved:
+            # Fresh outcomes just landed — the moment to check whether the
+            # system's own live performance says the regime has drifted.
+            await self._maybe_retrain_on_drift()
+        return result.resolved
+
+    async def _maybe_retrain_on_drift(self) -> None:
+        """Learn from live outcomes: retrain early when calibration degrades."""
+        s = self._settings
+        now = datetime.now(UTC)
+        if self._last_drift_retrain is not None and now - self._last_drift_retrain < timedelta(
+            hours=s.loop_drift_cooldown_hours
+        ):
+            return
+
+        promo = PromotionService(model_store_dir=s.model_store_dir)
+        champion = promo.current_champion()
+        champion_brier = (
+            float(champion["test_brier"])  # type: ignore[arg-type]
+            if champion and champion.get("test_brier") is not None
+            else None
+        )
+        async with self._sessions() as session:
+            rows = await PredictionRepository(session).list_resolved(limit=s.loop_drift_window)
+        outcomes = [(float(r.p_up), int(r.realised_outcome or 0)) for r in rows]
+
+        verdict = assess_drift(
+            outcomes,
+            champion_brier=champion_brier,
+            min_samples=s.loop_drift_min_samples,
+            margin=s.loop_drift_margin,
+        )
+        if not verdict.retrain:
+            log.debug("loop.drift_ok", reason=verdict.reason)
+            return
+        log.warning("loop.drift_detected", reason=verdict.reason, live_brier=verdict.live_brier)
+        self._last_drift_retrain = now
+        reason = await self.run_retrain_once()
+        log.info("loop.drift_retrain_done", outcome=reason)
 
     async def run_retrain_once(self) -> str:
         s = self._settings
@@ -154,6 +202,11 @@ class LoopScheduler:
                 promo = PromotionService(
                     prices=PriceBarRepository(session),
                     model_store_dir=s.model_store_dir,
+                    # Exogenous stores unlock the +macro / +news challenger
+                    # configurations whenever their data is present.
+                    news_tone=NewsToneRepository(session),
+                    macro=MacroSeriesRepository(session),
+                    news_query_key=s.news_query_key,
                 )
                 result = await promo.retrain_and_promote(
                     symbol=s.loop_symbol,

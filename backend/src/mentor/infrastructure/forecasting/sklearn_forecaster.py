@@ -245,6 +245,63 @@ def _assemble_samples(
     return samples, feature_names, news_names, macro_names
 
 
+def evaluate_forecaster_on_tail(
+    forecaster: SklearnForecaster,
+    *,
+    bars: Sequence[PriceBar],
+    horizon_bars: int,
+    test_fraction: float = 0.2,
+    news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+) -> float | None:
+    """Grade an already-trained forecaster on the trailing test slice of `bars`.
+
+    This is what makes champion/challenger promotion *fair*: the champion's
+    stored Brier was measured on the data of its own era, while a fresh
+    challenger is graded on today's tail. Re-grading both on the **same**
+    trailing window compares like with like. Feature vectors are assembled in
+    the forecaster's own column order (technical-only and news/macro-aware
+    models both work); missing exogenous columns default to neutral 0.0,
+    exactly as at inference time.
+
+    Returns the Brier score of the shipped (calibrated when the model carries
+    a calibrator) probabilities, or ``None`` when the tail is too small to
+    grade meaningfully.
+    """
+    rows = build_feature_series(bars)
+    closes = [b.close for b in bars]
+    timestamps = [b.ts for b in bars]
+    label_by_ts: dict[datetime, int] = {
+        ts: y for ts, y in build_labels(closes, timestamps=timestamps, horizon_bars=horizon_bars)
+    }
+
+    samples: list[tuple[list[float], int]] = []
+    for row in rows:
+        if row.ts not in label_by_ts:
+            continue
+        combined: dict[str, float] = {k: float(v) for k, v in row.features.items()}
+        if news_by_ts is not None:
+            combined.update(news_by_ts.get(row.ts, {}))
+        if macro_by_ts is not None:
+            combined.update(macro_by_ts.get(row.ts, {}))
+        vector = [combined.get(name, 0.0) for name in forecaster.feature_names]
+        samples.append((vector, label_by_ts[row.ts]))
+
+    if len(samples) < 100:
+        return None
+    test_split = int(len(samples) * (1 - test_fraction))
+    tail = samples[test_split:]
+    if len(tail) < 20:
+        return None
+
+    x = np.array([s[0] for s in tail])
+    y = np.array([s[1] for s in tail])
+    raw = forecaster._classifier.predict_proba(x)[:, 1]
+    calibrator = forecaster.calibrator
+    shipped = np.clip(calibrator.predict(raw), 0.0, 1.0) if calibrator is not None else raw
+    return float(brier_score_loss(y, shipped))
+
+
 def _fit_and_grade_calibration(
     clf: HistGradientBoostingClassifier,
     *,

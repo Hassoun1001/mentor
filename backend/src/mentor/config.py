@@ -86,6 +86,12 @@ class Settings(BaseSettings):
     loop_predict_interval_minutes: int = 60
     loop_resolve_interval_minutes: int = 15
     loop_retrain_interval_hours: int = 168  # weekly
+    # Drift watch: retrain early when the rolling Brier of recent *live*
+    # resolved predictions degrades past champion + margin (see drift.py).
+    loop_drift_window: int = 40  # how many recent resolved predictions to grade
+    loop_drift_min_samples: int = 25  # below this, Brier is too noisy to act on
+    loop_drift_margin: float = 0.02  # tolerated degradation before triggering
+    loop_drift_cooldown_hours: int = 24  # minimum spacing between drift retrains
 
     # --- news sentiment (GDELT, free, no key) ---
     news_query_key: str = "eurusd"

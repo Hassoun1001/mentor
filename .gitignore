@@ -46,3 +46,9 @@ secrets/
 # Logs
 logs/
 *.log
+
+# SSH keys must never be committed
+keys/
+*.key
+*.key.pub
+*.pem

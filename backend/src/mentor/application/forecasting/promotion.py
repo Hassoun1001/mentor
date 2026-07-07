@@ -2,11 +2,24 @@
 
 The flywheel retrains as new resolved outcomes accumulate. But a retrain
 is only an improvement if it *measurably* generalises better — otherwise
-you're just overfitting to the latest noise. So every retrain produces a
-**challenger**, and the challenger replaces the **champion** only if its
-out-of-sample Brier score (calibration on the trailing held-out slice)
-is lower by a margin. A worse model never ships. This is the §13 "proof
-before trust" rule applied to the model itself.
+you're just overfitting to the latest noise. So every retrain produces
+**challengers**, and the best challenger replaces the **champion** only
+if its out-of-sample Brier score is lower by a margin. A worse model
+never ships. This is the §13 "proof before trust" rule applied to the
+model itself.
+
+Two honesty upgrades over the naive version:
+
+- **Candidate family, not a single roll.** Each retrain trains several
+  configurations — technical-only, +macro, +news+macro — using whatever
+  exogenous data is actually in the store, and grades them all on the
+  same trailing test slice. The gate sees the best of the family.
+- **Fair gate.** The champion's stored Brier was measured on the data of
+  *its* era; comparing a fresh challenger against that number is
+  apples-vs-oranges in a drifting market. Before deciding, the champion
+  is re-graded on the **same** trailing window the challengers were
+  tested on. Only when re-grading is impossible (model file gone) does
+  the stored figure serve as fallback.
 
 The champion pointer is a small JSON file in the model store so the live
 loop and the forecast API can ask "which model is current?" without
@@ -16,15 +29,24 @@ unpickling anything.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+from mentor.application.forecasting.news_context import build_news_by_ts, load_news_series
+from mentor.application.macro.context import build_macro_by_ts, load_macro_series
 from mentor.domain.errors import ValidationError
 from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.infrastructure.forecasting.model_store import ModelStore
-from mentor.infrastructure.forecasting.sklearn_forecaster import train_sklearn_forecaster
+from mentor.infrastructure.forecasting.sklearn_forecaster import (
+    SklearnForecaster,
+    evaluate_forecaster_on_tail,
+    train_sklearn_forecaster,
+)
+from mentor.infrastructure.repositories.macro_series import MacroSeriesRepository
+from mentor.infrastructure.repositories.news_tone import NewsToneRepository
 from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.logging import get_logger
 
@@ -43,6 +65,12 @@ class PromotionResult:
     champion_brier: float | None
     promoted: bool
     reason: str
+    # Which feature family won, and how every candidate scored — the audit
+    # trail that shows each learning cycle was a real search, not one roll.
+    challenger_family: str = "technical"
+    candidate_briers: dict[str, float] = field(default_factory=dict)
+    # Champion re-graded on the same fresh test window (None = fallback used).
+    champion_brier_fresh: float | None = None
 
 
 def _to_domain(rows) -> list[PriceBar]:  # type: ignore[no-untyped-def]
@@ -68,10 +96,18 @@ class PromotionService:
         *,
         model_store_dir: str | Path,
         prices: PriceBarRepository | None = None,
+        news_tone: NewsToneRepository | None = None,
+        macro: MacroSeriesRepository | None = None,
+        news_query_key: str = "eurusd",
     ) -> None:
         # `prices` is only needed to retrain; reading the champion pointer
-        # does not require a DB session, so it stays optional.
+        # does not require a DB session, so it stays optional. `news_tone`
+        # and `macro` unlock the exogenous candidate configurations when
+        # their stores hold data.
         self._prices = prices
+        self._news_tone = news_tone
+        self._macro = macro
+        self._news_query_key = news_query_key
         self._dir = Path(model_store_dir)
         self._store = ModelStore(model_store_dir)
 
@@ -85,17 +121,65 @@ class PromotionService:
         data: dict[str, object] = json.loads(self._champion_path.read_text(encoding="utf-8"))
         return data
 
-    def _write_champion(self, *, name: str, brier: float) -> None:
+    def _write_champion(self, *, name: str, brier: float, family: str) -> None:
         self._champion_path.write_text(
             json.dumps(
                 {
                     "model_name": name,
                     "test_brier": brier,
+                    "feature_family": family,
                     "promoted_at": datetime.now(UTC).isoformat(),
                 },
                 indent=2,
             ),
             encoding="utf-8",
+        )
+
+    # ---- exogenous context (best effort — empty stores just narrow the family) ----
+
+    async def _exogenous_context(
+        self, bars: list[PriceBar]
+    ) -> tuple[
+        Mapping[datetime, Mapping[str, float]] | None,
+        Mapping[datetime, Mapping[str, float]] | None,
+    ]:
+        timestamps = [b.ts for b in bars]
+        news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None
+        if self._news_tone is not None:
+            series = await load_news_series(self._news_tone, query_key=self._news_query_key)
+            if not series.empty:
+                news_by_ts = build_news_by_ts(series, timestamps)
+        macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None
+        if self._macro is not None:
+            macro_series = await load_macro_series(self._macro)
+            if not macro_series.empty:
+                macro_by_ts = build_macro_by_ts(macro_series, timestamps)
+        return news_by_ts, macro_by_ts
+
+    def _regrade_champion(
+        self,
+        champion: dict[str, object],
+        *,
+        bars: list[PriceBar],
+        horizon_bars: int,
+        news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+        macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+    ) -> float | None:
+        """Champion Brier on the same fresh tail the challengers used."""
+        name = str(champion.get("model_name") or "")
+        if not name:
+            return None
+        try:
+            model, _ = self._store.load(name)
+        except (ValidationError, OSError, ValueError, KeyError) as exc:
+            log.warning("promotion.champion_regrade_failed", name=name, error=str(exc))
+            return None
+        return evaluate_forecaster_on_tail(
+            model,
+            bars=bars,
+            horizon_bars=horizon_bars,
+            news_by_ts=news_by_ts,
+            macro_by_ts=macro_by_ts,
         )
 
     async def retrain_and_promote(
@@ -117,8 +201,41 @@ class PromotionService:
         if len(bars) < 300:
             raise ValidationError(f"need at least 300 bars to retrain; have {len(bars)}")
 
-        challenger = train_sklearn_forecaster(bars=bars, horizon_bars=horizon_bars)
+        news_by_ts, macro_by_ts = await self._exogenous_context(bars)
+
+        # Candidate family — every configuration the available data allows,
+        # all graded on the identical trailing test slice by the trainer.
+        candidates: list[tuple[str, SklearnForecaster]] = [
+            ("technical", train_sklearn_forecaster(bars=bars, horizon_bars=horizon_bars)),
+        ]
+        if macro_by_ts is not None:
+            candidates.append(
+                (
+                    "technical+macro",
+                    train_sklearn_forecaster(
+                        bars=bars, horizon_bars=horizon_bars, macro_by_ts=macro_by_ts
+                    ),
+                )
+            )
+        if news_by_ts is not None:
+            candidates.append(
+                (
+                    "technical+news+macro" if macro_by_ts is not None else "technical+news",
+                    train_sklearn_forecaster(
+                        bars=bars,
+                        horizon_bars=horizon_bars,
+                        news_by_ts=news_by_ts,
+                        macro_by_ts=macro_by_ts,
+                    ),
+                )
+            )
+
+        candidate_briers = {fam: model.report.test_brier for fam, model in candidates}
+        family, challenger = min(candidates, key=lambda c: c[1].report.test_brier)
         challenger_brier = challenger.report.test_brier
+        log.info("promotion.candidates", briers=candidate_briers, winner=family)
+
+        # Persist only the winning challenger — losers stay out of the store.
         stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         challenger_name = f"auto_{symbol.lower()}_{timeframe.value}_{stamp}"
         self._store.save(
@@ -130,7 +247,7 @@ class PromotionService:
 
         champion = self.current_champion()
         if champion is None:
-            self._write_champion(name=challenger_name, brier=challenger_brier)
+            self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
             log.info("promotion.first_champion", name=challenger_name, brier=challenger_brier)
             return PromotionResult(
                 challenger_name=challenger_name,
@@ -139,31 +256,47 @@ class PromotionService:
                 champion_brier=None,
                 promoted=True,
                 reason="No champion yet — challenger installed as the first champion.",
+                challenger_family=family,
+                candidate_briers=candidate_briers,
             )
 
-        champion_brier = float(champion["test_brier"])  # type: ignore[arg-type]
+        # Fair gate: champion re-graded on the same fresh window when possible.
+        champion_fresh = self._regrade_champion(
+            champion,
+            bars=bars,
+            horizon_bars=horizon_bars,
+            news_by_ts=news_by_ts,
+            macro_by_ts=macro_by_ts,
+        )
+        champion_stored = float(champion["test_brier"])  # type: ignore[arg-type]
+        champion_brier = champion_fresh if champion_fresh is not None else champion_stored
+        basis = "re-graded on the same fresh window" if champion_fresh is not None else "stored"
+
         improvement = champion_brier - challenger_brier
         if improvement >= _PROMOTION_MARGIN:
-            self._write_champion(name=challenger_name, brier=challenger_brier)
+            self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
             promoted = True
             reason = (
-                f"Challenger Brier {challenger_brier:.4f} beat champion "
-                f"{champion_brier:.4f} by {improvement:.4f} (≥ {_PROMOTION_MARGIN}) — promoted."
+                f"Challenger ({family}) Brier {challenger_brier:.4f} beat champion "
+                f"{champion_brier:.4f} ({basis}) by {improvement:.4f} "
+                f"(≥ {_PROMOTION_MARGIN}) — promoted."
             )
         else:
             promoted = False
             reason = (
-                f"Challenger Brier {challenger_brier:.4f} did not beat champion "
-                f"{champion_brier:.4f} by the required {_PROMOTION_MARGIN} margin — "
+                f"Challenger ({family}) Brier {challenger_brier:.4f} did not beat champion "
+                f"{champion_brier:.4f} ({basis}) by the required {_PROMOTION_MARGIN} margin — "
                 f"champion kept. A worse model never ships."
             )
         log.info(
             "promotion.decision",
             promoted=promoted,
             challenger=challenger_name,
+            challenger_family=family,
             challenger_brier=challenger_brier,
             champion=champion.get("model_name"),
             champion_brier=champion_brier,
+            champion_brier_basis=basis,
         )
         return PromotionResult(
             challenger_name=challenger_name,
@@ -172,4 +305,7 @@ class PromotionService:
             champion_brier=champion_brier,
             promoted=promoted,
             reason=reason,
+            challenger_family=family,
+            candidate_briers=candidate_briers,
+            champion_brier_fresh=champion_fresh,
         )
