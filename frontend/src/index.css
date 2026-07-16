@@ -2,36 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  "Aurora" design system — a spacious, premium fintech look.
+  Colours are RGB channels so Tailwind's /opacity modifiers keep working.
+  Roles:  accent = brand/primary (indigo)   accentSoft = positive/up (emerald)
+          danger = negative/down (red)       warn = caution (amber)
+*/
+
 @layer base {
-  /* Light theme (default). RGB channels so Tailwind /opacity keeps working. */
+  /* Light theme (default) — warm, airy, premium. */
   :root {
-    --mentor-bg: 246 248 250;
-    --mentor-panel: 255 255 255;
-    --mentor-panelLight: 240 243 246;
-    --mentor-fg: 28 33 40;
-    --mentor-muted: 87 96 106;
-    --mentor-accent: 31 111 235;
-    --mentor-accentHover: 9 105 218;
-    --mentor-accentSoft: 26 127 55;
-    --mentor-warn: 154 103 0;
-    --mentor-danger: 207 34 46;
-    --mentor-border: 208 215 222;
+    --mentor-bg: 247 248 251; /* soft cool canvas */
+    --mentor-panel: 255 255 255; /* crisp card */
+    --mentor-panelLight: 244 246 250; /* inset / muted surface */
+    --mentor-fg: 17 24 39; /* slate-900 */
+    --mentor-muted: 100 116 139; /* slate-500 */
+    --mentor-accent: 79 70 229; /* indigo-600 */
+    --mentor-accentHover: 67 56 202; /* indigo-700 */
+    --mentor-accentSoft: 5 150 105; /* emerald-600 */
+    --mentor-warn: 217 119 6; /* amber-600 */
+    --mentor-danger: 220 38 38; /* red-600 */
+    --mentor-border: 226 232 240; /* slate-200 */
     color-scheme: light;
   }
 
-  /* Dark theme (trading terminal). */
+  /* Dark theme — rich near-black, not a harsh terminal. */
   .dark {
-    --mentor-bg: 13 17 23;
-    --mentor-panel: 17 22 29;
-    --mentor-panelLight: 27 34 44;
-    --mentor-fg: 230 237 243;
-    --mentor-muted: 139 148 158;
-    --mentor-accent: 47 129 247;
-    --mentor-accentHover: 75 150 249;
-    --mentor-accentSoft: 46 189 133;
-    --mentor-warn: 210 153 34;
-    --mentor-danger: 246 70 93;
-    --mentor-border: 30 37 48;
+    --mentor-bg: 10 13 22; /* deep slate-blue */
+    --mentor-panel: 20 26 40; /* card */
+    --mentor-panelLight: 30 38 56; /* elevated / inset */
+    --mentor-fg: 226 232 240; /* slate-200 */
+    --mentor-muted: 148 163 184; /* slate-400 */
+    --mentor-accent: 129 140 248; /* indigo-400 */
+    --mentor-accentHover: 165 172 255;
+    --mentor-accentSoft: 52 211 153; /* emerald-400 */
+    --mentor-warn: 251 191 36; /* amber-400 */
+    --mentor-danger: 248 113 113; /* red-400 */
+    --mentor-border: 32 42 62; /* slate-800-ish */
     color-scheme: dark;
   }
 
@@ -41,92 +48,129 @@
     height: 100%;
   }
 
-  /* Ambient accent glow behind the app — subtle depth, both themes. */
   body {
     font-feature-settings: 'cv11', 'ss01';
+    color: rgb(var(--mentor-fg));
+    /* Aurora glow — two soft colour washes over the canvas. */
     background:
-      radial-gradient(900px 380px at 50% -160px, rgb(var(--mentor-accent) / 0.08), transparent 70%),
+      radial-gradient(1100px 520px at 85% -10%, rgb(var(--mentor-accent) / 0.1), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgb(var(--mentor-accentSoft) / 0.06), transparent 55%),
       rgb(var(--mentor-bg));
     background-attachment: fixed;
   }
 
-  /* Numbers line up like a terminal — tabular figures everywhere mono is used. */
-  .font-mono {
+  /* Tabular figures wherever numbers are shown. */
+  .font-mono,
+  .tnum {
     font-variant-numeric: tabular-nums;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-mentor-accent/60 ring-offset-2 ring-offset-mentor-bg;
+    @apply outline-none ring-2 ring-mentor-accent/55 ring-offset-2 ring-offset-mentor-bg;
+  }
+
+  /* Slim, unobtrusive scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--mentor-border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(var(--mentor-border));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 }
 
 @layer components {
-  /* Card with a faint top sheen + depth. */
-  .panel {
-    border-radius: 12px;
-    border: 1px solid rgb(var(--mentor-border));
-    background:
-      linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 42%),
-      rgb(var(--mentor-panel));
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 8px 24px -18px rgb(0 0 0 / 0.6);
-    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  /* ---------- surfaces ---------- */
+
+  .panel,
+  .card {
+    border-radius: 18px;
+    border: 1px solid rgb(var(--mentor-border) / 0.9);
+    background: rgb(var(--mentor-panel));
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 10px 30px -18px rgb(15 23 42 / 0.18);
+    transition:
+      border-color 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+  .dark .panel,
+  .dark .card {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.4),
+      0 16px 40px -22px rgb(0 0 0 / 0.7);
   }
 
-  .panel-pad {
-    @apply panel p-5;
+  .panel-pad,
+  .card-pad {
+    @apply panel;
+    padding: 1.5rem;
   }
 
   /* Opt-in lift for clickable cards. */
-  .panel-hover:hover {
-    border-color: rgb(var(--mentor-accent) / 0.4);
-    transform: translateY(-2px);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 16px 40px -22px rgb(var(--mentor-accent) / 0.45);
+  .panel-hover:hover,
+  .card-hover:hover {
+    border-color: rgb(var(--mentor-accent) / 0.45);
+    transform: translateY(-3px);
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.05),
+      0 24px 50px -26px rgb(var(--mentor-accent) / 0.45);
   }
 
-  /* Hero surface — accent-lit, the eye-catching centrepiece. */
+  /* Hero — the accent-lit centrepiece. */
   .hero {
     position: relative;
-    border-radius: 14px;
-    border: 1px solid rgb(var(--mentor-accent) / 0.28);
+    overflow: hidden;
+    border-radius: 22px;
+    border: 1px solid rgb(var(--mentor-accent) / 0.22);
     background:
-      radial-gradient(560px 220px at 8% -60%, rgb(var(--mentor-accent) / 0.18), transparent 72%),
+      radial-gradient(680px 260px at 0% -40%, rgb(var(--mentor-accent) / 0.16), transparent 70%),
+      radial-gradient(560px 240px at 100% 140%, rgb(var(--mentor-accentSoft) / 0.12), transparent 72%),
       linear-gradient(180deg, rgb(var(--mentor-panel)), rgb(var(--mentor-panelLight)));
-    box-shadow: 0 18px 44px -22px rgb(var(--mentor-accent) / 0.4);
+    box-shadow: 0 24px 60px -30px rgb(var(--mentor-accent) / 0.5);
   }
 
+  /* ---------- form controls ---------- */
+
   .input {
-    @apply w-full rounded-md border border-mentor-border bg-mentor-panelLight px-3 py-2
-      font-mono text-sm text-mentor-fg placeholder-mentor-muted
-      transition-colors focus:border-mentor-accent;
+    @apply w-full rounded-xl border border-mentor-border bg-mentor-panelLight px-3.5 py-2.5
+      text-sm text-mentor-fg placeholder-mentor-muted transition-colors
+      focus:border-mentor-accent focus:bg-mentor-panel;
+    font-variant-numeric: tabular-nums;
   }
 
   .label {
-    @apply mb-1.5 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider
-      text-mentor-muted;
+    @apply mb-1.5 flex items-center gap-2 text-xs font-medium text-mentor-muted;
   }
 
-  /* Neutral bordered tag. */
+  /* ---------- tags / chips ---------- */
+
   .pill {
-    @apply inline-flex items-center gap-1.5 rounded border border-mentor-border
-      bg-mentor-panelLight px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide
-      text-mentor-muted;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-mentor-border
+      bg-mentor-panelLight px-2.5 py-0.5 text-xs font-medium text-mentor-muted;
   }
 
-  /* Filled, tinted status chips — more colour, more modern. */
   .chip {
-    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold
-      uppercase tracking-wide;
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
   }
   .chip-up {
-    background: rgb(var(--mentor-accentSoft) / 0.16);
+    background: rgb(var(--mentor-accentSoft) / 0.14);
     color: rgb(var(--mentor-accentSoft));
   }
   .chip-down {
-    background: rgb(var(--mentor-danger) / 0.16);
+    background: rgb(var(--mentor-danger) / 0.14);
     color: rgb(var(--mentor-danger));
   }
   .chip-accent {
-    background: rgb(var(--mentor-accent) / 0.16);
+    background: rgb(var(--mentor-accent) / 0.14);
     color: rgb(var(--mentor-accent));
   }
   .chip-warn {
@@ -134,31 +178,48 @@
     color: rgb(var(--mentor-warn));
   }
 
-  /* Primary action — blue gradient with a soft glow. */
+  /* ---------- buttons ---------- */
+
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm
-      font-medium text-white transition-all disabled:opacity-50;
-    background: linear-gradient(180deg, rgb(var(--mentor-accentHover)), rgb(var(--mentor-accent)));
-    box-shadow: 0 6px 18px -6px rgb(var(--mentor-accent) / 0.55);
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm
+      font-semibold text-white transition-all disabled:opacity-50;
+    background: linear-gradient(180deg, rgb(var(--mentor-accent)), rgb(var(--mentor-accentHover)));
+    box-shadow: 0 8px 22px -8px rgb(var(--mentor-accent) / 0.6);
   }
-  .btn-primary:hover {
-    filter: brightness(1.08);
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
   }
-  .btn-primary:active {
-    transform: translateY(1px);
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-mentor-border
-      bg-mentor-panelLight px-3 py-1.5 text-xs font-medium text-mentor-muted
-      transition-colors hover:text-mentor-fg hover:border-mentor-accent/40;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-mentor-border
+      bg-mentor-panel px-3.5 py-2 text-sm font-medium text-mentor-muted transition-colors
+      hover:border-mentor-accent/45 hover:text-mentor-fg;
+  }
+
+  /* ---------- typography helpers ---------- */
+
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-mentor-fg sm:text-[28px];
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-mentor-fg;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-mentor-muted;
   }
 
   .metric-value {
-    @apply font-mono text-2xl font-medium tracking-tight text-mentor-fg;
+    @apply text-2xl font-semibold tracking-tight text-mentor-fg;
+    font-variant-numeric: tabular-nums;
   }
 
   .metric-label {
-    @apply text-[11px] uppercase tracking-wider text-mentor-muted;
+    @apply text-xs font-medium text-mentor-muted;
   }
 }
