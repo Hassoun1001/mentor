@@ -26,6 +26,12 @@ RUN apt-get update \
 COPY backend/ ./backend/
 RUN pip install ./backend
 
+# Stash the baked baseline models so the entrypoint can seed a fresh
+# persistent model-store volume on first boot (the volume mount hides the
+# baked-in models/ directory). After the first retrain the volume owns the
+# champion; the seed is only used when the volume is empty.
+RUN cp -r /app/backend/models /app/seed-models 2>/dev/null || mkdir -p /app/seed-models
+
 # Built frontend from stage 1.
 COPY --from=frontend /fe/dist ./frontend/dist
 

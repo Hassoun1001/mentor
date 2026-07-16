@@ -85,7 +85,18 @@ class ModelStore:
 
     def list(self) -> Iterator[StoredModelMeta]:
         for meta_path in sorted(self._dir.glob("*.json")):
-            yield _dict_to_meta(json.loads(meta_path.read_text(encoding="utf-8")))
+            # Only sidecars that have a matching artifact are model metadata.
+            # This skips bookkeeping files that also live here — champion.json,
+            # and anything else without a companion .joblib — which would
+            # otherwise blow up `_dict_to_meta` (no 'report' key).
+            if not meta_path.with_suffix(".joblib").exists():
+                continue
+            try:
+                payload = json.loads(meta_path.read_text(encoding="utf-8"))
+                yield _dict_to_meta(payload)
+            except (ValueError, KeyError, TypeError):
+                # A malformed or legacy sidecar must not break the listing.
+                continue
 
 
 def _meta_to_dict(meta: StoredModelMeta) -> dict[str, object]:

@@ -52,6 +52,10 @@ services:
       # Optional Telegram alerts (signals, drift retrains, promotions, feed problems).
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       MENTOR_TELEGRAM_CHAT_ID: ${MENTOR_TELEGRAM_CHAT_ID:-}
+    # Persist the trained models, champion pointer, and promotions log so the
+    # loop's learning survives redeploys (seeded from baked defaults if empty).
+    volumes:
+      - mentor_models:/app/backend/models
     # No host port: only Caddy can reach the app, on the internal network.
     expose:
       - "8000"
@@ -73,5 +77,6 @@ services:
 
 volumes:
   mentor_db_data:
+  mentor_models:
   caddy_data:
   caddy_config:
