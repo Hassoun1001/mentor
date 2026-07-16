@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "mentor"
 version = "0.1.0"
 description = "Mentor — trading tutor and probabilistic forecasting engine."
-readme = "../README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
 authors = [{ name = "Mentor" }]
