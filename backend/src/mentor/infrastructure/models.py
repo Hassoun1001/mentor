@@ -379,3 +379,17 @@ class EconomicEventORM(Base, _TimestampMixin):
         Index("ix_economic_events_ts", ts),
         Index("ix_economic_events_country_ts", "country", ts),
     )
+
+
+class UserORM(Base, _TimestampMixin):
+    """Login accounts. The first row is seeded from the env-configured
+    admin credentials on first login; everyone else is created in-app.
+    `allowed_tabs` is a JSON list of UI tab ids, or the literal "*" for all."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
+    allowed_tabs: Mapped[str] = mapped_column(Text, nullable=False, default="*")

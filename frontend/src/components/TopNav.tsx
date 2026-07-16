@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 
+import { getMe } from '../api/auth';
 import type { Page } from '../App';
 import type { Theme } from '../lib/useTheme';
 
@@ -14,6 +16,7 @@ interface TopNavProps {
 
 const LINKS: { id: Page; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'trade', label: 'Trade' },
   { id: 'forecast', label: 'Forecast' },
   { id: 'system', label: 'System' },
   { id: 'loop', label: 'Loop' },
@@ -27,6 +30,10 @@ const LINKS: { id: Page; label: string }[] = [
 ];
 
 export function TopNav({ page, onNavigate, onLogout, theme, onToggleTheme }: TopNavProps) {
+  // Trim navigation to the tabs this account is allowed to see (null = all).
+  const me = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 60_000 });
+  const allowed = me.data?.tabs;
+  const links = allowed == null ? LINKS : LINKS.filter((l) => allowed.includes(l.id));
   return (
     <header className="sticky top-0 z-30 border-b border-mentor-border bg-mentor-bg/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-6">
@@ -38,7 +45,7 @@ export function TopNav({ page, onNavigate, onLogout, theme, onToggleTheme }: Top
         </div>
 
         <nav className="flex flex-1 items-center gap-0.5 overflow-x-auto">
-          {LINKS.map((l) => {
+          {links.map((l) => {
             const active = page === l.id;
             return (
               <button
@@ -58,6 +65,21 @@ export function TopNav({ page, onNavigate, onLogout, theme, onToggleTheme }: Top
             );
           })}
         </nav>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('settings')}
+          aria-label="Settings"
+          title="Settings"
+          className={clsx(
+            'shrink-0 rounded-md border p-2 transition-colors',
+            page === 'settings'
+              ? 'border-mentor-accent/60 bg-mentor-accent/10 text-mentor-fg'
+              : 'border-mentor-border bg-mentor-panelLight text-mentor-muted hover:text-mentor-fg'
+          )}
+        >
+          <GearIcon />
+        </button>
 
         <button
           type="button"
@@ -96,6 +118,20 @@ function NavIcon({ id }: { id: Page }) {
       </>
     ),
     system: <path d="M3 12h4l3 8 4-16 3 8h4" />,
+    trade: (
+      <>
+        <path d="M12 2v20" />
+        <path d="M7 7l5-5 5 5" />
+        <path d="M8 14h8" />
+        <path d="M8 18h8" />
+      </>
+    ),
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </>
+    ),
     loop: (
       <>
         <path d="M21 12a9 9 0 1 1-3-6.7" />
@@ -144,6 +180,10 @@ function NavIcon({ id }: { id: Page }) {
       {p[id]}
     </svg>
   );
+}
+
+function GearIcon() {
+  return <NavIcon id="settings" />;
 }
 
 function SunIcon() {

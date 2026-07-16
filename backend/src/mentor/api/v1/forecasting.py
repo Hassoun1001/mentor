@@ -6,7 +6,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,14 +22,18 @@ from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.replay import ReplayService
 from mentor.application.forecasting.self_backtest import simulate_own_signals
 from mentor.application.forecasting.vol_service import VolService
-from mentor.domain.errors import ValidationError
+from mentor.domain.errors import DomainError, ValidationError
 from mentor.domain.forecasting.forecast import Direction
 from mentor.domain.forecasting.volatility import (
     VolForecast,
     VolRegime,
     build_sizing_guidance,
 )
+from mentor.domain.instruments import get_instrument
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.money import Money, Percent
+from mentor.domain.risk import Direction as RiskDirection
+from mentor.domain.risk import RiskInputs, calculate_position
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import TrainingReport
 from mentor.infrastructure.repositories import (
@@ -727,3 +731,218 @@ class ChampionResponse(BaseModel):
 async def champion(settings: SettingsDep) -> ChampionResponse:
     promo = PromotionService(model_store_dir=settings.model_store_dir)
     return ChampionResponse(champion=promo.current_champion())
+
+
+# ---------- trade plan: the "what should I do right now" endpoint ----------
+
+
+class TradePlanLevelsDTO(BaseModel):
+    entry: Decimal
+    stop: Decimal
+    target: Decimal
+    stop_pips: Decimal
+    target_pips: Decimal
+    risk_reward: Decimal
+
+
+class TradePlanSizeDTO(BaseModel):
+    lots: Decimal
+    units: Decimal
+    money_at_risk: Decimal
+    risk_currency: str
+    pip_value: Decimal
+    notes: list[str]
+
+
+class TradePlanResponse(BaseModel):
+    stance: Literal["long", "short", "stand_aside"]
+    headline: str
+    symbol: str
+    timeframe: str
+    horizon_bars: int
+    asof: datetime
+    model_name: str
+    p_up: Decimal
+    confidence: Decimal
+    reasoning: str
+    vol_regime: str
+    expected_move_pips: Decimal
+    event_freeze: bool
+    levels: TradePlanLevelsDTO | None  # None when standing aside
+    size: TradePlanSizeDTO | None  # None when standing aside
+    warnings: list[str]
+    checklist: list[str]
+    disclaimer: str
+
+
+_PLAN_MIN_CONFIDENCE = Decimal("0.10")
+_PLAN_CHECKLIST = [
+    "The stance matches my own read of the chart — I am not outsourcing judgment.",
+    "The stop is placed and the position size comes from the stop, not from hope.",
+    "Total open risk across all positions stays within my guardrails.",
+    "No high-impact news lands inside the holding window (check the calendar).",
+    "I am willing to lose the risked amount without it affecting the next trade.",
+]
+_PLAN_DISCLAIMER = (
+    "This is a decision aid generated from a probabilistic model, not financial advice. "
+    "The edge on any single call is small; the discipline around it is where accounts survive."
+)
+
+
+@router.get("/trade-plan", response_model=TradePlanResponse)
+async def trade_plan(
+    session: SessionDep,
+    settings: SettingsDep,
+    balance: Annotated[Decimal, Query(gt=0, le=Decimal("100000000"))] = Decimal("10000"),
+    risk_percent: Annotated[Decimal, Query(gt=0, le=5)] = Decimal("1"),
+    reward_multiple: Annotated[Decimal, Query(ge=1, le=5)] = Decimal("2"),
+) -> TradePlanResponse:
+    """Compose the champion's direction read, the volatility-based stop, and
+    account-based position sizing into one actionable (or honestly
+    non-actionable) plan."""
+    symbol = settings.loop_symbol
+    timeframe = Timeframe(settings.loop_timeframe)
+
+    promo = PromotionService(model_store_dir=settings.model_store_dir)
+    champion = promo.current_champion()
+    model_name = (
+        str(champion["model_name"])
+        if champion and isinstance(champion.get("model_name"), str)
+        else "baseline"
+    )
+
+    forecast_service = ForecastService(
+        prices=PriceBarRepository(session),
+        predictions=PredictionRepository(session),
+        model_store_dir=settings.model_store_dir,
+        news_tone=NewsToneRepository(session),
+        news_query_key=settings.news_query_key,
+        macro=MacroSeriesRepository(session),
+    )
+    try:
+        payload = await forecast_service.predict(
+            symbol=symbol,
+            timeframe=timeframe,
+            model_name=model_name,
+            horizon_bars=settings.loop_horizon_bars,
+            record=False,
+        )
+    except (ValidationError, DomainError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    fc = payload.forecast
+
+    # Volatility read over roughly the same holding window (~1 trading day).
+    vol_service = VolService(
+        prices=PriceBarRepository(session), macro=MacroSeriesRepository(session)
+    )
+    try:
+        vol = await vol_service.predict_vol(
+            symbol=symbol, timeframe=Timeframe.D1, horizon_bars=1
+        )
+    except (ValidationError, DomainError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    guidance = build_sizing_guidance(vol.forecast)
+
+    warnings: list[str] = []
+    if guidance.event_freeze:
+        warnings.append(
+            "Volatility is in an event-like regime — the honest play is to sit out "
+            "or halve size until it normalizes."
+        )
+
+    stance: Literal["long", "short", "stand_aside"]
+    if fc.direction.value == "neutral" or fc.confidence < _PLAN_MIN_CONFIDENCE:
+        stance = "stand_aside"
+        headline = (
+            f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), which is "
+            f"too close to a coin flip to risk money on. Not trading is a position."
+        )
+        return TradePlanResponse(
+            stance=stance,
+            headline=headline,
+            symbol=fc.symbol,
+            timeframe=timeframe.value,
+            horizon_bars=fc.horizon_bars,
+            asof=fc.asof,
+            model_name=fc.model_name,
+            p_up=fc.p_up,
+            confidence=fc.confidence,
+            reasoning=fc.reasoning,
+            vol_regime=vol.forecast.regime.value,
+            expected_move_pips=vol.forecast.expected_range_pips,
+            event_freeze=guidance.event_freeze,
+            levels=None,
+            size=None,
+            warnings=warnings,
+            checklist=_PLAN_CHECKLIST,
+            disclaimer=_PLAN_DISCLAIMER,
+        )
+
+    instrument = get_instrument(symbol)
+    pip = instrument.pip_size
+    entry = fc.asof_close
+    stop_pips = guidance.suggested_stop_pips.quantize(Decimal("0.1"))
+    target_pips = (stop_pips * reward_multiple).quantize(Decimal("0.1"))
+    is_long = fc.direction.value == "long"
+    stop = (entry - stop_pips * pip) if is_long else (entry + stop_pips * pip)
+    target = (entry + target_pips * pip) if is_long else (entry - target_pips * pip)
+
+    inputs = RiskInputs(
+        account_balance=Money(amount=balance, currency="USD"),
+        risk=Percent.from_percent(risk_percent),
+        entry=entry,
+        stop=stop,
+        target=target,
+        direction=RiskDirection(fc.direction.value),
+        instrument=instrument,
+        quote_to_account_rate=Decimal("1"),
+    )
+    sizing = calculate_position(inputs)
+
+    conf_pct = float(fc.confidence) * 100
+    headline = (
+        f"{'Go LONG' if is_long else 'Go SHORT'} {fc.symbol} — the model reads "
+        f"{float(fc.p_up) * 100:.0f}% P(up) over the next {fc.horizon_bars} bars "
+        f"({conf_pct:.0f}% confidence). Risk {risk_percent}% with the stop beyond "
+        f"today's noise."
+    )
+    if conf_pct < 25:
+        warnings.append(
+            "Confidence is modest — this is a lean, not a conviction call. "
+            "Consider half size."
+        )
+
+    return TradePlanResponse(
+        stance="long" if is_long else "short",
+        headline=headline,
+        symbol=fc.symbol,
+        timeframe=timeframe.value,
+        horizon_bars=fc.horizon_bars,
+        asof=fc.asof,
+        model_name=fc.model_name,
+        p_up=fc.p_up,
+        confidence=fc.confidence,
+        reasoning=fc.reasoning,
+        vol_regime=vol.forecast.regime.value,
+        expected_move_pips=vol.forecast.expected_range_pips,
+        event_freeze=guidance.event_freeze,
+        levels=TradePlanLevelsDTO(
+            entry=entry,
+            stop=stop.quantize(pip),
+            target=target.quantize(pip),
+            stop_pips=stop_pips,
+            target_pips=target_pips,
+            risk_reward=reward_multiple,
+        ),
+        size=TradePlanSizeDTO(
+            lots=sizing.lots,
+            units=sizing.units,
+            money_at_risk=sizing.money_at_risk.amount,
+            risk_currency=sizing.money_at_risk.currency,
+            pip_value=sizing.pip_value_in_account.amount,
+            notes=list(sizing.notes),
+        ),
+        warnings=warnings,
+        checklist=_PLAN_CHECKLIST,
+        disclaimer=_PLAN_DISCLAIMER,
+    )

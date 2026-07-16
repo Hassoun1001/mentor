@@ -52,11 +52,15 @@ def hash_password(plaintext: str) -> str:
     return hashed.decode("ascii")
 
 
-def _verify_password(plaintext: str, hashed: str) -> bool:
+def verify_password(plaintext: str, hashed: str) -> bool:
     try:
         return bcrypt.checkpw(_prehash(plaintext), hashed.encode("ascii"))
     except (ValueError, TypeError):
         return False
+
+
+# Backwards-compatible private alias (used internally below).
+_verify_password = verify_password
 
 
 class AuthError(Exception):
@@ -74,6 +78,9 @@ class TokenClaims:
     subject: str
     issued_at: datetime
     expires_at: datetime
+    # Privileges. `tabs` is None for "every tab" (admins and legacy tokens).
+    is_admin: bool = True
+    tabs: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,20 +128,35 @@ class AuthService:
         exp = payload.get("exp")
         if not subject or not iat or not exp:
             raise AuthError("malformed token payload")
+        raw_tabs = payload.get("tabs", "*")
+        tabs = None if raw_tabs == "*" else tuple(str(t) for t in raw_tabs)
         return TokenClaims(
             subject=str(subject),
             issued_at=datetime.fromtimestamp(int(iat), tz=UTC),
             expires_at=datetime.fromtimestamp(int(exp), tz=UTC),
+            # Tokens minted before multi-user existed default to full access;
+            # they expire within the JWT TTL anyway.
+            is_admin=bool(payload.get("adm", True)),
+            tabs=tabs,
         )
 
-    def _issue_token(self) -> IssuedToken:
+    def issue_token(
+        self,
+        username: str,
+        *,
+        is_admin: bool = True,
+        tabs: tuple[str, ...] | None = None,
+    ) -> IssuedToken:
+        """Mint a JWT carrying the user's privileges (tabs=None → all)."""
         now = datetime.now(UTC)
         expires_at = now + timedelta(hours=self._settings.jwt_ttl_hours)
         payload = {
             "iss": _ISSUER,
-            "sub": self._settings.auth_username,
+            "sub": username,
             "iat": int(now.timestamp()),
             "exp": int(expires_at.timestamp()),
+            "adm": is_admin,
+            "tabs": "*" if tabs is None else list(tabs),
         }
         token = jwt.encode(
             payload,
@@ -142,3 +164,6 @@ class AuthService:
             algorithm=_ALGO,
         )
         return IssuedToken(access_token=token, expires_at=expires_at)
+
+    def _issue_token(self) -> IssuedToken:
+        return self.issue_token(self._settings.auth_username, is_admin=True, tabs=None)

@@ -5,6 +5,7 @@ from mentor.application.auth.service import (
     IssuedToken,
     TokenClaims,
     hash_password,
+    verify_password,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "IssuedToken",
     "TokenClaims",
     "hash_password",
+    "verify_password",
 ]

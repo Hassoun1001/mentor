@@ -47,8 +47,16 @@ export async function apiDelete<TResp>(
   return apiRequest('DELETE', path, schema);
 }
 
+export async function apiPatch<TResp>(
+  path: string,
+  body: unknown,
+  schema: z.ZodSchema<TResp>
+): Promise<TResp> {
+  return apiRequest('PATCH', path, schema, body);
+}
+
 async function apiRequest<TResp>(
-  method: 'GET' | 'POST' | 'DELETE',
+  method: 'GET' | 'POST' | 'DELETE' | 'PATCH',
   path: string,
   schema: z.ZodSchema<TResp>,
   body?: unknown
