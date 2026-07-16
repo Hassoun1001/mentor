@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     loop_predict_interval_minutes: int = 60
     loop_resolve_interval_minutes: int = 15
     loop_retrain_interval_hours: int = 168  # weekly
+    # Train on at most this many of the newest bars. Feature building is
+    # O(n²) in bar count, and the recent regime is what matters for a
+    # 24-bar horizon — 6000 hourly bars ≈ one year.
+    loop_train_max_bars: int = 6000
     # Drift watch: retrain early when the rolling Brier of recent *live*
     # resolved predictions degrades past champion + margin (see drift.py).
     loop_drift_window: int = 40  # how many recent resolved predictions to grade

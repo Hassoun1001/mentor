@@ -226,6 +226,7 @@ class PromotionService:
         symbol: str,
         timeframe: Timeframe,
         horizon_bars: int,
+        max_bars: int | None = None,
     ) -> PromotionResult:
         if self._prices is None:
             raise ValidationError("retrain requires a price repository")
@@ -236,6 +237,10 @@ class PromotionService:
             end=datetime(2100, 1, 1, tzinfo=UTC),
         )
         bars = _to_domain(rows)
+        if max_bars is not None and len(bars) > max_bars:
+            # Newest window only: feature building is O(n²) in bar count and
+            # the recent regime dominates predictive value at short horizons.
+            bars = bars[-max_bars:]
         if len(bars) < 300:
             raise ValidationError(f"need at least 300 bars to retrain; have {len(bars)}")
 

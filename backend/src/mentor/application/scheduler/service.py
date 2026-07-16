@@ -294,6 +294,7 @@ class LoopScheduler:
                     symbol=s.loop_symbol,
                     timeframe=Timeframe(s.loop_timeframe),
                     horizon_bars=s.loop_horizon_bars,
+                    max_bars=s.loop_train_max_bars,
                 )
                 await session.commit()
             except DomainError as exc:
