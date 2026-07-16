@@ -28,6 +28,7 @@ unpickling anything.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -242,15 +243,26 @@ class PromotionService:
 
         # Candidate family — every configuration the available data allows,
         # all graded on the identical trailing test slice by the trainer.
+        # Training is minutes of pure CPU; run it in a worker thread so the
+        # event loop (and with it the whole single-process API) stays
+        # responsive while the loop retrains.
         candidates: list[tuple[str, SklearnForecaster]] = [
-            ("technical", train_sklearn_forecaster(bars=bars, horizon_bars=horizon_bars)),
+            (
+                "technical",
+                await asyncio.to_thread(
+                    train_sklearn_forecaster, bars=bars, horizon_bars=horizon_bars
+                ),
+            ),
         ]
         if macro_by_ts is not None:
             candidates.append(
                 (
                     "technical+macro",
-                    train_sklearn_forecaster(
-                        bars=bars, horizon_bars=horizon_bars, macro_by_ts=macro_by_ts
+                    await asyncio.to_thread(
+                        train_sklearn_forecaster,
+                        bars=bars,
+                        horizon_bars=horizon_bars,
+                        macro_by_ts=macro_by_ts,
                     ),
                 )
             )
@@ -258,7 +270,8 @@ class PromotionService:
             candidates.append(
                 (
                     "technical+news+macro" if macro_by_ts is not None else "technical+news",
-                    train_sklearn_forecaster(
+                    await asyncio.to_thread(
+                        train_sklearn_forecaster,
                         bars=bars,
                         horizon_bars=horizon_bars,
                         news_by_ts=news_by_ts,
@@ -300,7 +313,9 @@ class PromotionService:
             return first
 
         # Fair gate: champion re-graded on the same fresh window when possible.
-        champion_fresh = self._regrade_champion(
+        # Also CPU-bound (feature building + inference over the tail) — thread.
+        champion_fresh = await asyncio.to_thread(
+            self._regrade_champion,
             champion,
             bars=bars,
             horizon_bars=horizon_bars,
