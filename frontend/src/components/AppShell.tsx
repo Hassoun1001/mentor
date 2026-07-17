@@ -5,6 +5,7 @@ import { clsx } from 'clsx';
 import { getMe } from '../api/auth';
 import type { Page } from '../App';
 import type { Theme } from '../lib/useTheme';
+import { Logo } from './Logo';
 
 interface AppShellProps {
   page: Page;
@@ -263,14 +264,7 @@ function NavLink({
 function Brand() {
   return (
     <div className="flex items-center gap-2.5">
-      <span
-        className="grid h-8 w-8 place-items-center rounded-xl text-white shadow-md"
-        style={{
-          background: 'linear-gradient(140deg, rgb(var(--mentor-accent)), rgb(var(--mentor-accentSoft)))',
-        }}
-      >
-        <SparkIcon />
-      </span>
+      <Logo size={30} />
       <span className="text-[15px] font-semibold tracking-tight text-mentor-fg">Mentor</span>
     </div>
   );
@@ -378,14 +372,6 @@ function NavIcon({ id }: { id: Page }) {
     ),
   };
   return <svg {...stroke}>{p[id]}</svg>;
-}
-
-function SparkIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2l2.2 5.8L20 10l-5.8 2.2L12 18l-2.2-5.8L4 10l5.8-2.2L12 2z" />
-    </svg>
-  );
 }
 
 function GearIcon() {

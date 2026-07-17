@@ -1587,6 +1587,360 @@ function TradeAnatomy() {
 
 // ---- registry ------------------------------------------------------------
 
+// ---- becoming-pro / using-mentor figures ---------------------------------
+
+function OrderTypes() {
+  return (
+    <Svg vb="0 0 440 210">
+      {/* price axis */}
+      <line x1={60} y1={20} x2={60} y2={190} className={TONE.border} stroke="currentColor" />
+      <line x1={40} y1={105} x2={420} y2={105} className={TONE.fg} stroke="currentColor" strokeWidth={1.8} />
+      <T x={425} y={108} anchor="end" size={9} bold>
+        current price
+      </T>
+      {/* buy limit below */}
+      <line x1={70} y1={160} x2={230} y2={160} className={TONE.accentSoft} stroke="currentColor" strokeDasharray="5 3" strokeWidth={1.6} />
+      <T x={75} y={153} anchor="start" size={9} tone="accentSoft" bold>
+        BUY LIMIT — “fill me cheaper”
+      </T>
+      {/* buy stop above */}
+      <line x1={70} y1={50} x2={230} y2={50} className={TONE.accent} stroke="currentColor" strokeDasharray="5 3" strokeWidth={1.6} />
+      <T x={75} y={43} anchor="start" size={9} tone="accent" bold>
+        BUY STOP — “enter on breakout”
+      </T>
+      {/* stop-loss for a long */}
+      <line x1={250} y1={175} x2={420} y2={175} className={TONE.danger} stroke="currentColor" strokeWidth={1.6} />
+      <T x={255} y={168} anchor="start" size={9} tone="danger" bold>
+        STOP-LOSS — the exit that caps a long
+      </T>
+      {/* take profit */}
+      <line x1={250} y1={35} x2={420} y2={35} className={TONE.accentSoft} stroke="currentColor" strokeWidth={1.6} />
+      <T x={255} y={28} anchor="start" size={9} tone="accentSoft" bold>
+        TAKE-PROFIT — the exit that banks it
+      </T>
+      <Arrow x1={140} y1={110} x2={140} y2={155} tone="muted" dashed />
+      <Arrow x1={150} y1={100} x2={150} y2={55} tone="muted" dashed />
+      <T x={220} y={202} size={9} tone="muted">
+        market order = “now, at whatever it costs” — the other four wait at a price you chose
+      </T>
+    </Svg>
+  );
+}
+
+function SessionsClock() {
+  const bar = (x: number, w: number, y: number, tone: Tone, label: string) => (
+    <g key={label}>
+      <rect x={x} y={y} width={w} height={20} rx={5} className={TONE[tone]} stroke="currentColor" fill="currentColor" fillOpacity={0.14} />
+      <T x={x + 6} y={y + 14} anchor="start" size={9} tone={tone} bold>
+        {label}
+      </T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 440 200">
+      {/* UTC axis */}
+      <line x1={20} y1={160} x2={420} y2={160} className={TONE.border} stroke="currentColor" />
+      {[0, 4, 8, 12, 16, 20, 24].map((h) => (
+        <g key={h}>
+          <line x1={20 + (h / 24) * 400} y1={156} x2={20 + (h / 24) * 400} y2={164} className={TONE.muted} stroke="currentColor" />
+          <T x={20 + (h / 24) * 400} y={177} size={8} tone="muted">
+            {`${h}:00`}
+          </T>
+        </g>
+      ))}
+      {bar(20 + (21 / 24) * 400, 400 * (3 / 24), 30, 'muted', 'Sydney…')}
+      {bar(20, 400 * (6 / 24), 30, 'muted', '…Sydney')}
+      {bar(20, 400 * (9 / 24), 58, 'muted', 'Tokyo')}
+      {bar(20 + (7 / 24) * 400, 400 * (9 / 24), 86, 'accent', 'London')}
+      {bar(20 + (12 / 24) * 400, 400 * (9 / 24), 114, 'accent', 'New York')}
+      {/* overlap highlight */}
+      <rect x={20 + (12 / 24) * 400} y={82} width={400 * (4 / 24)} height={58} rx={6} className={TONE.accentSoft} stroke="currentColor" strokeDasharray="4 3" fill="currentColor" fillOpacity={0.1} />
+      <T x={20 + (14 / 24) * 400} y={22} size={9} tone="accentSoft" bold>
+        the overlap — EUR/USD’s busiest hours
+      </T>
+      <Arrow x1={20 + (14 / 24) * 400} y1={26} x2={20 + (14 / 24) * 400} y2={78} tone="accentSoft" dashed />
+      <T x={220} y={196} size={9} tone="muted">
+        open 24/5 — but liquidity follows the sun; trade where it is
+      </T>
+    </Svg>
+  );
+}
+
+function SpreadAnatomy() {
+  return (
+    <Svg vb="0 0 440 190">
+      <line x1={40} y1={95} x2={400} y2={95} className={TONE.border} stroke="currentColor" />
+      {/* bid / ask levels */}
+      <line x1={80} y1={130} x2={360} y2={130} className={TONE.danger} stroke="currentColor" strokeWidth={1.6} />
+      <T x={70} y={134} anchor="end" size={10} tone="danger" bold>
+        bid 1.1000
+      </T>
+      <T x={370} y={134} anchor="start" size={9} tone="muted">
+        you SELL here
+      </T>
+      <line x1={80} y1={60} x2={360} y2={60} className={TONE.accent} stroke="currentColor" strokeWidth={1.6} />
+      <T x={70} y={64} anchor="end" size={10} tone="accent" bold>
+        ask 1.1001
+      </T>
+      <T x={370} y={64} anchor="start" size={9} tone="muted">
+        you BUY here
+      </T>
+      {/* the gap */}
+      <Arrow x1={220} y1={68} x2={220} y2={122} tone="warn" />
+      <Arrow x1={220} y1={122} x2={220} y2={68} tone="warn" />
+      <T x={232} y={99} anchor="start" size={10} tone="warn" bold>
+        the spread — paid on entry, every trade
+      </T>
+      <T x={220} y={178} size={9} tone="muted">
+        buy and instantly sell = one pip gone; ten trades a day = ten spreads a day
+      </T>
+    </Svg>
+  );
+}
+
+function LeverageSeesaw() {
+  return (
+    <Svg vb="0 0 440 200">
+      {/* pivot */}
+      <polygon points="220,150 200,180 240,180" className={TONE.muted} fill="currentColor" stroke="none" />
+      {/* beam */}
+      <line x1={60} y1={110} x2={380} y2={170} className={TONE.fg} stroke="currentColor" strokeWidth={2.2} />
+      <Box x={40} y={70} w={90} h={40} tone="accentSoft" fill />
+      <T x={85} y={95} tone="accentSoft" bold>
+        +10% gain
+      </T>
+      <Box x={330} y={150} w={90} h={40} tone="danger" fill />
+      <T x={375} y={175} tone="danger" bold>
+        −10% loss
+      </T>
+      <T x={220} y={30} bold size={11}>
+        10× leverage moves BOTH ends of the seesaw
+      </T>
+      <T x={220} y={48} size={9} tone="muted">
+        a routine 1% market move becomes 10% of your account — in either direction
+      </T>
+      <T x={220} y={196} size={9} tone="muted">
+        pros pick the risk %, not the leverage — size comes from the stop, and the loan stays small
+      </T>
+    </Svg>
+  );
+}
+
+function PlanPyramid() {
+  const layer = (y: number, w: number, tone: Tone, label: string) => (
+    <g key={label}>
+      <rect x={220 - w / 2} y={y} width={w} height={30} rx={6} className={TONE[tone]} stroke="currentColor" fill="currentColor" fillOpacity={0.12} />
+      <T x={220} y={y + 19} size={9.5} tone={tone} bold>
+        {label}
+      </T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 440 210">
+      {layer(170, 380, 'danger', 'RISK RULES — max loss per trade / day / week')}
+      {layer(136, 320, 'warn', 'MARKET & SCHEDULE — one pair, your sessions')}
+      {layer(102, 260, 'accent', 'SETUPS — 2–3 written, testable patterns')}
+      {layer(68, 200, 'accentSoft', 'EXECUTION — orders in before entry')}
+      {layer(34, 140, 'fg', 'REVIEW — journal + weekly')}
+      <T x={30} y={30} anchor="start" size={9} tone="muted">
+        build from
+      </T>
+      <Arrow x1={45} y1={38} x2={45} y2={185} tone="muted" dashed />
+      <T x={30} y={200} anchor="start" size={9} tone="muted">
+        the bottom
+      </T>
+    </Svg>
+  );
+}
+
+function DailyRoutineTimeline() {
+  const seg = (x: number, w: number, tone: Tone, top: string, bottom: string) => (
+    <g key={top}>
+      <rect x={x} y={80} width={w} height={34} rx={7} className={TONE[tone]} stroke="currentColor" fill="currentColor" fillOpacity={0.12} />
+      <T x={x + w / 2} y={74} size={9} tone={tone} bold>
+        {top}
+      </T>
+      <T x={x + w / 2} y={101} size={8.5} tone="muted">
+        {bottom}
+      </T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 440 180">
+      <line x1={20} y1={97} x2={425} y2={97} className={TONE.border} stroke="currentColor" />
+      {seg(30, 100, 'accent', 'PREPARE · 15m', 'calendar · lean · plan')}
+      {seg(150, 130, 'accentSoft', 'EXECUTE · 30–60m', 'setup? checklist → orders')}
+      {seg(300, 80, 'warn', 'REVIEW · 10m', 'journal the day')}
+      <T x={410} y={90} anchor="end" size={9} tone="muted" bold>
+        …life
+      </T>
+      <T x={220} y={140} size={9} tone="muted">
+        everything outside these windows is where impulse trades live — so the windows are the plan
+      </T>
+      <T x={220} y={160} size={9} tone="muted" bold>
+        “no setup today” = a complete, successful trading day
+      </T>
+    </Svg>
+  );
+}
+
+function AccountLadder() {
+  const rung = (y: number, tone: Tone, label: string, exam: string) => (
+    <g key={label}>
+      <Box x={60} y={y} w={130} h={34} tone={tone} fill />
+      <T x={125} y={y + 21} size={9.5} tone={tone} bold>
+        {label}
+      </T>
+      <T x={205} y={y + 21} anchor="start" size={9} tone="muted">
+        {exam}
+      </T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 440 210">
+      {rung(160, 'muted', 'DEMO', 'exam: 50 trades, zero rule breaks')}
+      {rung(110, 'accent', 'TINY LIVE', 'exam: +expectancy with real feelings')}
+      {rung(60, 'accentSoft', 'MEANINGFUL SIZE', 'raise after clean quarters; halve on 10% DD')}
+      <Arrow x1={125} y1={158} x2={125} y2={148} tone="fg" />
+      <Arrow x1={125} y1={108} x2={125} y2={98} tone="fg" />
+      <T x={220} y={30} bold size={10.5}>
+        each rung has an exit exam — consistency, never speed
+      </T>
+      <T x={220} y={200} size={9} tone="muted">
+        skipping rungs is how accounts die young; sizing down after losses is what pros do
+      </T>
+    </Svg>
+  );
+}
+
+function MentorDayFlow() {
+  const step = (x: number, tone: Tone, label: string, sub: string) => (
+    <g key={label}>
+      <Box x={x} y={70} w={88} h={44} tone={tone} fill />
+      <T x={x + 44} y={88} size={9.5} tone={tone} bold>
+        {label}
+      </T>
+      <T x={x + 44} y={104} size={8} tone="muted">
+        {sub}
+      </T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 440 190">
+      {step(15, 'accent', 'Dashboard', 'lean · news · pulse')}
+      {step(125, 'accentSoft', 'Trade plan', 'ticket or stand-aside')}
+      {step(235, 'warn', 'Broker', 'entry+stop+target')}
+      {step(345, 'fg', 'Journal', 'grade yourself')}
+      <Arrow x1={103} y1={92} x2={123} y2={92} tone="muted" />
+      <Arrow x1={213} y1={92} x2={233} y2={92} tone="muted" />
+      <Arrow x1={323} y1={92} x2={343} y2={92} tone="muted" />
+      <T x={280} y={50} size={9} tone="muted">
+        only if the plan says trade ↓
+      </T>
+      <T x={220} y={150} size={9} tone="muted">
+        weekly: five minutes on the Loop page — is the engine healthy, what does its honest scoreboard say?
+      </T>
+      <T x={220} y={172} size={9} tone="muted" bold>
+        total: under ten minutes a day, by design
+      </T>
+    </Svg>
+  );
+}
+
+function TicketAnatomy() {
+  const row = (y: number, tone: Tone, label: string, src: string) => (
+    <g key={label}>
+      <Box x={30} y={y} w={150} h={28} tone={tone} fill />
+      <T x={40} y={y + 18} anchor="start" size={9} tone={tone} bold>
+        {label}
+      </T>
+      <Arrow x1={185} y1={y + 14} x2={225} y2={y + 14} tone="muted" dashed />
+      <T x={232} y={y + 18} anchor="start" size={9} tone="muted">
+        {src}
+      </T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 440 210">
+      {row(18, 'accent', 'STANCE  long / short / aside', 'champion direction model')}
+      {row(54, 'fg', 'ENTRY  latest price', 'no prediction — just the market')}
+      {row(90, 'danger', 'STOP  1.5× expected move', 'volatility model (beyond noise)')}
+      {row(126, 'accentSoft', 'TARGET  stop × R:R', 'your chosen asymmetry')}
+      {row(162, 'warn', 'SIZE  lots', 'your account × risk % ÷ stop')}
+      <T x={220} y={205} size={9} tone="muted">
+        five lines, four different machines — and only the last one knows your account
+      </T>
+    </Svg>
+  );
+}
+
+function DriftWatch() {
+  return (
+    <Svg vb="0 0 440 200">
+      {/* axis */}
+      <line x1={40} y1={160} x2={420} y2={160} className={TONE.border} stroke="currentColor" />
+      <T x={40} y={175} anchor="start" size={8} tone="muted">
+        time →
+      </T>
+      {/* champion proven level */}
+      <line x1={40} y1={90} x2={420} y2={90} className={TONE.accentSoft} stroke="currentColor" strokeDasharray="5 3" />
+      <T x={45} y={83} anchor="start" size={9} tone="accentSoft" bold>
+        champion’s proven error + margin
+      </T>
+      {/* live rolling error line drifting up */}
+      <polyline
+        points="40,120 90,115 140,122 190,112 240,118 290,105 330,96 360,80 390,66"
+        className={TONE.fg}
+        stroke="currentColor"
+        strokeWidth={1.8}
+        fill="none"
+      />
+      <T x={70} y={140} anchor="start" size={9} tone="muted">
+        live rolling error (last ~40 graded calls)
+      </T>
+      {/* crossing point */}
+      <circle cx={345} cy={88} r={5} className={TONE.danger} fill="currentColor" />
+      <Arrow x1={345} y1={80} x2={345} y2={40} tone="danger" />
+      <T x={340} y={30} anchor="end" size={9.5} tone="danger" bold>
+        drift! → retrain now (24h cooldown)
+      </T>
+    </Svg>
+  );
+}
+
+function ProcessVsOutcome() {
+  return (
+    <Svg vb="0 0 440 200">
+      <Box x={30} y={40} w={130} h={44} tone="accentSoft" fill />
+      <T x={95} y={58} size={9.5} tone="accentSoft" bold>
+        PROCESS
+      </T>
+      <T x={95} y={74} size={8.5} tone="muted">
+        fully yours
+      </T>
+      <Box x={30} y={120} w={130} h={44} tone="warn" fill />
+      <T x={95} y={138} size={9.5} tone="warn" bold>
+        VARIANCE
+      </T>
+      <T x={95} y={154} size={8.5} tone="muted">
+        nobody’s
+      </T>
+      <Arrow x1={165} y1={62} x2={255} y2={95} tone="muted" />
+      <Arrow x1={165} y1={142} x2={255} y2={110} tone="muted" />
+      <Box x={260} y={80} w={150} h={44} tone="fg" fill />
+      <T x={335} y={98} size={9.5} bold>
+        OUTCOME
+      </T>
+      <T x={335} y={114} size={8.5} tone="muted">
+        this week’s P&L
+      </T>
+      <T x={220} y={190} size={9} tone="muted" bold>
+        set goals on the box you control — score weeks by rules followed, not dollars printed
+      </T>
+    </Svg>
+  );
+}
+
 const FIGURES: Record<string, () => ReactNode> = {
   'honest-thesis': HonestThesis,
   'data-pipeline': DataPipeline,
@@ -1619,6 +1973,17 @@ const FIGURES: Record<string, () => ReactNode> = {
   overfitting: Overfitting,
   'costs-erase-edge': CostsEraseEdge,
   'journal-vs-memory': JournalVsMemory,
+  'order-types': OrderTypes,
+  'sessions-clock': SessionsClock,
+  'spread-anatomy': SpreadAnatomy,
+  'leverage-seesaw': LeverageSeesaw,
+  'plan-pyramid': PlanPyramid,
+  'daily-routine-timeline': DailyRoutineTimeline,
+  'account-ladder': AccountLadder,
+  'mentor-day-flow': MentorDayFlow,
+  'ticket-anatomy': TicketAnatomy,
+  'drift-watch': DriftWatch,
+  'process-vs-outcome': ProcessVsOutcome,
   'tilt-spiral': TiltSpiral,
   'review-tags': ReviewTags,
   // methods & tools

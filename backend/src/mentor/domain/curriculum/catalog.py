@@ -1935,6 +1935,961 @@ the exact lot size for you.
 )
 
 # ---------------------------------------------------------------------------
+# Module 12 — Becoming a professional
+# ---------------------------------------------------------------------------
+
+_BECOMING_PRO = (
+    Lesson(
+        slug="becoming-pro/order-types",
+        module_id="becoming-pro",
+        order_in_module=1,
+        title="Order types: market, limit, stop",
+        summary="The three buttons on every broker, and when a pro presses each one.",
+        est_minutes=6,
+        key_concepts=("market order", "limit order", "stop order", "stop-loss", "take-profit"),
+        figures=(
+            Figure(
+                key="order-types",
+                caption=(
+                    "Three order types around the current price — each fires in a different "
+                    "direction."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "You want to buy EUR/USD, but only if it first drops to a cheaper price. "
+                    "Which order?"
+                ),
+                options=(
+                    "Market order",
+                    "Buy limit below the current price",
+                    "Buy stop above the current price",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A buy *limit* rests below the market and fills only if price comes "
+                    "down to it — 'I'll buy, but only at a discount.' A buy *stop* is the "
+                    "opposite: it triggers when price rises through a level."
+                ),
+            ),
+        ),
+        body_md="""
+Every broker gives you the same three tools. Professionals differ from
+beginners mostly in *which one they reach for*.
+
+- **Market order** — "fill me *now* at whatever the price is." Instant, but
+  you pay the spread and, in fast markets, *slippage* (a worse fill than the
+  screen showed). Use it when being in the trade matters more than the last
+  0.2 pips.
+- **Limit order** — "fill me *only at this price or better*." A buy limit
+  sits **below** the market; a sell limit sits **above** it. You choose the
+  price, the market chooses whether you get filled. Pros use limits to be
+  *paid* patience instead of paying urgency.
+- **Stop order** — "when price *reaches* this level, fire a market order."
+  A buy stop sits **above** the market (used to enter on a breakout); a sell
+  stop sits **below** (that's your **stop-loss** on a long position).
+
+### The two orders that must exist on every trade
+
+The moment you're in a position, two orders should already be resting:
+
+1. **Stop-loss** — the exit that caps your loss at the amount you chose
+   *before* entering. Not optional. Ever.
+2. **Take-profit** (a limit) — the exit that banks the win at your target.
+
+This app's **Trade plan** page computes both for you — the stop beyond the
+day's normal noise, the target at your chosen reward:risk — so the decision
+is made calmly *before* the money is on the line, not during.
+
+### The failure mode
+
+Beginners enter with market orders on impulse and "manage" the exit live.
+That converts every trade into an emotion test. Professionals decide the
+full exit plan first, place all three orders together, and then — this is
+the hard part — *leave them alone*.
+""".strip(),
+    ),
+    Lesson(
+        slug="becoming-pro/sessions-clock",
+        module_id="becoming-pro",
+        order_in_module=2,
+        title="The 24-hour market: sessions and when to trade",
+        summary="FX never sleeps, but it isn't equally alive. Know when your pair actually moves.",
+        est_minutes=6,
+        key_concepts=("Sydney", "Tokyo", "London", "New York", "session overlap", "liquidity"),
+        figures=(
+            Figure(
+                key="sessions-clock",
+                caption=(
+                    "The four sessions across a UTC day — the London–New York overlap is where "
+                    "EUR/USD does most of its business."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="When does EUR/USD typically move the most?",
+                options=(
+                    "During the Sydney session",
+                    "During the London–New York overlap",
+                    "Exactly at midnight UTC",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Roughly 12:00–16:00 UTC, when both European and American desks are "
+                    "at their screens, is when EUR/USD sees its deepest liquidity and "
+                    "largest moves."
+                ),
+            ),
+        ),
+        body_md="""
+Forex trades 24 hours a day, five days a week — but "open" is not the same
+as "alive". The day is really four overlapping **sessions**, following the
+sun: **Sydney → Tokyo → London → New York**.
+
+For EUR/USD, the rhythm is very consistent:
+
+- **Asian hours** (roughly 23:00–07:00 UTC) — quiet. Ranges are small,
+  spreads can be wider. Signals fire less often and mean less.
+- **London open** (~07:00–08:00 UTC) — the day wakes up. The first burst of
+  real volume often sets the day's direction *or* fakes it.
+- **The London–New York overlap** (~12:00–16:00 UTC) — the main event. Most
+  of the day's range, most of the news releases (US data lands 12:30/14:00
+  UTC), tightest spreads.
+- **Late New York** (~20:00 UTC on) — winding down. Moves fade; Friday
+  afternoons especially are noise.
+
+### Why a professional cares
+
+Three practical consequences:
+
+1. **Trade where the liquidity is.** The same 20-pip signal is meaningful
+   in the overlap and mostly noise at 3 a.m.
+2. **Costs change by session.** Spreads widen when liquidity is thin — the
+   quiet hours quietly charge you more per trade.
+3. **The weekend gap is real.** The market closes Friday ~22:00 UTC and
+   reopens Sunday ~22:00 UTC — price can *jump* over your stop. Holding
+   size over the weekend is a decision, not a default.
+
+This system already knows the clock: its data-quality gate treats the
+weekend as normal, and its hourly predictions simply have more to chew on
+when the market is genuinely active.
+""".strip(),
+    ),
+    Lesson(
+        slug="becoming-pro/costs-of-trading",
+        module_id="becoming-pro",
+        order_in_module=3,
+        title="What trading actually costs",
+        summary="Spread, swap, and slippage — the silent partners taking a cut of every trade.",
+        est_minutes=6,
+        key_concepts=("spread", "swap", "slippage", "commission", "cost per trade"),
+        figures=(
+            Figure(
+                key="spread-anatomy",
+                caption=(
+                    "You buy at the ask and sell at the bid — the gap is the broker's cut, paid "
+                    "on entry."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "EUR/USD shows bid 1.1000 / ask 1.1001. You buy and instantly sell. What "
+                    "happened?"
+                ),
+                options=(
+                    "You broke even",
+                    "You lost one pip — the spread",
+                    "You made one pip",
+                ),
+                correct_index=1,
+                explanation=(
+                    "You bought at 1.1001 (ask) and sold at 1.1000 (bid). The 1-pip gap "
+                    "went to the broker. Every round trip starts one spread behind."
+                ),
+            ),
+        ),
+        body_md="""
+Every trade starts *losing*. Understanding why — and how much — separates
+people who survive from people who wonder where the money went.
+
+- **Spread** — there are always two prices: the **bid** (what you sell at)
+  and the **ask** (what you buy at). The gap between them is the spread —
+  typically 0.5–1.5 pips on EUR/USD. You pay it the instant you enter.
+- **Commission** — some accounts charge a flat fee per lot instead of (or
+  on top of) a wider spread. Same cost, different label.
+- **Swap / rollover** — hold a position overnight and you pay (or earn)
+  the interest-rate difference between the two currencies. Small daily,
+  meaningful over weeks — and it's *why* rate differentials move FX at all.
+- **Slippage** — in fast markets your market order fills at a worse price
+  than you clicked. Around big news it can be many pips. It's not the
+  broker cheating; it's the queue moving while you walk to it.
+
+### Why this matters more than it looks
+
+Say your strategy nets +4 pips per trade before costs, and costs average
+1.5 pips. **Costs just ate 37% of your edge.** A strategy that trades ten
+times a day pays the spread ten times a day — which is why high-frequency
+"scalping" with a retail spread is a donation, not a business.
+
+The system takes this seriously everywhere: the backtester charges spread
+and slippage on every simulated trade, and the paper P&L on the Loop page
+deducts a spread per trade — so no number you see here pretends trading
+is free.
+""".strip(),
+    ),
+    Lesson(
+        slug="becoming-pro/leverage-and-margin",
+        module_id="becoming-pro",
+        order_in_module=4,
+        title="Leverage and margin, without the horror stories",
+        summary=(
+            "Leverage is a loan, margin is the deposit — and position size is the real decision."
+        ),
+        est_minutes=7,
+        key_concepts=("leverage", "margin", "margin call", "notional", "effective leverage"),
+        figures=(
+            Figure(
+                key="leverage-seesaw",
+                caption=(
+                    "Leverage multiplies both sides of the seesaw — profits and losses swing by "
+                    "the same factor."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "With 1:100 leverage on a $1,000 account, what does a pro actually risk per "
+                    "trade?"
+                ),
+                options=(
+                    "The full $100,000 the leverage allows",
+                    "Whatever the broker's margin call permits",
+                    "Still ~1% of the account — leverage doesn't change the risk rule",
+                ),
+                correct_index=2,
+                explanation=(
+                    "Leverage changes what you *can* buy, not what you *should* risk. "
+                    "The stop distance and the 1% rule set the position size; leverage "
+                    "just makes that size mechanically possible."
+                ),
+            ),
+        ),
+        body_md="""
+Leverage has ruined more retail accounts than bad predictions ever did —
+not because it's evil, but because nobody explained it as what it is:
+**a loan**.
+
+- **Leverage 1:30** means the broker lets you control a position 30× your
+  cash. Buying 1 mini-lot of EUR/USD (~$11,000 notional) with 1:30 leverage
+  requires about **$370 of margin** — your good-faith deposit.
+- **Margin** is not a fee. It's your own money set aside while the loan is
+  out. Close the trade; it comes back.
+- **Margin call / stop-out** — if floating losses eat your account down to
+  the broker's limit, they close your positions *for* you, at the worst
+  possible moment. A margin call is not bad luck; it's the receipt for
+  oversizing.
+
+### The number that matters: effective leverage
+
+Ignore the broker's maximum. Ask: *my total position notional ÷ my account*.
+Professionals typically run **2–5× effective leverage**, even when 30× or
+100× is on offer. Why? Run the seesaw both ways:
+
+> At 10× leverage, a routine 1% adverse move = **10% of your account**.
+> Three of those in a row — a perfectly normal week — is nearly a third of
+> your money, and you *will* start making fear-based decisions.
+
+### How this system keeps you honest
+
+You never pick leverage here. You pick **risk per trade** (0.5–2%), and the
+Trade plan sizes the position from the stop distance. The resulting
+effective leverage is whatever honest arithmetic produces — usually
+boringly small. Boring is the point: the traders still here in year five
+are the ones who were boring in year one.
+""".strip(),
+    ),
+    Lesson(
+        slug="becoming-pro/the-trading-plan",
+        module_id="becoming-pro",
+        order_in_module=5,
+        title="The written trading plan",
+        summary="If it isn't written down before the trade, it isn't a plan — it's a mood.",
+        est_minutes=7,
+        key_concepts=("trading plan", "setup", "entry criteria", "exit rules", "review"),
+        figures=(
+            Figure(
+                key="plan-pyramid",
+                caption=(
+                    "A plan is built bottom-up: risk rules first, setups last — most beginners "
+                    "build it upside-down."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="What belongs at the BASE of a trading plan?",
+                options=(
+                    "The entry signals and chart patterns",
+                    "Risk rules: max loss per trade, per day, per week",
+                    "Profit targets for the month",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Setups change; survival rules don't. Risk limits are the "
+                    "foundation everything else stands on — a plan that starts with "
+                    "entries is a wish list."
+                ),
+            ),
+        ),
+        body_md="""
+Ask a funded professional for their trading plan and they'll show you a
+document. Ask a struggling beginner and they'll describe a feeling. The
+document wins, every year, and it has five layers — **built from the
+bottom up**:
+
+1. **Risk rules (the base).** Max risk per trade (e.g. 1%). Max loss per
+   day (e.g. 3% — then you *stop*, no exceptions). Max open risk at once.
+   These are the rules that guarantee you're still trading next month.
+2. **Market & schedule.** *What* you trade (one pair is plenty to start)
+   and *when* (your sessions, from the previous lesson). Scattering across
+   ten markets is how beginners avoid getting good at one.
+3. **Setups.** The two or three specific situations you're allowed to
+   trade, written precisely enough that a stranger could follow them.
+   "Looks bullish" is not a setup. "Price above the 200-EMA, pullback to
+   support, stop under the swing low" is.
+4. **Execution rules.** Orders in before entry (stop + target). No adding
+   to losers. No moving stops away from price. Ever.
+5. **Review cadence (the top).** The journal after every trade; the weekly
+   review every weekend. This layer is what makes the other four improve.
+
+### The test of a real plan
+
+Could you hand it to a friend and have *them* take your next ten trades
+without asking you anything? If not, it's still a mood.
+
+Inside this app, the pieces map one-to-one: the **Trade plan** page is
+layers 1–4 computed live, the pre-trade **checklist** is layer 4 made
+clickable, and the **Journal** with its weekly review is layer 5. The plan
+isn't homework *about* trading here — it's the interface itself.
+""".strip(),
+    ),
+    Lesson(
+        slug="becoming-pro/daily-routine",
+        module_id="becoming-pro",
+        order_in_module=6,
+        title="A professional's trading day",
+        summary=(
+            "Pros don't watch charts all day. They run a routine: prepare, execute, review, "
+            "leave."
+        ),
+        est_minutes=6,
+        key_concepts=("routine", "preparation", "execution window", "review", "screen time"),
+        figures=(
+            Figure(
+                key="daily-routine-timeline",
+                caption=(
+                    "Under two focused hours: prepare before the session, execute inside it, "
+                    "review after — the rest of the day is life."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="How much screen time does a disciplined process-driven day actually need?",
+                options=(
+                    "All day — more watching means more opportunities",
+                    "Roughly 1–2 focused hours around your chosen session",
+                    "None — set and forget forever",
+                ),
+                correct_index=1,
+                explanation=(
+                    "More screen time past your plan's window doesn't add opportunity — "
+                    "it adds impulse trades. Prepare, execute the window, review, stop."
+                ),
+            ),
+        ),
+        body_md="""
+The image of a trader glued to six monitors is a movie prop. A retail
+professional's day, done right, is short and almost ritualistic:
+
+**Before the session (15–20 min)**
+- Read the calendar: any high-impact news today? (This app's dashboard
+  shows it; the event-freeze warns you.)
+- Check the system's morning read: direction lean, volatility regime,
+  expected range.
+- Decide *in advance*: am I trading today? Which setup am I waiting for?
+  Where would the stop go? — If today's answer is "nothing qualifies",
+  that's a **complete, successful trading day.**
+
+**During your window (30–60 min)**
+- Watch only for the setup you pre-committed to. It appears → run the
+  checklist → place entry, stop, and target together → walk away.
+- It doesn't appear → you're done. No improvising after the window.
+
+**After the close (10 min)**
+- Journal the trade (or the no-trade): what you did, why, how it felt.
+- Glance at the system's own scoreboard — is the loop healthy, did its
+  calls resolve?
+
+**Weekly (30 min, weekend)**
+- Read the week's journal. Tag the mistakes. Pick *one* thing to do
+  differently next week. One.
+
+### The uncomfortable truth this schedule encodes
+
+Almost everything that loses beginners money happens *outside* those
+windows: the bored lunchtime entry, the revenge trade after a stop-out,
+the 11 p.m. "one more". A routine isn't about discipline as suffering —
+it's about making the losing hours structurally impossible.
+""".strip(),
+    ),
+    Lesson(
+        slug="becoming-pro/from-demo-to-real",
+        module_id="becoming-pro",
+        order_in_module=7,
+        title="From demo to real money: the ladder",
+        summary=(
+            "Demo → tiny live → measured size-ups. Each rung has a graduation test you can't "
+            "skip."
+        ),
+        est_minutes=7,
+        key_concepts=(
+            "demo account", "micro lots", "graduation criteria", "prop firms", "drawdown"
+        ),
+        figures=(
+            Figure(
+                key="account-ladder",
+                caption=(
+                    "Each rung has an exit exam: consistency over trades, not profit over days."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="What's the graduation test from demo to a small live account?",
+                options=(
+                    "Doubling the demo account as fast as possible",
+                    "50+ trades following the written plan with positive expectancy",
+                    "One month without any losing trades",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Sample size + rule-following + positive expectancy is the test. "
+                    "Fast doubling proves oversizing, and no-loss months prove nothing "
+                    "except a small sample."
+                ),
+            ),
+        ),
+        body_md="""
+Nobody starts at full size. The professional path is a ladder, and each
+rung has an explicit exam:
+
+**Rung 1 — Demo (1–3 months).** Free practice with fake money. The goal is
+*not* profit — demo profits are easy because fear is absent. The goal is
+**mechanics**: 50+ trades placed exactly per your written plan, journal
+complete, zero rule violations. Pass that, move up.
+
+**Rung 2 — Tiny live (3–6 months).** Real money, micro lots — risking
+cents to a few dollars per trade. This rung exists for one reason: to meet
+the *feelings*. The heart-rate on a real stop-out cannot be simulated.
+Exam: expectancy still positive across 50+ live trades, and your rules
+survived contact with your emotions.
+
+**Rung 3 — Meaningful size, stepwise.** Increase risk only after each
+50-trade block stays disciplined. A common rule: double size only after a
+profitable, rule-clean quarter; *halve* it after hitting a 10% drawdown.
+Sizing down after losses is what professionals do and gamblers don't.
+
+**A word on prop firms.** Companies that "fund" traders after an exam fee
+are everywhere now. Know the math: their profit comes mostly from exam
+fees, and their tight daily-loss limits are designed to fail impatient
+traders. If you ever try one, do it *after* rung 2 — with the same plan,
+same size discipline — and treat the fee as tuition, not investment.
+
+### Where this system fits
+
+It's your rung-0-to-2 co-pilot: paper-trade its calls (Loop page), size by
+rules (Trade plan), journal everything, and let its honest scoreboards
+tell you when your own numbers — not your feelings — say you've earned the
+next rung.
+""".strip(),
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Module 13 — Trading with Mentor, day to day
+# ---------------------------------------------------------------------------
+
+_USING_MENTOR = (
+    Lesson(
+        slug="using-mentor/a-day-with-mentor",
+        module_id="using-mentor",
+        order_in_module=1,
+        title="A day with Mentor: which page, when, why",
+        summary="The five-minute daily flow through the app — from briefing to journal.",
+        est_minutes=5,
+        key_concepts=("dashboard", "trade plan", "loop", "journal", "daily flow"),
+        figures=(
+            Figure(
+                key="mentor-day-flow",
+                caption=(
+                    "Dashboard → Trade plan → (maybe) trade → Journal → Loop: the whole daily "
+                    "circuit."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="The Trade plan page says STAND ASIDE. What's the professional response?",
+                options=(
+                    "Find a different indicator that says trade",
+                    "Nothing — no trade today is a valid, complete outcome",
+                    "Halve the size and trade anyway",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Stand-aside means the odds are too close to a coin flip to pay "
+                    "spread on. Overriding it re-introduces exactly the impulse the "
+                    "system exists to remove."
+                ),
+            ),
+        ),
+        body_md="""
+The app has a lot of pages; a trading day only needs four of them, in
+order:
+
+1. **Dashboard (2 min).** The greeting screen answers three questions:
+   what's the model's lean, is there dangerous news today (event freeze),
+   and how is *your* trading going (your pulse). If the freeze banner is
+   up, your day may already be decided: stand down.
+2. **Trade plan (2 min).** The system's read turned into an actionable
+   ticket: stance, entry, stop, target, size for *your* account and risk
+   setting. Two honest outcomes: a sized plan — or **STAND ASIDE** in
+   plain letters. Both are answers. Run the checklist before any click.
+3. **Your broker (1 min, only if trading).** Copy the ticket: entry, stop,
+   target, size. All three orders in together. Walk away.
+4. **Journal (2 min, after close).** Log what happened *and how you
+   behaved*. The system grades its predictions automatically; the journal
+   is where you grade yourself.
+
+Weekly, add five minutes on the **Loop** page: is the engine healthy
+(heartbeats green), has it retrained, what does its honest scoreboard say?
+
+### The design intention
+
+Notice what's *not* in the flow: staring at live charts, scrolling
+opinions, reacting to candles. The app is deliberately shaped so that the
+default path is prepare → decide → execute → review — the professional
+loop — and the losing behaviours simply have no button.
+""".strip(),
+    ),
+    Lesson(
+        slug="using-mentor/reading-the-trade-ticket",
+        module_id="using-mentor",
+        order_in_module=2,
+        title="Reading the trade ticket, line by line",
+        summary="Every number on the Trade plan page, where it comes from, and what to do with it.",
+        est_minutes=7,
+        key_concepts=("entry", "stop-loss", "take-profit", "lots", "risk amount", "reward:risk"),
+        figures=(
+            Figure(
+                key="ticket-anatomy",
+                caption=(
+                    "Each ticket line traces back to a model: direction from the champion, stop "
+                    "from volatility, size from your risk rule."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="Why is the ticket's stop-loss placed at ~1.5× the expected daily move?",
+                options=(
+                    "To make the potential loss as small as possible",
+                    "So routine market noise can't hit it, only a genuinely wrong call",
+                    "Because brokers require that distance",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A stop inside the day's normal wiggle gets hit by randomness even "
+                    "when the direction call was right. 1.5 sigma puts it beyond noise, "
+                    "so being stopped out actually means the idea failed."
+                ),
+            ),
+        ),
+        body_md="""
+The Trade plan ticket looks simple — five numbers. Each one is the output
+of a different part of the system, and knowing the lineage tells you how
+much to trust it.
+
+- **Stance (LONG / SHORT / STAND ASIDE)** — from the current *champion*
+  direction model. Below ~10% confidence the system refuses to pick a
+  side; that refusal is a feature, not a failure.
+- **Entry** — simply the latest price. No prediction here; you're entering
+  at market.
+- **Stop loss** — the volatility model's expected move over the horizon,
+  times 1.5. It answers: *how far can price wander by pure noise?* — and
+  then stands just beyond it. Wider volatility day → wider stop →
+  **smaller position**, automatically.
+- **Take profit** — the stop distance times your chosen reward:risk (2:1
+  by default). With 2:1 you can be right only 40% of the time and still
+  profit — that's the whole math of asymmetry.
+- **Position size (lots)** — your account × your risk % ÷ the stop
+  distance in money. The one line where *your* numbers enter. Change the
+  account or risk input and watch only this line move: prediction and
+  sizing are deliberately separate machines.
+
+### The two lines people misread
+
+**"Money at risk"** is not what the trade will lose — it's the *maximum*
+loss if the stop is hit, which you chose in advance. **Confidence** is not
+certainty — 43% confidence means "a modest lean", and the warning banner
+will honestly tell you to consider half size. The ticket never hides its
+own doubt; read the doubt as carefully as the direction.
+""".strip(),
+    ),
+    Lesson(
+        slug="using-mentor/trusting-the-odds",
+        module_id="using-mentor",
+        order_in_module=3,
+        title="When to trust the odds (and when to stand down)",
+        summary="P(up) is a probability, not a promise — here's how a pro consumes one.",
+        est_minutes=6,
+        key_concepts=("probability", "calibration", "sample size", "expectancy", "stand aside"),
+        figures=(
+            Figure(
+                key="reliability",
+                caption=(
+                    "Calibration: when the system says 60%, it should happen about 60% of the "
+                    "time — that's the only promise."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="The system said 62% P(up) and price fell. Was the forecast wrong?",
+                options=(
+                    "Yes — it said up and the market went down",
+                    "Not necessarily — 62% means down happens 38% of the time",
+                    "Yes, and the model should be retrained immediately",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A 62% call loses 38 times in 100 *when perfectly calibrated*. "
+                    "Single outcomes can't judge a probability; only batches can — "
+                    "which is exactly what the post-mortem measures."
+                ),
+            ),
+        ),
+        body_md="""
+The hardest professional skill isn't reading charts — it's thinking in
+probabilities without flinching. The system hands you probabilities all
+day; here's the owner's manual.
+
+**One forecast means almost nothing.** 58% P(up) that loses wasn't
+"wrong" — outcomes judge *batches* of forecasts, never single ones. The
+question that matters: *across the last hundred 58% calls, did roughly 58
+land?* That's **calibration**, and the System → post-mortem page measures
+it continuously so you don't have to trust, you can check.
+
+**The odds price the trade, not just pick it.** 55% up with 2:1 reward:risk
+is a good business; 55% with 1:2 is a slow leak. Expectancy =
+(win% × win size) − (loss% × loss size). The ticket already does this
+arithmetic — your job is only to not overrule it casually.
+
+**Respect the abstentions.** The system stands aside when the odds are
+near 50% — meaning *after costs, this coin flip charges admission*. The
+most common way users destroy the value of a probabilistic tool is
+trading its "no" days. Track it yourself for a month in the journal:
+your override trades versus its plan trades. Let the data settle the
+argument.
+
+**Watch the walking, not the talking.** Any tool can print percentages.
+This one grades itself in public — every call logged before the fact,
+resolved against reality, summarized honestly. The day its live Brier
+drifts, it retrains; the day a new model can't beat the champion, it
+doesn't ship. Consume the odds with exactly that spirit: trust is earned
+in batches, forever provisional.
+""".strip(),
+    ),
+    Lesson(
+        slug="using-mentor/watching-the-loop",
+        module_id="using-mentor",
+        order_in_module=4,
+        title="Watching the learning engine",
+        summary=(
+            "Heartbeats, drift, promotions — how to read the Loop page like a pilot reads gauges."
+        ),
+        est_minutes=6,
+        key_concepts=("heartbeats", "drift watch", "champion", "promotion", "paper P&L"),
+        figures=(
+            Figure(
+                key="drift-watch",
+                caption=(
+                    "Live performance is graded continuously; when it slips past the champion's "
+                    "proven level, retraining fires early."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A retrain ran and the page says 'champion kept — a worse model never ships.' "
+                    "Is that a failure?"
+                ),
+                options=(
+                    "Yes — retraining should always produce a better model",
+                    "No — the gate proved the current champion is still the best available",
+                    "Yes — it means the system stopped learning",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Most retrains *should* lose to a good champion. The gate exists "
+                    "so only real improvements ship; 'kept' means the test worked."
+                ),
+            ),
+        ),
+        body_md="""
+The Loop page is the cockpit of the machine that works while you sleep.
+Four gauges, read top to bottom:
+
+- **Heartbeats.** Each job — ingest, predict, resolve, retrain — shows its
+  last run and a one-line note. All green and recent = the engine is
+  alive. A red ingest heartbeat means the data feed hiccuped; the system
+  will *refuse to predict* on suspect data rather than guess (that's the
+  quality gate doing its job).
+- **Events.** The notable moments: drift detected, predictions skipped for
+  data quality, champions promoted, alerts sent. An empty feed on a young
+  system is normal — silence here is health, not absence.
+- **Retrain decisions.** Every challenger ever trained and whether it beat
+  the champion *on the same fresh data*. Expect mostly "kept" — a
+  champion that loses to every random Tuesday retrain was never good.
+- **Paper P&L.** The honest scoreboard: what following every resolved live
+  call would have earned, after spread. It starts empty on purpose — it
+  only counts predictions made **before** the outcome, so every point on
+  that curve is un-fakeable.
+
+### What "worrying" actually looks like
+
+Not a losing week — noise loses weeks. Worry about: heartbeats hours
+stale during market hours, repeated quality-skips (feed trouble), or live
+Brier drifting above the champion's test level *without* a drift-retrain
+firing. Anything like that, the events feed will say so in words — this
+page never makes you diagnose from a blank screen.
+""".strip(),
+    ),
+    Lesson(
+        slug="using-mentor/close-your-own-loop",
+        module_id="using-mentor",
+        order_in_module=5,
+        title="Close your own loop",
+        summary="The system grades itself automatically. The journal is where you grade yourself.",
+        est_minutes=5,
+        key_concepts=("journal", "expectancy", "review", "process vs outcome", "improvement loop"),
+        figures=(
+            Figure(
+                key="journal-vs-memory",
+                caption=(
+                    "Memory flatters; the journal doesn't. Written records are the only honest "
+                    "mirror."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "You followed the plan exactly and the trade lost. How should the journal "
+                    "score it?"
+                ),
+                options=(
+                    "A bad trade — it lost money",
+                    "A good trade — process was perfect; the outcome was variance",
+                    "Don't log losers, only learn from winners",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Grade process, not outcome. Good-process losers are the cost of "
+                    "doing business; bad-process winners are the ones that teach the "
+                    "habits that eventually ruin you."
+                ),
+            ),
+        ),
+        body_md="""
+Everything the system does — predict, resolve, post-mortem, retrain — is
+one loop: *act, measure, adjust*. It runs that loop on itself every hour.
+The missing loop is **yours**, and no model can run it for you.
+
+The Journal page is that loop:
+
+1. **Log every trade** — including the ones you *didn't* take when the
+   plan said stand aside (those are decisions too). Entry, exit, size,
+   and crucially: *did you follow the plan, and how did it feel?*
+2. **Let the analytics accumulate.** Expectancy in R, win rate, profit
+   factor — the same honest math the system applies to itself, applied
+   to you. Twenty trades minimum before any conclusion; fifty before a
+   confident one.
+3. **Weekly, read and tag.** Mistake tags beat prose: `moved-stop`,
+   `no-setup`, `oversized`, `revenge`. After a month, the tag counts are
+   a diagnosis no coach could improve on.
+4. **Change one thing.** The review's output is a single rule adjustment
+   for next week. One. Changing five things at once teaches nothing.
+
+### The graduation metric
+
+Here's the professional benchmark hidden in this page: when your journal
+shows **50+ trades, zero rule violations, and positive expectancy**, you
+have evidence — not feelings — that you're ready for the next account
+size. When it shows violations, the system's discipline pages (and your
+own tags) tell you exactly which lesson to re-read. Either way, the
+mirror doesn't flatter. That's the point of mirrors.
+""".strip(),
+    ),
+)
+
+# Extension lessons appended to existing modules ----------------------------
+
+_UNDER_THE_HOOD_EXT = (
+    Lesson(
+        slug="under-the-hood/the-watchdogs",
+        module_id="under-the-hood",
+        order_in_module=10,
+        title="The watchdogs: quality gate, drift watch, heartbeats",
+        summary=(
+            "Three guards that keep an unattended system honest: refuse bad data, catch decay, "
+            "stay observable."
+        ),
+        est_minutes=6,
+        key_concepts=("quality gate", "drift", "heartbeat", "cooldown", "observability"),
+        figures=(
+            Figure(
+                key="drift-watch",
+                caption=(
+                    "The drift watch compares live rolling error to the champion's proven level — "
+                    "degradation triggers an early retrain."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "The data feed delivers a 12-hour hole in the middle of Tuesday. What does "
+                    "the system do?"
+                ),
+                options=(
+                    "Predicts anyway — more predictions is better",
+                    "Skips the prediction loudly and logs a quality event",
+                    "Deletes the old data and starts over",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A model fed a broken window produces confident garbage. The "
+                    "quality gate skips the tick, says why, and the heartbeat shows "
+                    "it — no silent failures."
+                ),
+            ),
+        ),
+        body_md="""
+A system that runs unattended 24/7 needs more than good models — it needs
+guards against the ways things quietly rot. Three watchdogs run alongside
+the loop:
+
+- **The quality gate** inspects the recent bars *before every prediction*.
+  A mid-week hole in the data, or a feed that's gone stale while the
+  market is open, means **no prediction this hour** — loudly, with the
+  reason logged. It knows the FX calendar, so the normal weekend gap
+  never false-alarms. Rule: refusing to answer beats answering from
+  garbage.
+- **The drift watch** runs after every grading pass. It computes the
+  rolling error of the last ~40 *live* predictions and compares it to the
+  champion's proven test error. Degrades past the margin → an immediate
+  retrain, days before the weekly schedule would have caught it. A
+  24-hour cooldown stops a rough patch from causing a retrain storm.
+- **Heartbeats & events** make it all visible. Every job reports its last
+  run and outcome; every notable moment (drift, skip, promotion, alert)
+  lands in the events feed. The design rule: *nothing important happens
+  silently.*
+
+### Why bother, honestly
+
+None of this adds predictive edge. What it adds is **trustworthiness**:
+the property that when the Loop page looks healthy, it actually is — and
+when something's wrong, the system says so in plain words before you
+lose a week to a dead data feed. For an autonomous system, that property
+is worth more than another indicator ever would be.
+""".strip(),
+    ),
+)
+
+_PSYCHOLOGY_EXT = (
+    Lesson(
+        slug="psychology/process-goals",
+        module_id="psychology",
+        order_in_module=4,
+        title="Process goals beat profit goals",
+        summary="You can't control outcomes, only behaviour — so set goals where control lives.",
+        est_minutes=5,
+        key_concepts=("process goals", "outcome goals", "variance", "control", "streaks"),
+        figures=(
+            Figure(
+                key="process-vs-outcome",
+                caption="Outcomes are process plus variance. Only one of those responds to effort.",
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="Which is a process goal?",
+                options=(
+                    "Make $500 this week",
+                    "Take only checklist-passing trades this week",
+                    "Have a 70% win rate this month",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Only behaviour is fully yours. Dollar and win-rate targets are "
+                    "outcome goals — variance can wreck them in a perfectly played "
+                    "week, and reward them in a badly played one."
+                ),
+            ),
+        ),
+        body_md="""
+"Make $200 a day" is the most natural goal in trading — and one of the
+most destructive. Here's the mechanism:
+
+Outcomes = **process + variance**. In any single week, variance is loud:
+a perfectly executed week can lose money, and a reckless one can win.
+If your goal lives in outcomes, variance will regularly punish good
+behaviour and reward bad behaviour — which is precisely how bad habits
+get trained in. Psychologists call it *intermittent reinforcement*; it's
+the same schedule that makes slot machines addictive.
+
+**Process goals put the target where control lives:**
+
+- Every trade risk-sized to plan — *fully controllable.*
+- Zero trades outside my setups — *fully controllable.*
+- Journal entry within an hour of closing — *fully controllable.*
+- Stop trading after the daily loss limit — *fully controllable.*
+
+Score your week on those, and a disciplined losing week is a **passed
+week** — variance owes you nothing, but the compounding of good process
+eventually collects.
+
+### The system practices what this preaches
+
+Notice that the machine itself is run on process goals: it doesn't chase
+"be right this week" — it targets *calibrated probabilities, honest
+grading, retrain on evidence*. Its outcomes wobble day to day; its
+process never does. Copy that architecture into your own head: it is,
+quietly, the entire secret.
+""".strip(),
+    ),
+)
+
+# ---------------------------------------------------------------------------
 # Catalog
 # ---------------------------------------------------------------------------
 
@@ -1994,7 +2949,7 @@ CATALOG: Final[tuple[Module, ...]] = (
         order=8,
         title="Psychology & process",
         summary="Your behaviour is the biggest risk in the system. The journal is the cure.",
-        lessons=_PSYCHOLOGY,
+        lessons=_PSYCHOLOGY + _PSYCHOLOGY_EXT,
     ),
     Module(
         id="market-study",
@@ -2011,11 +2966,33 @@ CATALOG: Final[tuple[Module, ...]] = (
         lessons=_TOOLKIT,
     ),
     Module(
-        id="under-the-hood",
+        id="becoming-pro",
         order=11,
+        title="Becoming a professional",
+        summary=(
+            "Orders, sessions, costs, leverage, the written plan, the routine, and the ladder to "
+            "real money."
+        ),
+        lessons=_BECOMING_PRO,
+    ),
+    Module(
+        id="using-mentor",
+        order=12,
+        title="Trading with Mentor, day to day",
+        summary=(
+            "How to actually use this app like a pro: the daily flow, the ticket, the odds, the "
+            "loop."
+        ),
+        lessons=_USING_MENTOR,
+    ),
+    Module(
+        id="under-the-hood",
+        order=13,
         title="Under the hood: how the mentor predicts",
-        summary="Every data source and prediction method the system uses, with diagrams.",
-        lessons=_UNDER_THE_HOOD,
+        summary=(
+            "Every data source, prediction method, and watchdog the system uses, with diagrams."
+        ),
+        lessons=_UNDER_THE_HOOD + _UNDER_THE_HOOD_EXT,
     ),
 )
 

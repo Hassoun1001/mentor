@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 
 import { ApiError } from '../api/client';
 import { login } from '../api/auth';
+import { Logo } from '../components/Logo';
 import { setToken } from '../lib/authStorage';
 
 export function LoginPage() {
@@ -27,14 +28,11 @@ export function LoginPage() {
       >
         <div>
           <div className="flex items-center gap-3">
-            <div className="h-7 w-7 rounded-md bg-mentor-accent/20 ring-1 ring-mentor-accent">
-              <div className="m-1 h-5 w-5 rounded-sm bg-mentor-accent" />
-            </div>
-            <div className="text-xl font-medium tracking-tight">Mentor</div>
+            <Logo size={36} />
+            <div className="text-xl font-semibold tracking-tight">Mentor</div>
           </div>
           <p className="mt-2 text-xs text-mentor-muted">
-            Single-user sign-in. All API keys are server-side. Nothing
-            sensitive in the browser.
+            Your always-on trading mentor. Sign in to continue.
           </p>
         </div>
 

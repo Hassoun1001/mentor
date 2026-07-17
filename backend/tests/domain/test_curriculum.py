@@ -23,6 +23,8 @@ def test_all_plan_modules_present() -> None:
         "psychology",
         "market-study",
         "toolkit",
+        "becoming-pro",
+        "using-mentor",
         "under-the-hood",
     }
     assert {m.id for m in CATALOG} == expected
