@@ -134,21 +134,31 @@ class FredAdapter:
             "cosd": start.strftime("%Y-%m-%d"),
             "coed": end.strftime("%Y-%m-%d"),
         }
+        # FRED's WAF blocks in *episodes* (verified live: the same request
+        # stream-resets one minute and serves 200 the next), so each attempt
+        # tries both transports — httpx, then curl — and failures back off
+        # and try again rather than giving up on the first reset.
         last_err = "unknown"
         for attempt in range(max_retries):
             try:
                 resp = await self._client.get(_BASE, params=params)
+                if resp.status_code == 200:
+                    return _parse_csv(series_id, resp.text)
+                if resp.status_code == 429:
+                    last_err = "rate limited"
+                else:
+                    # A definitive non-200 (404 etc.) won't heal with retries.
+                    raise FredError(f"FRED returned {resp.status_code} for {series_id}")
             except httpx.HTTPError as exc:
+                last_err = f"httpx: {exc}"
                 log.warning("fred.httpx_blocked", series=series_id, error=str(exc))
-                return await self._fetch_via_curl(series_id, params)
-            if resp.status_code == 429:
-                last_err = "rate limited"
-                await asyncio.sleep(_MIN_INTERVAL_S * (attempt + 2))
-                continue
-            if resp.status_code != 200:
-                raise FredError(f"FRED returned {resp.status_code} for {series_id}")
-            return _parse_csv(series_id, resp.text)
-        raise FredError(f"FRED {last_err} for {series_id} after {max_retries} attempts")
+                try:
+                    return await self._fetch_via_curl(series_id, params)
+                except FredError as curl_exc:
+                    last_err = str(curl_exc)
+                    log.warning("fred.curl_blocked", series=series_id, error=str(curl_exc))
+            await asyncio.sleep(_MIN_INTERVAL_S * (attempt + 2))
+        raise FredError(f"FRED failed for {series_id} after {max_retries} attempts: {last_err}")
 
     async def fetch_all(self, *, start: datetime, end: datetime) -> list[MacroObservation]:
         """One list of observations across every configured series."""
