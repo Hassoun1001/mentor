@@ -71,8 +71,14 @@ class FredAdapter:
 
     async def __aenter__(self) -> FredAdapter:
         if self._client is None:
+            # http2=True is load-bearing, not an optimisation: FRED's CDN
+            # tarpits HTTP/1.1 clients from datacenter IPs (the request hangs
+            # until timeout) while HTTP/2 is served instantly. Requires the
+            # `h2` package (httpx[http2]).
             self._client = httpx.AsyncClient(
-                timeout=30, headers={"User-Agent": "mentor/1.0 (+local research)"}
+                timeout=30,
+                http2=True,
+                headers={"User-Agent": "mentor/1.0 (+local research)"},
             )
         return self
 
