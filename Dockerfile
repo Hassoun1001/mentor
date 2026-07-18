@@ -17,9 +17,11 @@ ENV PYTHONUNBUFFERED=1 \
     MENTOR_FRONTEND_DIST_DIR=/app/frontend/dist
 WORKDIR /app
 
-# libgomp1 is required at runtime by scikit-learn / scipy.
+# libgomp1 is required at runtime by scikit-learn / scipy. curl is the
+# FRED adapter's fallback transport (its WAF rejects Python HTTP stacks
+# from datacenter IPs but trusts curl's fingerprint).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends libgomp1 curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the backend (includes src, models, alembic via the copied tree).

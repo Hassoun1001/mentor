@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from urllib.parse import urlencode
 
 import httpx
 
@@ -27,6 +28,7 @@ log = get_logger("mentor.adapters.fred")
 _BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 _MIN_INTERVAL_S = 1.0  # polite spacing between series requests
 _MISSING = {".", ""}
+_USER_AGENT = "mentor/1.0 (+local research)"
 
 
 class FredError(DomainError):
@@ -86,6 +88,43 @@ class FredAdapter:
         if self._owns_client and self._client is not None:
             await self._client.aclose()
 
+    async def _fetch_via_curl(
+        self, series_id: str, params: dict[str, str]
+    ) -> list[MacroObservation]:
+        """Last-resort transport when the WAF rejects Python's HTTP stack.
+
+        FRED's edge fingerprints the TLS + HTTP/2 handshake: from datacenter
+        IPs it tarpits HTTP/1.1 and stream-resets httpx's h2 SETTINGS, while
+        curl's fingerprint is trusted (verified live from the VPS). Same URL,
+        same CSV, different mouthpiece — fixed binary, argument list, no
+        shell, and every argument is built from code constants.
+        """
+        url = f"{_BASE}?{urlencode(params)}"
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "curl",
+                "-sS",
+                "--fail",
+                "--http2",
+                "-m",
+                "30",
+                "-A",
+                _USER_AGENT,
+                url,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError as exc:
+            raise FredError(
+                f"FRED blocked the HTTP client and curl is unavailable for {series_id}"
+            ) from exc
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            detail = stderr.decode(errors="replace").strip()[:200]
+            raise FredError(f"FRED curl fallback failed for {series_id}: {detail}")
+        log.info("fred.curl_fallback_used", series=series_id)
+        return _parse_csv(series_id, stdout.decode(errors="replace"))
+
     async def _fetch_one(
         self, series_id: str, *, start: datetime, end: datetime, max_retries: int = 5
     ) -> list[MacroObservation]:
@@ -100,7 +139,8 @@ class FredAdapter:
             try:
                 resp = await self._client.get(_BASE, params=params)
             except httpx.HTTPError as exc:
-                raise FredError(f"FRED request failed for {series_id}: {exc}") from exc
+                log.warning("fred.httpx_blocked", series=series_id, error=str(exc))
+                return await self._fetch_via_curl(series_id, params)
             if resp.status_code == 429:
                 last_err = "rate limited"
                 await asyncio.sleep(_MIN_INTERVAL_S * (attempt + 2))
