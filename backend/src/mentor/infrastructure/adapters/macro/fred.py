@@ -28,7 +28,10 @@ log = get_logger("mentor.adapters.fred")
 _BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 _MIN_INTERVAL_S = 1.0  # polite spacing between series requests
 _MISSING = {".", ""}
-_USER_AGENT = "mentor/1.0 (+local research)"
+# Deliberately NO custom User-Agent anywhere in this adapter. FRED's WAF was
+# probed live from the VPS: default tool UAs (curl/8.x, python-httpx/0.x) get
+# 200s, while both a custom "mentor/1.0 (+local research)" UA and a fake
+# browser UA are stream-reset from datacenter IPs. Honest defaults win.
 
 
 class FredError(DomainError):
@@ -76,12 +79,8 @@ class FredAdapter:
             # http2=True is load-bearing, not an optimisation: FRED's CDN
             # tarpits HTTP/1.1 clients from datacenter IPs (the request hangs
             # until timeout) while HTTP/2 is served instantly. Requires the
-            # `h2` package (httpx[http2]).
-            self._client = httpx.AsyncClient(
-                timeout=30,
-                http2=True,
-                headers={"User-Agent": "mentor/1.0 (+local research)"},
-            )
+            # `h2` package (httpx[http2]). No custom UA — see module note.
+            self._client = httpx.AsyncClient(timeout=30, http2=True)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -108,8 +107,6 @@ class FredAdapter:
                 "--http2",
                 "-m",
                 "30",
-                "-A",
-                _USER_AGENT,
                 url,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
