@@ -2890,6 +2890,1249 @@ quietly, the entire secret.
 )
 
 # ---------------------------------------------------------------------------
+# Module — How markets move: structure & price action
+# ---------------------------------------------------------------------------
+
+_MARKET_STRUCTURE = (
+    Lesson(
+        slug="market-structure/direction-and-trend",
+        module_id="market-structure",
+        order_in_module=1,
+        title="Which way is the market going? Direction & trend",
+        summary=(
+            "Bullish, bearish, neutral, uptrend, downtrend, sideways, range-bound — the six words "
+            "that describe every chart."
+        ),
+        est_minutes=7,
+        key_concepts=(
+            "bullish", "bearish", "neutral", "uptrend", "downtrend", "sideways", "range-bound"
+        ),
+        figures=(
+            Figure(
+                key="trend-types",
+                caption=(
+                    "Three shapes every chart takes: rising (uptrend), falling (downtrend), or "
+                    "going nowhere (sideways/range)."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Price keeps making higher peaks and higher dips over weeks. What is this "
+                    "called?"
+                ),
+                options=("A downtrend", "An uptrend (bullish)", "A range"),
+                correct_index=1,
+                explanation=(
+                    "Higher peaks and higher dips = an uptrend, and traders feeling "
+                    "optimistic about rising prices are 'bullish'."
+                ),
+            ),
+        ),
+        body_md="""
+Before anything else, a trader asks one question about a chart: **which way
+is it going?** There are only three possible answers, and a handful of words
+for each. Learn these six words and you can describe any chart out loud.
+
+### The mood words: bullish, bearish, neutral
+
+- **Bullish** — you *expect price to rise*. Think of a bull attacking by
+  throwing its horns **upward**. "I'm bullish on EUR/USD" = "I think it'll
+  go up."
+- **Bearish** — you *expect price to fall*. A bear swipes its paws
+  **downward**. "Bearish" = "I think it'll go down."
+- **Neutral** — you have *no strong view*. You expect price to drift or
+  chop without a clear direction. Being neutral is a real, valid position —
+  it usually means "not a good time to trade."
+
+These words describe a *feeling or expectation*. The next words describe
+what price is *actually doing*.
+
+### The three shapes a chart can take
+
+1. **Uptrend** — price is generally *rising* over time: each push up reaches
+   a **higher peak**, and each dip stops at a **higher low** than the last.
+   Staircase going up. An uptrend is the picture of a bullish market.
+2. **Downtrend** — price is generally *falling*: **lower peaks** and **lower
+   lows**. Staircase going down. This is a bearish market.
+3. **Sideways / range-bound** — price is going *nowhere*, bouncing between a
+   rough ceiling and a rough floor. "Sideways" and "range-bound" mean the
+   same thing: stuck in a range. Markets spend a **huge** amount of time
+   here — often more than they spend trending.
+
+### Why this matters more than any indicator
+
+The single most useful habit in trading is **trading with the trend, not
+against it.** Buying in an uptrend or selling in a downtrend means the
+overall current is helping you. Fighting the trend — buying in a downtrend
+because it "looks cheap" — is how beginners lose steadily.
+
+And in a **range**, both trend rules are off: price just ping-pongs, so
+breakout signals fake out constantly and trend-following tools whipsaw. Knowing
+you're in a range is itself a decision: usually, *stand aside*.
+
+> This system's forecasts already lean on this: it measures whether the
+> market is trending or calm (a "regime") and is honest that direction in a
+> chop is close to a coin flip.
+""".strip(),
+    ),
+    Lesson(
+        slug="market-structure/price-action-moves",
+        module_id="market-structure",
+        order_in_module=2,
+        title="How price actually moves: the price-action words",
+        summary=(
+            "Support, resistance, breakout, breakdown, pullback, retracement, reversal, "
+            "continuation, consolidation, expansion, compression — all explained."
+        ),
+        est_minutes=9,
+        key_concepts=(
+            "support", "resistance", "breakout", "breakdown", "pullback",
+            "retracement", "reversal", "continuation", "consolidation",
+            "expansion", "compression",
+        ),
+        figures=(
+            Figure(
+                key="price-action-map",
+                caption=(
+                    "One chart labelling the whole vocabulary: floors, ceilings, breaks, pauses, "
+                    "and turns."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Price is in an uptrend, pauses and drifts down a bit, then continues up. "
+                    "That dip was a…"
+                ),
+                options=("Reversal", "Pullback (a.k.a. retracement)", "Breakdown"),
+                correct_index=1,
+                explanation=(
+                    "A temporary dip *against* the trend that then resumes is a pullback "
+                    "/ retracement. A reversal would be the trend actually changing "
+                    "direction for good."
+                ),
+            ),
+        ),
+        body_md="""
+Price never moves in a straight line — it pushes, pauses, pulls back, and
+occasionally turns around. Traders have a precise word for each of these
+behaviours. Here is the whole vocabulary, grouped by what it describes.
+
+### Floors and ceilings
+
+- **Support** — a price *floor*. A level where buyers have repeatedly
+  stepped in, so falling price tends to **stop and bounce**. Think of it as
+  a floor holding price up.
+- **Resistance** — a price *ceiling*. A level where sellers repeatedly
+  appear, so rising price tends to **stall and drop back**. A ceiling
+  pressing price down.
+
+Support and resistance aren't magic lines — they're *zones* where past
+buying or selling was heavy, so traders watch them and act, which partly
+makes them self-fulfilling.
+
+### Breaking through
+
+- **Breakout** — price pushes *up through resistance* (the ceiling breaks).
+  Often the start of a new up-move… or a trap.
+- **Breakdown** — the opposite: price falls *down through support* (the
+  floor gives way).
+- A key idea: once broken, **support often becomes resistance and vice
+  versa** — the old floor becomes the new ceiling.
+
+### Pauses and continuations
+
+- **Pullback / retracement** — a *temporary* move **against** the trend. In
+  an uptrend, a pullback is a small dip before price continues up. The two
+  words mean nearly the same thing; "retracement" is often used when
+  measuring *how far* it pulled back (e.g. Fibonacci levels).
+- **Continuation** — price *resumes* the original trend after a pause. The
+  pullback ends, the trend continues.
+- **Consolidation** — a *sideways pause*: price stops trending and moves in
+  a tight range for a while, gathering energy before its next move. A
+  breather.
+
+### Turns and energy
+
+- **Reversal** — the big one: the trend *actually changes direction*. An
+  uptrend becomes a downtrend (or vice versa). The hardest thing to call in
+  real time, because every reversal starts looking exactly like an ordinary
+  pullback.
+- **Expansion** — price starts moving in *big, wide* candles — volatility is
+  rising, the market is "expanding." Often follows a breakout.
+- **Compression** — the opposite: candles get *small and tight*, volatility
+  is falling, price is coiling. Compression frequently comes *before* a big
+  expansion move — the spring winds up before it releases.
+
+### The one trap to remember
+
+The most expensive confusion in trading is **pullback vs. reversal**. They
+look identical at the start. That's exactly why you never bet the whole
+account on one call, and why you place a **stop-loss**: it's the line that
+says "if this 'pullback' keeps going, it was actually a reversal, and I'm
+out."
+""".strip(),
+    ),
+    Lesson(
+        slug="market-structure/swings-bos-choch",
+        module_id="market-structure",
+        order_in_module=3,
+        title="Market structure: swings, HH/HL, BOS & CHoCH",
+        summary=(
+            "How pros read trend from the shape of the swings — higher highs, lower lows, break "
+            "of structure, and change of character."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "swing high", "swing low", "higher high", "higher low",
+            "lower high", "lower low", "break of structure", "change of character",
+        ),
+        figures=(
+            Figure(
+                key="market-structure-swings",
+                caption=(
+                    "Reading trend from swing points: HH+HL is up, LH+LL is down; a BOS confirms "
+                    "the trend, a CHoCH warns it may be turning."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "In a healthy uptrend (higher highs, higher lows), price suddenly makes a "
+                    "LOWER low for the first time. This first crack is called a…"
+                ),
+                options=(
+                    "Break of Structure confirming the uptrend",
+                    "Change of Character (CHoCH) — an early warning the trend may be turning",
+                    "Marubozu",
+                ),
+                correct_index=1,
+                explanation=(
+                    "The first lower low after a run of higher lows breaks the pattern — "
+                    "that's a change of character, the earliest hint the uptrend could be "
+                    "ending."
+                ),
+            ),
+        ),
+        body_md="""
+"Market structure" sounds fancy but it's just **reading the trend from the
+shape of the zig-zags**. Price moves in swings — up a bit, down a bit — and
+the *peaks and troughs* of those swings tell you everything.
+
+### Swing highs and swing lows
+
+- A **swing high** is a peak: a candle higher than the ones on either side
+  of it. A little mountain top.
+- A **swing low** is a trough: a candle lower than its neighbours. A little
+  valley bottom.
+
+Mark the swing highs and lows on any chart and the trend jumps out at you.
+
+### The four labels: HH, HL, LH, LL
+
+Compare each swing to the one before it:
+
+- **Higher High (HH)** — a peak *above* the previous peak.
+- **Higher Low (HL)** — a trough *above* the previous trough.
+- **Lower High (LH)** — a peak *below* the previous peak.
+- **Lower Low (LL)** — a trough *below* the previous trough.
+
+Now the rule that makes it click:
+
+- **Uptrend = HH + HL** (rising peaks *and* rising troughs).
+- **Downtrend = LH + LL** (falling peaks *and* falling troughs).
+- Mixed signals (e.g. a higher high but a lower low) = **no clear structure**
+  → likely a range.
+
+### BOS — Break of Structure
+
+A **Break of Structure** is when price breaks *past the last swing in the
+direction of the trend*, confirming the trend continues. In an uptrend, when
+price pushes above the previous higher high, that's a bullish BOS — the
+uptrend just proved itself again. BOS = "the trend is still alive."
+
+### CHoCH — Change of Character
+
+A **Change of Character** is the *first crack* in the pattern. In an uptrend
+of higher lows, the moment price makes a **lower low** for the first time,
+the "character" of the market has changed — the trend *may* be turning. CHoCH
+= "warning: the trend might be ending."
+
+Note the honest order of events: a **CHoCH is an early warning**, and only a
+follow-up **BOS in the new direction** confirms an actual reversal. Many
+CHoCHs are just deep pullbacks that fail — which is why they're a heads-up to
+tighten risk, not a guarantee to flip your whole position.
+
+### Why learn this
+
+These terms (HH/HL, BOS, CHoCH) are the backbone of how modern chart-readers
+and "Smart Money" traders talk. You'll hear them constantly. Now you can
+follow the conversation — and, more usefully, you can *see the trend
+objectively* instead of guessing. That said: reading structure tells you the
+trend's *shape*, not its *future*. It's context, not a crystal ball — exactly
+how this app treats charts too.
+""".strip(),
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# Module — Candlesticks & volume
+# ---------------------------------------------------------------------------
+
+_CANDLES_VOLUME = (
+    Lesson(
+        slug="candles-volume/candlestick-zoo",
+        module_id="candles-volume",
+        order_in_module=1,
+        title="The candlestick zoo: every pattern that matters",
+        summary=(
+            "Doji, hammer, hanging man, shooting star, engulfing, inside bar, outside bar, pin "
+            "bar, marubozu — what each shape is telling you."
+        ),
+        est_minutes=9,
+        key_concepts=(
+            "doji", "hammer", "hanging man", "shooting star", "engulfing",
+            "inside bar", "outside bar", "pin bar", "marubozu",
+        ),
+        figures=(
+            Figure(
+                key="candle-zoo",
+                caption=(
+                    "The nine candlestick shapes traders name most — each is a little story about "
+                    "who won the bar, buyers or sellers."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A candle with a tiny body at the top and a long lower wick appears after a "
+                    "fall. What is it, and what does the long lower wick mean?"
+                ),
+                options=(
+                    "A shooting star — sellers rejected higher prices",
+                    "A hammer — sellers pushed price down but buyers slammed it back up",
+                    "A doji — total indecision",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A long lower wick means price was pushed way down during the bar but "
+                    "buyers rejected it and closed near the top — a hammer, a potential "
+                    "bottoming signal."
+                ),
+            ),
+        ),
+        body_md="""
+Every candle is a **story about a fight** between buyers and sellers over one
+time period. The **body** shows where price opened and closed; the **wicks**
+(thin lines) show how far it stretched and got rejected. The shapes below are
+just named outcomes of that fight. (New to candles? The "Reading charts" module
+covers the basic anatomy first.)
+
+### Indecision
+
+- **Doji** — open and close are almost the *same*, so the body is a tiny
+  line. Neither side won. A doji after a big move often warns of a pause or
+  turn — the momentum just stalled.
+
+### Rejection candles (one long wick)
+
+The long wick is the key: it shows price went somewhere and got **violently
+rejected**.
+
+- **Hammer** — small body at the *top*, long wick *below*, appearing after a
+  *fall*. Sellers pushed price down but buyers hammered it back up. Possible
+  bottom.
+- **Hanging Man** — looks identical to a hammer (small body up top, long
+  lower wick) but appears after a *rise*. Same shape, opposite location —
+  a possible top warning.
+- **Shooting Star** — small body at the *bottom*, long wick *above*, after a
+  *rise*. Buyers pushed up but sellers shot it back down. Possible top.
+- **Pin Bar** — the general name for any candle with one long wick and a
+  small body ("pin" = it pins a rejection). Hammers and shooting stars are
+  both pin bars. The long wick points to where price *failed* to hold.
+
+### Power candles
+
+- **Marubozu** — a *big body with almost no wicks*. One side dominated the
+  entire bar, open to close, no rejection. A bullish marubozu (big up candle)
+  shows buyers in total control; bearish shows sellers.
+- **Engulfing** — a *two-candle* pattern: a big candle whose body completely
+  **swallows** the previous candle's body. A bullish engulfing (big green
+  eating a red) after a fall is a strong turn signal; bearish engulfing after
+  a rise is the reverse.
+
+### Range candles (two-candle relationships)
+
+- **Inside Bar** — a candle that fits *entirely inside* the previous
+  candle's range. The market got quieter — a pause/compression that often
+  precedes a breakout.
+- **Outside Bar** — the opposite: a candle whose range *engulfs* the previous
+  one (higher high *and* lower low). A burst of volatility; the market grabbed
+  both sides.
+
+### The honest truth about candle patterns
+
+Candlestick patterns are **useful vocabulary and mild hints, not magic.** A
+hammer at major support with the trend behind it is worth noticing; the same
+hammer in the middle of nowhere is noise. Pros use them as *one input* — a
+nudge that agrees or disagrees with the bigger picture — never as a
+standalone "buy now" button. Tested in isolation, most single patterns barely
+beat a coin flip, which is exactly why this system leans on measured
+probability, not pattern-spotting.
+""".strip(),
+    ),
+    Lesson(
+        slug="candles-volume/volume-and-profile",
+        module_id="candles-volume",
+        order_in_module=2,
+        title="Volume, delta, and the volume profile",
+        summary=(
+            "Volume spikes, buying vs selling volume, delta, volume profile, Point of Control, "
+            "Value Area — reading the crowd's footprints."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "volume spike", "buying volume", "selling volume", "delta",
+            "volume profile", "point of control", "value area high", "value area low",
+            "open interest",
+        ),
+        figures=(
+            Figure(
+                key="volume-profile",
+                caption=(
+                    "Volume bars show WHEN trading was heavy; the volume profile (sideways "
+                    "histogram) shows at WHICH PRICES — the fat part is the Point of Control."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "On a volume profile, the price level with the single most volume traded is "
+                    "called the…"
+                ),
+                options=(
+                    "Value Area High",
+                    "Point of Control (POC)",
+                    "Delta",
+                ),
+                correct_index=1,
+                explanation=(
+                    "The Point of Control is the price where the most volume changed "
+                    "hands — the market's 'fair value' magnet. The Value Area is the "
+                    "wider band (about 70% of volume) around it."
+                ),
+            ),
+        ),
+        body_md="""
+Price tells you *where* the market went. **Volume** tells you *how much
+conviction* was behind the move — how many contracts actually traded. It's
+the crowd's footprints.
+
+### Volume basics
+
+- **Volume** — the number of units traded in a period, drawn as bars under
+  the chart. Tall bar = lots of activity; short bar = quiet.
+- **Volume spike** — a sudden, unusually tall bar. Something happened: news,
+  a breakout, panic. Spikes mark moments the crowd *cared*.
+- **Buying volume vs selling volume** — an attempt to split volume into
+  trades that happened at the *ask* (aggressive buyers) versus the *bid*
+  (aggressive sellers). More buying volume on a rise = a healthier move.
+- **Delta** — the *difference* between buying and selling volume (buys minus
+  sells). Positive delta = aggressive buyers dominated; negative = sellers.
+  Delta diverging from price (price rising but delta falling) hints the move
+  is running out of fuel.
+
+### The confirmation rule
+
+Volume is mostly used to **confirm or doubt** a price move:
+
+- A breakout **on high volume** is more trustworthy — the crowd committed.
+- A breakout **on low volume** is suspect — few backed it, so it often fails
+  (a "fakeout").
+- A trend on *shrinking* volume is quietly losing support.
+
+### The volume profile (a different view)
+
+A normal volume chart shows volume **by time** (bars along the bottom). A
+**volume profile** flips it 90°: a *horizontal* histogram showing how much
+volume traded **at each price level**. This answers a more useful question:
+*where did the market do most of its business?*
+
+- **Point of Control (POC)** — the price level with the **most** volume ever
+  traded. The market's centre of gravity; price is often pulled back toward
+  it like a magnet.
+- **Value Area** — the band of prices where about **70%** of volume happened.
+  Its edges are:
+  - **Value Area High (VAH)** — the top of that band.
+  - **Value Area Low (VAL)** — the bottom.
+- Prices **above** the value area are considered "expensive" (premium);
+  **below** it, "cheap" (discount). Price spending little time somewhere means
+  the market rejected those levels quickly.
+
+### Open interest (futures & options only)
+
+- **Open Interest** — the number of contracts *currently open* (not yet
+  closed) in futures/options markets. Rising open interest during a trend
+  means new money is entering and backing the move; falling open interest
+  means players are closing out — the move may be tiring. (Note: spot forex,
+  like the EUR/USD this app trades, has *no* central open-interest figure —
+  it's decentralised — so this concept applies mainly to futures.)
+
+### The honest caveat
+
+Volume analysis is genuinely informative in *centralised* markets (stocks,
+futures) where every trade is reported. In **spot forex it's murkier** —
+there's no single exchange, so "volume" is really your broker's slice, not
+the whole market. Treat forex volume as a rough hint, not gospel.
+""".strip(),
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Module — Smart Money Concepts (explained honestly)
+# ---------------------------------------------------------------------------
+
+_SMART_MONEY = (
+    Lesson(
+        slug="smart-money/what-smc-is",
+        module_id="smart-money",
+        order_in_module=1,
+        title="Smart Money Concepts: the honest introduction",
+        summary=(
+            "What SMC is, where the ideas come from, and the crucial honesty check before you "
+            "learn the jargon."
+        ),
+        est_minutes=6,
+        key_concepts=(
+            "smart money", "institutional", "narrative", "unfalsifiable", "honest skepticism"
+        ),
+        figures=(
+            Figure(
+                key="risk-vs-predict",
+                caption=(
+                    "SMC is a vocabulary for describing charts after the fact — useful language, "
+                    "but not a proven crystal ball."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="What is the honest way to treat Smart Money Concepts?",
+                options=(
+                    "As a secret institutional system that guarantees wins",
+                    "As a useful vocabulary for describing price — helpful for "
+                    "context, unproven as an edge",
+                    "As proof that retail traders always lose",
+                ),
+                correct_index=1,
+                explanation=(
+                    "SMC gives you good language and pattern-awareness, but its core "
+                    "claims are hard to test and mostly descriptive. Learn it, use it as "
+                    "context, and stay skeptical of anyone selling certainty."
+                ),
+            ),
+        ),
+        body_md="""
+"Smart Money Concepts" (SMC) is one of the most popular ways charts are
+talked about online today, so you *will* hear this jargon everywhere — order
+blocks, liquidity, fair value gaps. This app teaches it to you for one
+reason: **so you understand the language**. But we do it honestly, which most
+SMC content does not.
+
+### The story SMC tells
+
+The core narrative: big institutions ("smart money" — banks, funds) can't buy
+or sell huge positions without moving price, so they *engineer* moves to trap
+small traders ("retail"), grab their orders as **liquidity**, and fill their
+own positions at good prices. SMC is a set of names for the footprints those
+institutions supposedly leave.
+
+### What's genuinely useful about it
+
+- It makes you think about **where other traders' stop-losses sit** — and
+  those clusters really do get hit, which is real and worth understanding.
+- It gives you **precise words** for chart features (order block, FVG, sweep)
+  so you can study and discuss price action clearly.
+- It pushes you to **wait for confirmation** instead of guessing.
+
+### The honest health warning
+
+Here's what the YouTube gurus won't tell you:
+
+- Most SMC ideas are **descriptive, not predictive**. After a move, you can
+  always point to an "order block" that "caused" it — but that's labelling the
+  past, which is easy. Calling it *before* the move, reliably, is the part
+  nobody can prove.
+- Many SMC claims are **unfalsifiable** — vague enough that any outcome can be
+  explained, which means they can't really be tested. That's a red flag in
+  any field.
+- No published, honest study shows SMC beating a simple baseline after costs.
+  If a secret institutional method reliably printed money, it wouldn't be a
+  free YouTube video.
+
+### How to hold it in your head
+
+Learn SMC the way you'd learn any vocabulary: it lets you *read the room*.
+Use it as **context** — "there's a cluster of stops above; a spike up there
+might be a trap" — not as a **guarantee**. Combine it with risk management
+(which *is* proven to matter) and calibrated probability (what this system
+provides). The next two lessons teach the actual terms — clearly, and with
+the same honest lens.
+""".strip(),
+    ),
+    Lesson(
+        slug="smart-money/liquidity-sweeps-stophunts",
+        module_id="smart-money",
+        order_in_module=2,
+        title="Liquidity, sweeps & stop hunts",
+        summary=(
+            "Why clusters of stop-losses are 'liquidity', how a sweep grabs them, and what a stop "
+            "hunt really is."
+        ),
+        est_minutes=7,
+        key_concepts=("liquidity", "liquidity sweep", "stop hunt", "equal highs", "equal lows"),
+        figures=(
+            Figure(
+                key="liquidity-pools",
+                caption=(
+                    "Stop-losses pile up just beyond obvious highs/lows — a 'liquidity pool'. A "
+                    "sweep spikes through to trigger them, then price often snaps back."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Price spikes just above an obvious resistance where many stop-losses sat, "
+                    "triggers them, then immediately drops back below. This is a…"
+                ),
+                options=(
+                    "Breakout to buy into",
+                    "Liquidity sweep / stop hunt — the spike grabbed stops, then reversed",
+                    "Marubozu",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A quick poke beyond a level that triggers stops and then reverses is "
+                    "a liquidity sweep (a.k.a. stop hunt) — the classic trap that catches "
+                    "breakout buyers."
+                ),
+            ),
+        ),
+        body_md="""
+This is the one SMC idea with the most real substance, because it's built on
+something genuinely true: **stop-loss orders cluster in obvious places, and
+clusters of orders are fuel.**
+
+### Liquidity = resting orders
+
+**Liquidity** means *orders waiting to be filled*. Where do lots of orders
+wait? Just beyond **obvious levels**:
+
+- Above an obvious **resistance** or a **swing high**, there sit: the
+  stop-losses of everyone who sold (shorted), *plus* the buy orders of
+  breakout traders. A big pool of buy orders.
+- Below an obvious **support** or **swing low**: the stop-losses of everyone
+  who bought, plus breakout sellers. A pool of sell orders.
+- **Equal highs / equal lows** — when price makes two peaks (or troughs) at
+  almost the same level, stops pile up *especially* thickly just beyond them.
+  A neon sign saying "liquidity here."
+
+A big player who needs to buy a lot *wants* to buy where there are many sell
+orders to match against — i.e. right where all those stops are.
+
+### The sweep (a.k.a. stop hunt)
+
+A **liquidity sweep** or **stop hunt** is when price makes a sharp, brief
+poke **beyond** an obvious level — triggering all those clustered stops — and
+then **reverses back**. The move wasn't a real breakout; it was a raid to
+grab the resting liquidity, after which price snaps back the other way.
+
+The classic trap: an obvious resistance, everyone piles in to buy the
+"breakout," price pokes just above to trigger stops and fill breakout buyers…
+then collapses, leaving those buyers trapped.
+
+### How to actually use this (carefully)
+
+- **Be suspicious of clean breakouts through obvious levels**, especially on
+  a spike with an immediate reversal. That's the sweep signature.
+- Place your own stop-loss a little *further* from the obvious level than
+  everyone else, so a shallow sweep doesn't clip you before your idea plays
+  out.
+- **Wait for the snap-back and confirmation** rather than chasing the poke.
+
+### The honest limit
+
+Sweeps are real, but you can only reliably name them **afterward** — in the
+moment, a "sweep" and a genuine breakout look identical, and plenty of pokes
+just keep going. So this is *risk-awareness*, not a signal: it tells you
+*where* the danger and traps live, which makes you place smarter stops. It
+does not tell you the future. Manage risk first; treat the pattern as
+context.
+""".strip(),
+    ),
+    Lesson(
+        slug="smart-money/blocks-fvg-premium",
+        module_id="smart-money",
+        order_in_module=3,
+        title="Order blocks, breaker blocks, FVG & premium/discount",
+        summary=(
+            "The rest of the SMC vocabulary decoded: order block, breaker block, mitigation "
+            "block, fair value gap, imbalance, and the premium/discount/equilibrium map."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "order block", "breaker block", "mitigation block", "fair value gap",
+            "imbalance", "premium", "discount", "equilibrium",
+        ),
+        figures=(
+            Figure(
+                key="smc-blocks",
+                caption=(
+                    "An order block is the last candle before a big move; a fair value gap is the "
+                    "untraded gap left by that move; premium/discount split the range at its 50% "
+                    "equilibrium."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A fast move up leaves a three-candle gap where price barely traded. SMC "
+                    "calls this untraded zone a…"
+                ),
+                options=(
+                    "Order block",
+                    "Fair Value Gap (FVG) / imbalance — price often returns to 'fill' it",
+                    "Point of Control",
+                ),
+                correct_index=1,
+                explanation=(
+                    "A fast move that skips price levels leaves a fair value gap (an "
+                    "imbalance); the idea is price often revisits it later to trade the "
+                    "levels it skipped."
+                ),
+            ),
+        ),
+        body_md="""
+Here's the rest of the SMC dictionary. Each term is just a *named chart
+feature* — learn the shape, and keep the honesty lens from the intro lesson.
+
+### The "block" family
+
+- **Order Block** — the **last candle (or cluster) before a big, sharp
+  move**. The idea: this is where big players placed their orders, so if price
+  returns to that zone later, they may "defend" it and price could react. In
+  practice it's simply "the base the last big move launched from."
+- **Breaker Block** — an order block that **failed**: price broke through it
+  instead of respecting it. Once broken, that zone is expected to flip role
+  (old support becomes resistance) and act as a *breaker* on the way back.
+- **Mitigation Block** — a zone a big player returns to in order to
+  "mitigate" (improve or close out) an earlier position. In practice it looks
+  much like an order block; the label is about the supposed *intent*.
+
+Notice these three are variations on one real, simple idea you already know:
+**old zones where price reacted before can matter again when revisited** —
+which is really just support/resistance with fancier names.
+
+### Fair Value Gap (FVG) & imbalance
+
+- **Fair Value Gap (FVG)** — when price moves so fast it leaves a **gap of
+  levels that barely traded** (seen as a space between the wicks of three
+  consecutive candles). Also called an **imbalance** — buying and selling
+  were lopsided, so some prices got "skipped."
+- The theory: markets dislike leaving business undone, so price often
+  **returns to "fill" the gap** later — trading the levels it skipped — before
+  continuing. Sometimes true, often not; treat it as a *zone of interest*, not
+  a promise.
+
+### The premium / discount map
+
+Take any recent price range (a swing low up to a swing high) and split it:
+
+- **Equilibrium** — the **50% midpoint** of the range. "Fair value."
+- **Premium** — the **upper half** (above 50%). Price here is "expensive" —
+  SMC traders prefer to *sell* in premium.
+- **Discount** — the **lower half** (below 50%). Price is "cheap" — they
+  prefer to *buy* in discount.
+
+It's a disciplined version of an old, sound instinct: **buy low in the range,
+sell high in the range**. That part is genuinely reasonable.
+
+### The through-line
+
+Strip away the branding and most SMC tools reduce to three timeless ideas you
+can trust: **support/resistance zones matter**, **stops cluster at obvious
+levels**, and **buying low / selling high within a range beats chasing**. The
+exotic names add precision and community, but not proven predictive power.
+Learn the words so you can talk shop — then lean on risk management and
+honest probability for the actual decisions.
+""".strip(),
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Module — Orders & market conditions
+# ---------------------------------------------------------------------------
+
+_ORDERS_CONDITIONS = (
+    Lesson(
+        slug="orders-conditions/order-types-reference",
+        module_id="orders-conditions",
+        order_in_module=1,
+        title="Every order type, and exactly when to use it",
+        summary=(
+            "Market, limit, stop, stop-limit, and the four combos: buy stop, sell stop, buy "
+            "limit, sell limit."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "market order", "limit order", "stop order", "stop limit order",
+            "buy stop", "sell stop", "buy limit", "sell limit",
+        ),
+        figures=(
+            Figure(
+                key="order-grid",
+                caption=(
+                    "The four resting orders around the current price: limits wait for a better "
+                    "price, stops fire on a breakout — one of each above and below."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "You want to SELL only if price rises to a better (higher) level first. Which "
+                    "order rests ABOVE the market?"
+                ),
+                options=("Sell stop", "Sell limit", "Buy limit"),
+                correct_index=1,
+                explanation=(
+                    "A sell limit rests above the current price — 'sell, but only at this "
+                    "higher price or better.' A sell stop rests below and fires on a "
+                    "breakdown."
+                ),
+            ),
+        ),
+        body_md="""
+Your broker gives you a few order types. Master them and you control *exactly*
+when and at what price you enter and exit — instead of clicking in a panic.
+
+### The three families
+
+- **Market order** — "fill me **now**, at whatever price is available." Instant,
+  but you pay the spread and risk slippage. Use when being in matters more
+  than the last fraction of a pip.
+- **Limit order** — "fill me **only at my price or better**." You wait for
+  price to come to you. Never fills at a worse price, but might not fill at all.
+- **Stop order** — "when price **reaches** my level, fire a market order." Used
+  to enter on breakouts and — critically — as your **stop-loss** exit.
+- **Stop-Limit order** — a stop that, once triggered, places a *limit* order
+  instead of a market order. It protects you from terrible slippage (you won't
+  fill beyond your limit) but risks *not filling at all* in a fast market. A
+  precision tool; the plain stop is safer for a must-exit stop-loss.
+
+### The four combos (this is where beginners get confused)
+
+The trick: **limits want a *better* price (wait for the pullback); stops want a
+*breakout* (chase the momentum).** Where each one rests relative to the current
+price:
+
+- **Buy Limit** — rests **below** the market. "Buy the dip at a discount."
+- **Sell Limit** — rests **above** the market. "Sell the rally at a premium."
+- **Buy Stop** — rests **above** the market. "Buy only if it breaks out
+  upward." (Also becomes your stop-loss if you're short.)
+- **Sell Stop** — rests **below** the market. "Sell only if it breaks down."
+  (Also your stop-loss if you're long.)
+
+Memory hook: **Limits below/above = patience for a better price. Stops
+above/below = permission to chase a break.**
+
+### The two orders that must exist on every trade
+
+The instant you enter, two orders should already be resting: a **stop-loss**
+(a stop order that caps your loss at the amount you chose) and a
+**take-profit** (a limit order that banks the win at your target). Deciding
+both *before* you enter is the whole difference between a plan and a gamble.
+
+> This system's **Trade plan** page and **Risk calculator** hand you the exact
+> entry, stop, and target so all three orders are ready before a single dollar
+> is at risk.
+""".strip(),
+    ),
+    Lesson(
+        slug="orders-conditions/market-conditions",
+        module_id="orders-conditions",
+        order_in_module=2,
+        title="Reading the weather: market conditions",
+        summary=(
+            "Volatility, momentum, trend, mean reversion, correlation, liquidity, slippage, and "
+            "spread — the 'weather' you trade inside."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "volatility", "momentum", "trend", "mean reversion", "correlation",
+            "liquidity", "slippage", "spread",
+        ),
+        figures=(
+            Figure(
+                key="market-conditions",
+                caption=(
+                    "Two opposite weather systems: a trending/momentum market that keeps going, "
+                    "and a mean-reverting market that snaps back to average."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A strategy that bets price will 'snap back' toward its average after "
+                    "stretching too far is exploiting…"
+                ),
+                options=("Momentum", "Mean reversion", "Correlation"),
+                correct_index=1,
+                explanation=(
+                    "Mean reversion assumes over-stretched price returns to its average — "
+                    "the opposite of momentum, which assumes a move keeps going."
+                ),
+            ),
+        ),
+        body_md="""
+A good trade in the wrong *conditions* still loses. Before entering, pros read
+the market's "weather." Here are the eight words that describe it.
+
+### How much it's moving
+
+- **Volatility** — *how much price is moving*, regardless of direction. High
+  volatility = big, fast candles; low = small, sleepy ones. Volatility decides
+  how far your stop must sit to survive normal noise — which is why it drives
+  position size. (It's also the one thing this system forecasts with a *real*
+  edge, because volatility **clusters**: calm follows calm, wild follows wild.)
+- **Momentum** — *how forcefully price is moving one way*. Strong momentum
+  means a move is likely to continue for a bit; fading momentum warns it's
+  tiring.
+
+### Which way it behaves
+
+- **Trend** — a persistent directional drift (covered in depth earlier).
+  Trend-following strategies assume moves **continue**.
+- **Mean Reversion** — the opposite behaviour: price stretched too far from its
+  average tends to **snap back**. Mean-reversion strategies fade extremes.
+  Crucially, **trend and mean reversion are opposite bets** — the whole skill is
+  knowing which regime you're in. Trend tools get shredded in a mean-reverting
+  range; reversion tools get run over in a strong trend.
+
+### How markets relate
+
+- **Correlation** — how two markets move *together*. +1 = they move in
+  lockstep; −1 = perfect opposites; 0 = unrelated. EUR/USD and the US dollar
+  index are strongly *negatively* correlated. Correlation matters for risk:
+  three "different" trades that are all really the-same-dollar-bet is one big
+  trade in disguise.
+
+### The cost of doing business (the frictions)
+
+- **Liquidity** — how easily you can trade *without moving the price*. Deep
+  liquidity (major pairs, active hours) = tight costs and clean fills. Thin
+  liquidity (exotic pairs, 3 a.m.) = wide costs and nasty fills.
+- **Spread** — the gap between the buy (ask) and sell (bid) price. You pay it
+  on entry. Widens when liquidity thins.
+- **Slippage** — getting filled at a *worse* price than you clicked, because
+  the market moved while your order travelled. Worst around news and in thin
+  liquidity.
+
+### Why this is the master skill
+
+Matching your **strategy** to the **conditions** is more important than the
+strategy itself. Breakout trading shines in expanding volatility and dies in a
+quiet range; mean reversion prints in a range and gets destroyed in a trend.
+This is exactly why the system measures the **regime** (calm vs. wild, trending
+vs. not) before it trusts any signal — and why it will honestly tell you to
+*stand aside* when the weather is wrong.
+""".strip(),
+    ),
+)
+
+
+# Extension lessons for the "using-mentor" module -----------------------------
+
+_USING_MENTOR_EXT = (
+    Lesson(
+        slug="using-mentor/whole-system-plain-english",
+        module_id="using-mentor",
+        order_in_module=6,
+        title="How the whole system works — in plain English",
+        summary=(
+            "The entire machine explained like you're five: where the numbers come from, how it "
+            "guesses, how it grades itself, and how it gets smarter."
+        ),
+        est_minutes=8,
+        key_concepts=("data", "prediction", "grading", "learning loop", "honesty"),
+        figures=(
+            Figure(
+                key="system-plain",
+                caption=(
+                    "The whole machine in five boxes: gather data → make a guess → wait → check "
+                    "if it was right → learn from it, forever."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="In one sentence, what makes this system trustworthy?",
+                options=(
+                    "It predicts the market perfectly",
+                    "It writes down every guess before the outcome, then grades "
+                    "itself honestly and only keeps changes that prove better",
+                    "It uses secret institutional data",
+                ),
+                correct_index=1,
+                explanation=(
+                    "The trust comes from public, before-the-fact predictions, honest "
+                    "grading, and a rule that a new model only ships if it measurably beats "
+                    "the old one. No crystal ball — just honesty."
+                ),
+            ),
+        ),
+        body_md="""
+Forget the jargon for a moment. Here is the entire system explained the way
+you'd explain it to a friend over coffee. It's just **five steps that repeat
+forever.**
+
+### Step 1 — Gather the facts
+
+Every hour, the system quietly downloads fresh, real data from free sources:
+
+- **Prices** — the actual EUR/USD candles.
+- **Interest rates & the dollar** — from the US central bank's database (FRED):
+  2-year and 10-year rates, the yield curve, a dollar index, and the "fear
+  gauge" (VIX). Rate differences move currencies more than headlines do.
+- **News mood** — a daily score of how positive or negative world news has been
+  (from GDELT).
+
+If the data looks broken (a gap, a frozen feed), it **refuses to continue** —
+better to skip an hour than to guess from garbage.
+
+### Step 2 — Make a careful guess
+
+It feeds those facts to its current best model (the "champion") and produces a
+**probability**, not a promise — for example, *"58% chance the next move is
+up."* Alongside it: a confidence level, an expected price range, and a
+plain-English reason. If the odds are near 50/50, it honestly says **stand
+aside** — no trade.
+
+### Step 3 — Write the guess down, before the outcome
+
+Every prediction is **logged the instant it's made**, before anyone knows what
+happens. This is the honesty foundation: you can't cheat a scoreboard you filled
+in *before* the game.
+
+### Step 4 — Grade itself against reality
+
+Later, when enough time has passed, the system looks at what price *actually*
+did and marks each old guess **right or wrong**. It keeps a running report card:
+how accurate, how well-calibrated (when it says 60%, does it happen ~60% of the
+time?), would following it have made money.
+
+### Step 5 — Learn, but only from proof
+
+Periodically — and immediately if its recent grades slip — it **trains new
+candidate models** on all the fresh data and stages a contest. A new model only
+becomes champion if it **measurably beats** the current one *and* beats a plain
+coin-flip, tested on data neither model has seen. **A worse model never ships.**
+Then the five steps repeat, forever.
+
+### The one thing to remember
+
+Nobody can predict EUR/USD reliably — the honest edge is about **53%** on
+direction (barely above a coin flip), and this system will never pretend
+otherwise. Its real value isn't magic accuracy; it's **discipline, honest
+measurement, and risk management done automatically** — the same things that
+separate professional traders from gamblers. It's a tireless, honest assistant,
+not a money printer.
+""".strip(),
+    ),
+    Lesson(
+        slug="using-mentor/every-tab-trading",
+        module_id="using-mentor",
+        order_in_module=7,
+        title="Every tab explained (1): the trading tabs",
+        summary=(
+            "Dashboard, Trade plan, Forecast, Tips, Predictions, and Loop — what each one shows "
+            "and exactly how to use it."
+        ),
+        est_minutes=9,
+        key_concepts=("dashboard", "trade plan", "forecast", "tips", "predictions", "loop"),
+        figures=(
+            Figure(
+                key="tabs-trading",
+                caption=(
+                    "The six trading tabs and what each answers: what's the read, what should I "
+                    "do, why, who else is calling it, and is the engine healthy?"
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "You want the system's current, ready-to-place recommendation with a stop and "
+                    "size. Which tab?"
+                ),
+                options=("Predictions", "Trade plan", "Data health"),
+                correct_index=1,
+                explanation=(
+                    "The Trade plan tab turns the current read into a concrete ticket — "
+                    "stance, entry, stop, target, and position size for your account."
+                ),
+            ),
+        ),
+        body_md="""
+The app has a lot of tabs, so here's exactly what each one is for and how to
+use it. This lesson covers the **six trading tabs** (top of the sidebar); the
+next covers the toolkit.
+
+### 📊 Dashboard — your morning briefing
+**What it shows:** the current read on EUR/USD (which way it leans, chance of
+rising, confidence), whether dangerous news is due today (an "event freeze"
+warning), and how *your own* trading is going.
+**How to use it:** open it first, every day. Spend two minutes: Is there an
+event freeze? What's the lean? If the freeze banner is red, your trading day
+may already be decided — stand down.
+
+### 🎯 Trade plan — what to do right now
+**What it shows:** the read turned into a **concrete ticket** — go long / go
+short / **stand aside**, plus exact entry, stop-loss, take-profit, and position
+size for *your* account and chosen risk %.
+**How to use it:** set your account size and risk (0.5–2%). If it shows a
+plan, run the pre-trade checklist, then copy the numbers into your broker —
+all three orders together. If it says **STAND ASIDE**, that's a complete answer:
+no trade.
+
+### 📈 Forecast — the detail behind the read
+**What it shows:** the direction probability *and* the volatility forecast
+(expected range) in more depth, with the model's reasoning and the features it
+looked at.
+**How to use it:** go here when you want the *why* behind the Dashboard's
+one-line lean, or to pull the latest news.
+
+### 💡 Tips — the stock-tip scorecard
+**What it shows:** a leaderboard that tracks whether stock "tips" (from analysts
+or tipsters) actually came true, with price movement and analyst targets.
+**How to use it:** a reality check on anyone claiming great calls — the app
+scores them honestly over time.
+
+### 🧾 Predictions — the audit log
+**What it shows:** every prediction the system has *ever* made, with what
+actually happened (hit or miss) and a post-mortem analysing where it's
+overconfident.
+**How to use it:** this is the transparency tab. Check that the system's calls
+are logged before the fact and graded honestly. It's the receipt behind every
+claim.
+
+### 🔄 Loop — the learning engine's cockpit
+**What it shows:** whether the 24/7 engine is alive (heartbeats), notable events
+(drift, retrains, promotions), the model contest history, and the honest paper
+P&L of following its live calls.
+**How to use it:** glance weekly. All heartbeats green = healthy. It's how you
+confirm the machine is genuinely running and learning, not stuck.
+""".strip(),
+    ),
+    Lesson(
+        slug="using-mentor/every-tab-toolkit",
+        module_id="using-mentor",
+        order_in_module=8,
+        title="Every tab explained (2): the toolkit tabs",
+        summary=(
+            "Risk calculator, Journal, Backtester, Prices, Data health, Learn, and Settings — "
+            "what each does and when to reach for it."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "risk calculator", "journal", "backtester", "prices", "data health", "settings"
+        ),
+        figures=(
+            Figure(
+                key="tabs-toolkit",
+                caption=(
+                    "The toolkit tabs: size a trade, log & review your trades, test strategies, "
+                    "inspect data, keep learning, and manage your account."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Where do you record a trade you took and later review how disciplined you "
+                    "were?"
+                ),
+                options=("Backtester", "Journal", "Prices"),
+                correct_index=1,
+                explanation=(
+                    "The Journal is your logbook — it records trades and computes your own "
+                    "expectancy and win rate so you can grade your *process*, not just "
+                    "outcomes."
+                ),
+            ),
+        ),
+        body_md="""
+These are the **toolkit tabs** — the supporting tools you reach for around your
+trades.
+
+### 🧮 Risk calculator — size any trade safely
+**What it shows:** enter your account, risk %, entry, and stop, and it computes
+the exact **position size** (lots), money at risk, and reward:risk.
+**How to use it:** any time you plan a trade by hand. It guarantees you never
+risk more than you decided — the single most important habit in trading.
+
+### 📓 Journal — grade yourself
+**What it shows:** a logbook of your trades, plus *your* statistics —
+expectancy, win rate, profit factor — and a weekly review space.
+**How to use it:** log **every** trade (and the no-trades), including how you
+*behaved*. The system grades its own predictions; the Journal is where you grade
+**yourself**. This is where real improvement happens.
+
+### 🧪 Backtester — test before you trust
+**What it shows:** run a strategy over years of history and see the results —
+honestly, with spread and slippage charged, plus a side-by-side comparison of
+strategies.
+**How to use it:** before believing any strategy, test it here. It's built to
+expose fake edges, not flatter them.
+
+### 📉 Prices — the raw chart & data coverage
+**What it shows:** the stored price history for a symbol and timeframe, with
+data-quality gaps flagged.
+**How to use it:** to eyeball the actual candles or confirm you have enough
+history for a prediction.
+
+### 🩺 Data health — is the fuel clean?
+**What it shows:** how much price data you hold, where it came from, and whether
+your sources agree.
+**How to use it:** if predictions look off, check here first — a model is only as
+honest as the data under it.
+
+### 🎓 Learn — this curriculum
+**What it shows:** every module and lesson (including this one), with progress
+tracking and quizzes.
+**How to use it:** work through it in order. Risk first, prediction last.
+
+### ⚙️ Settings — your account
+**What it shows:** change your password, and (if you're the admin) add other
+users and choose exactly which tabs each can see.
+**How to use it:** set a memorable password; add family or a friend with
+limited access if you want to share.
+""".strip(),
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
 # Catalog
 # ---------------------------------------------------------------------------
 
@@ -2924,50 +4167,89 @@ CATALOG: Final[tuple[Module, ...]] = (
         lessons=_CHART_LANGUAGE,
     ),
     Module(
-        id="indicators",
+        id="market-structure",
         order=5,
+        title="How markets move: structure & price action",
+        summary=(
+            "Direction, support & resistance, the price-action words, and market structure "
+            "(HH/HL, BOS, CHoCH)."
+        ),
+        lessons=_MARKET_STRUCTURE,
+    ),
+    Module(
+        id="candles-volume",
+        order=6,
+        title="Candlesticks & volume",
+        summary=(
+            "Every candlestick pattern that matters, plus volume, delta, and the volume profile."
+        ),
+        lessons=_CANDLES_VOLUME,
+    ),
+    Module(
+        id="smart-money",
+        order=7,
+        title="Smart Money Concepts, explained honestly",
+        summary=(
+            "Liquidity, sweeps, order blocks, fair value gaps, premium/discount — the popular "
+            "jargon decoded, with an honesty check."
+        ),
+        lessons=_SMART_MONEY,
+    ),
+    Module(
+        id="indicators",
+        order=8,
         title="Indicators & their failure modes",
         summary="Every indicator lies somewhere. Knowing where is the skill.",
         lessons=_INDICATORS,
     ),
     Module(
+        id="orders-conditions",
+        order=9,
+        title="Orders & market conditions",
+        summary=(
+            "Every order type and when to use it, and the 'weather' you trade inside: volatility, "
+            "momentum, trend vs mean reversion."
+        ),
+        lessons=_ORDERS_CONDITIONS,
+    ),
+    Module(
         id="expectancy",
-        order=6,
+        order=10,
         title="Expectancy & the math of survival",
         summary="Why a 40%-win system can be highly profitable — and why most aren't.",
         lessons=_EXPECTANCY,
     ),
     Module(
         id="backtesting",
-        order=7,
+        order=11,
         title="Backtesting honestly",
         summary="The three failure modes that turn paper edges into live losses.",
         lessons=_BACKTESTING,
     ),
     Module(
         id="psychology",
-        order=8,
+        order=12,
         title="Psychology & process",
         summary="Your behaviour is the biggest risk in the system. The journal is the cure.",
         lessons=_PSYCHOLOGY + _PSYCHOLOGY_EXT,
     ),
     Module(
         id="market-study",
-        order=9,
+        order=13,
         title="Studying & predicting the markets",
         summary="The four schools of analysis, a top-down workflow, and how to build a real edge.",
         lessons=_MARKET_STUDY,
     ),
     Module(
         id="toolkit",
-        order=10,
+        order=14,
         title="The trader's toolkit",
         summary="The best tools for charting, data, risk, journaling, and automation.",
         lessons=_TOOLKIT,
     ),
     Module(
         id="becoming-pro",
-        order=11,
+        order=15,
         title="Becoming a professional",
         summary=(
             "Orders, sessions, costs, leverage, the written plan, the routine, and the ladder to "
@@ -2977,17 +4259,17 @@ CATALOG: Final[tuple[Module, ...]] = (
     ),
     Module(
         id="using-mentor",
-        order=12,
+        order=16,
         title="Trading with Mentor, day to day",
         summary=(
             "How to actually use this app like a pro: the daily flow, the ticket, the odds, the "
             "loop."
         ),
-        lessons=_USING_MENTOR,
+        lessons=_USING_MENTOR + _USING_MENTOR_EXT,
     ),
     Module(
         id="under-the-hood",
-        order=13,
+        order=17,
         title="Under the hood: how the mentor predicts",
         summary=(
             "Every data source, prediction method, and watchdog the system uses, with diagrams."

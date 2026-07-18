@@ -1941,6 +1941,283 @@ function ProcessVsOutcome() {
   );
 }
 
+// ---- learning renovation figures -----------------------------------------
+
+function TrendTypes() {
+  return (
+    <Svg vb="0 0 460 170">
+      {/* uptrend */}
+      <polyline points="15,110 40,95 30,90 55,72 45,68 70,50 60,46 85,30" className={TONE.accentSoft} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      <T x={57} y={135} size={9} tone="accentSoft" bold>UPTREND</T>
+      <T x={57} y={150} size={8} tone="muted">higher highs + lows</T>
+      {/* downtrend */}
+      <polyline points="175,30 200,50 190,54 215,72 205,76 230,95 220,99 245,115" className={TONE.danger} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      <T x={215} y={135} size={9} tone="danger" bold>DOWNTREND</T>
+      <T x={215} y={150} size={8} tone="muted">lower highs + lows</T>
+      {/* sideways / range */}
+      <line x1={330} y1={45} x2={445} y2={45} className={TONE.border} stroke="currentColor" strokeDasharray="3 3" />
+      <line x1={330} y1={105} x2={445} y2={105} className={TONE.border} stroke="currentColor" strokeDasharray="3 3" />
+      <polyline points="335,100 355,52 375,100 395,52 415,100 435,52" className={TONE.accent} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      <T x={388} y={135} size={9} tone="accent" bold>SIDEWAYS / RANGE</T>
+      <T x={388} y={150} size={8} tone="muted">bouncing in a box</T>
+    </Svg>
+  );
+}
+
+function PriceActionMap() {
+  return (
+    <Svg vb="0 0 460 210">
+      {/* support & resistance lines */}
+      <line x1={20} y1={60} x2={300} y2={60} className={TONE.danger} stroke="currentColor" strokeDasharray="4 3" />
+      <T x={24} y={54} anchor="start" size={8} tone="danger" bold>RESISTANCE (ceiling)</T>
+      <line x1={20} y1={150} x2={440} y2={150} className={TONE.accentSoft} stroke="currentColor" strokeDasharray="4 3" />
+      <T x={24} y={164} anchor="start" size={8} tone="accentSoft" bold>SUPPORT (floor)</T>
+      {/* price path: bounce off support, pullback, breakout through resistance, expansion */}
+      <polyline
+        points="20,120 50,148 80,100 110,140 140,95 175,62 200,90 230,60 265,58 300,40 340,70 370,30 410,55 440,18"
+        className={TONE.fg} stroke="currentColor" strokeWidth={1.8} fill="none"
+      />
+      <Arrow x1={55} y1={158} x2={70} y2={138} tone="accentSoft" />
+      <T x={78} y={172} size={8} tone="muted">bounce</T>
+      <T x={130} y={128} size={8} tone="muted">pullback</T>
+      <circle cx={300} cy={40} r={4} className={TONE.accent} fill="currentColor" />
+      <T x={300} y={30} size={8} tone="accent" bold>BREAKOUT ↑</T>
+      <T x={405} y={80} size={8} tone="muted">expansion (big candles)</T>
+    </Svg>
+  );
+}
+
+function MarketStructureSwings() {
+  return (
+    <Svg vb="0 0 460 200">
+      <polyline points="20,150 55,90 90,120 130,55 165,85 205,35 240,70" className={TONE.accentSoft} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      {/* label HH / HL on uptrend */}
+      <T x={55} y={82} size={8} tone="accentSoft">HH</T>
+      <T x={92} y={135} size={8} tone="accentSoft">HL</T>
+      <T x={130} y={47} size={8} tone="accentSoft">HH</T>
+      <T x={167} y={100} size={8} tone="accentSoft">HL</T>
+      <T x={205} y={27} size={8} tone="accentSoft">HH</T>
+      <T x={120} y={185} size={9} tone="accentSoft" bold>uptrend = higher highs &amp; higher lows</T>
+      {/* BOS marker */}
+      <line x1={205} y1={35} x2={260} y2={35} className={TONE.accent} stroke="currentColor" strokeDasharray="3 2" />
+      <T x={262} y={38} anchor="start" size={8} tone="accent" bold>BOS ✓ trend continues</T>
+      {/* CHoCH: first lower low */}
+      <polyline points="240,70 275,55 305,110 340,80 375,130" className={TONE.danger} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      <circle cx={305} cy={110} r={4} className={TONE.danger} fill="currentColor" />
+      <T x={312} y={112} anchor="start" size={8} tone="danger" bold>CHoCH — first lower low = warning</T>
+    </Svg>
+  );
+}
+
+function CandleZoo() {
+  const candle = (
+    x: number, tone: Tone, openY: number, closeY: number, hi: number, lo: number, label: string,
+  ) => (
+    <g key={label} className={TONE[tone]} stroke="currentColor">
+      <line x1={x} y1={hi} x2={x} y2={lo} strokeWidth={1.3} />
+      <rect x={x - 8} y={Math.min(openY, closeY)} width={16} height={Math.max(3, Math.abs(openY - closeY))} fill="currentColor" fillOpacity={0.2} strokeWidth={1.3} />
+      <T x={x} y={175} size={8} tone="muted">{label}</T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 460 190">
+      {candle(35, 'muted', 78, 82, 40, 120, 'doji')}
+      {candle(95, 'accentSoft', 55, 68, 48, 120, 'hammer')}
+      {candle(155, 'danger', 100, 88, 40, 112, 'shooting star')}
+      {candle(215, 'accentSoft', 110, 55, 50, 115, 'marubozu')}
+      {candle(275, 'muted', 70, 82, 50, 130, 'pin bar')}
+      {/* engulfing: two candles */}
+      <g className={TONE.danger} stroke="currentColor">
+        <rect x={330} y={70} width={12} height={22} fill="currentColor" fillOpacity={0.2} strokeWidth={1.2} />
+      </g>
+      <g className={TONE.accentSoft} stroke="currentColor">
+        <rect x={346} y={62} width={16} height={40} fill="currentColor" fillOpacity={0.2} strokeWidth={1.3} />
+      </g>
+      <T x={350} y={175} size={8} tone="muted">engulfing</T>
+      {/* inside bar */}
+      <g className={TONE.muted} stroke="currentColor">
+        <rect x={410} y={55} width={14} height={55} fill="none" strokeWidth={1.2} />
+        <rect x={414} y={72} width={6} height={22} fill="currentColor" fillOpacity={0.25} strokeWidth={1.2} />
+      </g>
+      <T x={417} y={175} size={8} tone="muted">inside bar</T>
+      <T x={230} y={16} size={9} bold>each shape = who won the bar, buyers or sellers</T>
+    </Svg>
+  );
+}
+
+function VolumeProfile() {
+  return (
+    <Svg vb="0 0 460 200">
+      {/* price line */}
+      <polyline points="20,120 60,90 100,110 140,60 180,95 220,70" className={TONE.fg} stroke="currentColor" strokeWidth={1.6} fill="none" />
+      {/* time-volume bars */}
+      {([[30, 18], [60, 34], [90, 22], [120, 44], [150, 20], [180, 30]] as const).map(([x, h]) => (
+        <rect key={x} x={x - 6} y={185 - h} width={12} height={h} className={TONE.accent} stroke="currentColor" fill="currentColor" fillOpacity={0.2} strokeWidth={1} />
+      ))}
+      <T x={100} y={198} size={8} tone="muted">volume by TIME (tall = busy)</T>
+      {/* volume profile: horizontal histogram on the right */}
+      {([
+        [40, 26], [60, 40], [80, 70], [100, 95], [120, 55], [140, 30],
+      ] as const).map(([y, w]) => (
+        <rect key={y} x={300} y={y - 8} width={w} height={14} className={y === 100 ? TONE.warn : TONE.accentSoft} stroke="currentColor" fill="currentColor" fillOpacity={0.18} strokeWidth={1} />
+      ))}
+      <T x={400} y={104} anchor="start" size={8} tone="warn" bold>POC</T>
+      <T x={365} y={38} anchor="start" size={8} tone="muted">VAH</T>
+      <T x={355} y={138} anchor="start" size={8} tone="muted">VAL</T>
+      <T x={360} y={175} size={8} tone="muted">volume by PRICE</T>
+    </Svg>
+  );
+}
+
+function LiquidityPools() {
+  return (
+    <Svg vb="0 0 460 190">
+      {/* two equal highs */}
+      <line x1={40} y1={55} x2={300} y2={55} className={TONE.danger} stroke="currentColor" strokeDasharray="4 3" />
+      <T x={44} y={49} anchor="start" size={8} tone="danger">equal highs → stops pile up just above (liquidity)</T>
+      {/* stops marker */}
+      <T x={250} y={42} size={9} tone="warn">✦✦✦</T>
+      {/* price approaches, sweeps above, snaps back */}
+      <polyline points="30,120 70,80 110,58 150,95 190,60 230,40 250,32 232,75 260,110 300,140" className={TONE.fg} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      <circle cx={250} cy={32} r={4} className={TONE.danger} fill="currentColor" />
+      <T x={258} y={28} anchor="start" size={8} tone="danger" bold>SWEEP: spike grabs stops…</T>
+      <Arrow x1={255} y1={40} x2={275} y2={95} tone="danger" />
+      <T x={300} y={135} anchor="start" size={8} tone="muted">…then price snaps back down (the trap)</T>
+    </Svg>
+  );
+}
+
+function SmcBlocks() {
+  return (
+    <Svg vb="0 0 460 190">
+      {/* order block: last candle before big move */}
+      <rect x={40} y={95} width={40} height={30} className={TONE.accent} stroke="currentColor" fill="currentColor" fillOpacity={0.14} />
+      <T x={60} y={140} size={8} tone="accent" bold>ORDER BLOCK</T>
+      <T x={60} y={152} size={7} tone="muted">base before the move</T>
+      {/* big move up leaving a gap */}
+      <polyline points="80,110 110,70 140,40" className={TONE.accentSoft} stroke="currentColor" strokeWidth={2} fill="none" />
+      {/* FVG box */}
+      <rect x={112} y={62} width={26} height={34} className={TONE.warn} stroke="currentColor" strokeDasharray="3 2" fill="currentColor" fillOpacity={0.1} />
+      <T x={150} y={70} anchor="start" size={8} tone="warn" bold>FAIR VALUE GAP</T>
+      <T x={150} y={82} anchor="start" size={7} tone="muted">skipped prices — price</T>
+      <T x={150} y={92} anchor="start" size={7} tone="muted">often returns to fill it</T>
+      {/* return to fill */}
+      <polyline points="140,40 175,55 150,80 190,60" className={TONE.fg} stroke="currentColor" strokeWidth={1.4} fill="none" strokeDasharray="2 2" />
+      <T x={230} y={175} size={8} tone="muted">fancy names for: old zones + skipped gaps often matter again</T>
+    </Svg>
+  );
+}
+
+function OrderGrid() {
+  return (
+    <Svg vb="0 0 460 190">
+      <line x1={30} y1={95} x2={430} y2={95} className={TONE.fg} stroke="currentColor" strokeWidth={1.8} />
+      <T x={434} y={98} anchor="end" size={9} bold>current price</T>
+      {/* above */}
+      <line x1={60} y1={45} x2={210} y2={45} className={TONE.accent} stroke="currentColor" strokeDasharray="5 3" />
+      <T x={64} y={39} anchor="start" size={9} tone="accent" bold>BUY STOP — chase a breakout up</T>
+      <line x1={250} y1={45} x2={410} y2={45} className={TONE.danger} stroke="currentColor" strokeDasharray="5 3" />
+      <T x={254} y={39} anchor="start" size={9} tone="danger" bold>SELL LIMIT — sell high (premium)</T>
+      {/* below */}
+      <line x1={60} y1={145} x2={210} y2={145} className={TONE.accentSoft} stroke="currentColor" strokeDasharray="5 3" />
+      <T x={64} y={159} anchor="start" size={9} tone="accentSoft" bold>BUY LIMIT — buy the dip (discount)</T>
+      <line x1={250} y1={145} x2={410} y2={145} className={TONE.danger} stroke="currentColor" strokeDasharray="5 3" />
+      <T x={254} y={159} anchor="start" size={9} tone="danger" bold>SELL STOP — chase a breakdown</T>
+      <T x={230} y={102} size={8} tone="muted">limits wait for a better price · stops chase a break</T>
+    </Svg>
+  );
+}
+
+function MarketConditions() {
+  return (
+    <Svg vb="0 0 460 180">
+      {/* momentum / trend: keeps going */}
+      <polyline points="20,130 60,110 100,85 140,60 180,35" className={TONE.accentSoft} stroke="currentColor" strokeWidth={2} fill="none" />
+      <Arrow x1={175} y1={40} x2={195} y2={28} tone="accentSoft" />
+      <T x={95} y={155} size={9} tone="accentSoft" bold>MOMENTUM / TREND</T>
+      <T x={95} y={168} size={8} tone="muted">a move that keeps going</T>
+      {/* mean reversion: snaps back to average */}
+      <line x1={260} y1={90} x2={440} y2={90} className={TONE.border} stroke="currentColor" strokeDasharray="4 3" />
+      <T x={444} y={86} anchor="end" size={8} tone="muted">average</T>
+      <polyline points="260,90 285,45 310,88 335,130 360,90 385,50 410,90 435,120" className={TONE.accent} stroke="currentColor" strokeWidth={1.8} fill="none" />
+      <T x={350} y={155} size={9} tone="accent" bold>MEAN REVERSION</T>
+      <T x={350} y={168} size={8} tone="muted">stretch too far → snaps back</T>
+      <T x={225} y={18} size={9} bold>opposite bets — the skill is knowing which one you&apos;re in</T>
+    </Svg>
+  );
+}
+
+function SystemPlain() {
+  const step = (x: number, tone: Tone, n: string, label: string) => (
+    <g key={label}>
+      <Box x={x} y={60} w={78} h={46} tone={tone} fill />
+      <T x={x + 39} y={78} size={11} tone={tone} bold>{n}</T>
+      <T x={x + 39} y={95} size={8} tone="muted">{label}</T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 470 160">
+      {step(10, 'accent', '1', 'gather data')}
+      {step(98, 'accentSoft', '2', 'make a guess')}
+      {step(186, 'fg', '3', 'write it down')}
+      {step(274, 'warn', '4', 'grade vs reality')}
+      {step(362, 'accent', '5', 'learn if better')}
+      {[88, 176, 264, 352].map((x) => (
+        <Arrow key={x} x1={x} y1={83} x2={x + 10} y2={83} tone="muted" />
+      ))}
+      {/* loop-back arrow */}
+      <path d="M401 108 q0 34 -195 34 q-196 0 -196 -34" className={TONE.muted} stroke="currentColor" strokeWidth={1.3} fill="none" strokeDasharray="4 3" />
+      <T x={205} y={152} size={8} tone="muted">…then repeat, forever</T>
+      <T x={235} y={28} size={10} bold>the whole machine — five steps that repeat</T>
+    </Svg>
+  );
+}
+
+function TabsTrading() {
+  const tab = (x: number, y: number, tone: Tone, name: string, q: string) => (
+    <g key={name}>
+      <Box x={x} y={y} w={140} h={34} tone={tone} fill />
+      <T x={x + 10} y={y + 15} anchor="start" size={9} tone={tone} bold>{name}</T>
+      <T x={x + 10} y={y + 28} anchor="start" size={7.5} tone="muted">{q}</T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 460 190">
+      {tab(15, 15, 'accent', '📊 Dashboard', "what's the read today?")}
+      {tab(160, 15, 'accentSoft', '🎯 Trade plan', 'what should I do now?')}
+      {tab(305, 15, 'fg', '📈 Forecast', 'the detail & the why')}
+      {tab(15, 60, 'warn', '💡 Tips', 'are the tipsters right?')}
+      {tab(160, 60, 'fg', '🧾 Predictions', 'the honest audit log')}
+      {tab(305, 60, 'accent', '🔄 Loop', 'is the engine healthy?')}
+      <T x={230} y={130} size={10} bold>the six trading tabs — top of the sidebar</T>
+      <T x={230} y={150} size={8} tone="muted">daily flow: Dashboard → Trade plan → (broker) → back</T>
+    </Svg>
+  );
+}
+
+function TabsToolkit() {
+  const tab = (x: number, y: number, tone: Tone, name: string, q: string) => (
+    <g key={name}>
+      <Box x={x} y={y} w={140} h={32} tone={tone} fill />
+      <T x={x + 10} y={y + 14} anchor="start" size={9} tone={tone} bold>{name}</T>
+      <T x={x + 10} y={y + 26} anchor="start" size={7.5} tone="muted">{q}</T>
+    </g>
+  );
+  return (
+    <Svg vb="0 0 460 200">
+      {tab(15, 12, 'accentSoft', '🧮 Risk calc', 'size a trade safely')}
+      {tab(160, 12, 'accent', '📓 Journal', 'grade yourself')}
+      {tab(305, 12, 'warn', '🧪 Backtester', 'test before you trust')}
+      {tab(15, 52, 'fg', '📉 Prices', 'the raw candles')}
+      {tab(160, 52, 'fg', '🩺 Data health', 'is the fuel clean?')}
+      {tab(305, 52, 'accentSoft', '🎓 Learn', 'this curriculum')}
+      {tab(160, 92, 'muted', '⚙️ Settings', 'password & users')}
+      <T x={230} y={140} size={10} bold>the toolkit tabs — everything around your trades</T>
+      <T x={230} y={160} size={8} tone="muted">the Journal is where real improvement happens</T>
+    </Svg>
+  );
+}
+
 const FIGURES: Record<string, () => ReactNode> = {
   'honest-thesis': HonestThesis,
   'data-pipeline': DataPipeline,
@@ -1973,6 +2250,18 @@ const FIGURES: Record<string, () => ReactNode> = {
   overfitting: Overfitting,
   'costs-erase-edge': CostsEraseEdge,
   'journal-vs-memory': JournalVsMemory,
+  'trend-types': TrendTypes,
+  'price-action-map': PriceActionMap,
+  'market-structure-swings': MarketStructureSwings,
+  'candle-zoo': CandleZoo,
+  'volume-profile': VolumeProfile,
+  'liquidity-pools': LiquidityPools,
+  'smc-blocks': SmcBlocks,
+  'order-grid': OrderGrid,
+  'market-conditions': MarketConditions,
+  'system-plain': SystemPlain,
+  'tabs-trading': TabsTrading,
+  'tabs-toolkit': TabsToolkit,
   'order-types': OrderTypes,
   'sessions-clock': SessionsClock,
   'spread-anatomy': SpreadAnatomy,
