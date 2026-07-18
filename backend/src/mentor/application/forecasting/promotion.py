@@ -8,18 +8,27 @@ if its out-of-sample Brier score is lower by a margin. A worse model
 never ships. This is the §13 "proof before trust" rule applied to the
 model itself.
 
-Two honesty upgrades over the naive version:
+The gate's honesty machinery, in order of adoption:
 
-- **Candidate family, not a single roll.** Each retrain trains several
-  configurations — technical-only, +macro, +news+macro — using whatever
-  exogenous data is actually in the store, and grades them all on the
-  same trailing test slice. The gate sees the best of the family.
-- **Fair gate.** The champion's stored Brier was measured on the data of
-  *its* era; comparing a fresh challenger against that number is
-  apples-vs-oranges in a drifting market. Before deciding, the champion
-  is re-graded on the **same** trailing window the challengers were
-  tested on. Only when re-grading is impossible (model file gone) does
-  the stored figure serve as fallback.
+- **Fair gate.** The champion is re-graded on the *same* fresh trailing
+  window the challenger was tested on — never compared via its stale
+  stored score from a different market era.
+- **Coin-flip floor.** Nothing installs or promotes without beating the
+  0.25 Brier of always answering "50%" (by the margin). Beating a bad
+  incumbent is not the same as being good.
+- **Demotion with hysteresis.** An incumbent whose *fresh* re-grade fails
+  the floor on several consecutive retrains loses the crown — the
+  transparent baseline rule predicts until someone genuinely earns it.
+  One passing re-grade resets the streak, so a single rough window
+  can't dethrone anyone (no flapping).
+- **Walk-forward candidate selection.** The winning configuration is
+  chosen by its mean Brier across sequential validation folds carved
+  from *pre-tail* history — not by one lucky roll on a single split.
+  The final gate tail stays untouched by selection.
+- **Lessons.** Every retrain writes what it learned (live post-mortem
+  metrics, feature importances, the decision) to a durable log; the
+  "pruned" candidate reads recent lessons to drop dead-weight features.
+  The feedback loop can only ship improvements through the same gate.
 
 The champion pointer is a small JSON file in the model store so the live
 loop and the forecast API can ask "which model is current?" without
@@ -35,10 +44,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 from mentor.application.forecasting.news_context import build_news_by_ts, load_news_series
+from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.macro.context import build_macro_by_ts, load_macro_series
 from mentor.domain.errors import ValidationError
+from mentor.domain.forecasting.features import FEATURE_NAMES
 from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import (
@@ -48,6 +60,7 @@ from mentor.infrastructure.forecasting.sklearn_forecaster import (
 )
 from mentor.infrastructure.repositories.macro_series import MacroSeriesRepository
 from mentor.infrastructure.repositories.news_tone import NewsToneRepository
+from mentor.infrastructure.repositories.predictions import PredictionRepository
 from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.logging import get_logger
 
@@ -55,15 +68,38 @@ log = get_logger("mentor.forecasting.promotion")
 
 _CHAMPION_FILE = "champion.json"
 _PROMOTIONS_FILE = "promotions.jsonl"  # append-only audit of every retrain decision
+_LESSONS_FILE = "lessons.jsonl"  # what each retrain learned (postmortem + importances)
 # A challenger must beat the champion's Brier by at least this much to ship.
 _PROMOTION_MARGIN = 0.002
 # Absolute floor: always answering "50%" scores a Brier of exactly 0.25, so a
 # model that can't beat the coin flip (by the margin) has no business being
-# champion — regardless of how bad the incumbent is. Without this floor a
-# worse-than-random first champion could reign forever while the gate still
-# called itself honest.
+# champion — regardless of how bad the incumbent is.
 _COIN_FLIP_BRIER = 0.25
 _BASELINE_FLOOR = _COIN_FLIP_BRIER - _PROMOTION_MARGIN
+# Demote the incumbent after this many CONSECUTIVE fresh-window floor
+# failures. Hysteresis: one passing re-grade resets the streak.
+_DEMOTION_AFTER = 3
+# Walk-forward selection folds: each value is a prefix fraction of the bars;
+# the trainer's own trailing test slice inside that prefix is the fold's
+# validation window. Both folds end before the final gate tail begins.
+_SELECTION_FOLDS = (0.64, 0.80)
+# The lessons-driven pruned candidate keeps at least this many technical
+# features; below the threshold share of total importance a feature is
+# considered dead weight.
+_PRUNE_MIN_FEATURES = 6
+_PRUNE_SHARE = 0.02
+# Fallback compact set used before any lessons exist (canonical order).
+_STATIC_COMPACT = (
+    "ret_5",
+    "ret_10",
+    "ema_slow_dist",
+    "ema_fast_minus_slow",
+    "rsi_14",
+    "atr_pct",
+    "high_20_dist",
+    "low_20_dist",
+    "vol_20",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +116,8 @@ class PromotionResult:
     candidate_briers: dict[str, float] = field(default_factory=dict)
     # Champion re-graded on the same fresh test window (None = fallback used).
     champion_brier_fresh: float | None = None
+    # The incumbent lost the crown after repeated floor failures.
+    demoted: bool = False
 
 
 def _to_domain(rows) -> list[PriceBar]:  # type: ignore[no-untyped-def]
@@ -99,6 +137,21 @@ def _to_domain(rows) -> list[PriceBar]:  # type: ignore[no-untyped-def]
     ]
 
 
+def _read_jsonl_tail(path: Path, limit: int) -> list[dict[str, object]]:
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    out: list[dict[str, object]] = []
+    for line in reversed(lines[-limit:]):
+        if not line.strip():
+            continue
+        try:
+            out.append(json.loads(line))
+        except ValueError:  # a torn write must not break the endpoint
+            continue
+    return out
+
+
 class PromotionService:
     def __init__(
         self,
@@ -108,17 +161,22 @@ class PromotionService:
         news_tone: NewsToneRepository | None = None,
         macro: MacroSeriesRepository | None = None,
         news_query_key: str = "eurusd",
+        predictions: PredictionRepository | None = None,
     ) -> None:
         # `prices` is only needed to retrain; reading the champion pointer
         # does not require a DB session, so it stays optional. `news_tone`
         # and `macro` unlock the exogenous candidate configurations when
-        # their stores hold data.
+        # their stores hold data; `predictions` lets each retrain record the
+        # live post-mortem in its lesson.
         self._prices = prices
         self._news_tone = news_tone
         self._macro = macro
         self._news_query_key = news_query_key
+        self._predictions = predictions
         self._dir = Path(model_store_dir)
         self._store = ModelStore(model_store_dir)
+
+    # ---- champion pointer -------------------------------------------------
 
     @property
     def _champion_path(self) -> Path:
@@ -130,15 +188,39 @@ class PromotionService:
         data: dict[str, object] = json.loads(self._champion_path.read_text(encoding="utf-8"))
         return data
 
+    def _write_champion(
+        self, *, name: str, brier: float, family: str, floor_failures: int = 0
+    ) -> None:
+        self._champion_path.write_text(
+            json.dumps(
+                {
+                    "model_name": name,
+                    "test_brier": brier,
+                    "feature_family": family,
+                    "promoted_at": datetime.now(UTC).isoformat(),
+                    "floor_failures": floor_failures,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    # ---- durable logs -----------------------------------------------------
+
     @property
     def _promotions_path(self) -> Path:
         return self._dir / _PROMOTIONS_FILE
+
+    @property
+    def _lessons_path(self) -> Path:
+        return self._dir / _LESSONS_FILE
 
     def _log_decision(self, result: PromotionResult) -> None:
         """Append the retrain decision to the durable promotions audit log."""
         entry = {
             "at": datetime.now(UTC).isoformat(),
             "promoted": result.promoted,
+            "demoted": result.demoted,
             "challenger": result.challenger_name,
             "family": result.challenger_family,
             "challenger_brier": result.challenger_brier,
@@ -153,32 +235,78 @@ class PromotionService:
 
     def promotion_history(self, *, limit: int = 50) -> list[dict[str, object]]:
         """Most recent retrain decisions, newest first."""
-        if not self._promotions_path.exists():
-            return []
-        lines = self._promotions_path.read_text(encoding="utf-8").splitlines()
-        out: list[dict[str, object]] = []
-        for line in reversed(lines[-limit:]):
-            if not line.strip():
-                continue
-            try:
-                out.append(json.loads(line))
-            except ValueError:  # a torn write must not break the endpoint
-                continue
-        return out
+        return _read_jsonl_tail(self._promotions_path, limit)
 
-    def _write_champion(self, *, name: str, brier: float, family: str) -> None:
-        self._champion_path.write_text(
-            json.dumps(
-                {
-                    "model_name": name,
-                    "test_brier": brier,
-                    "feature_family": family,
-                    "promoted_at": datetime.now(UTC).isoformat(),
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
+    def lessons_history(self, *, limit: int = 50) -> list[dict[str, object]]:
+        """What recent retrains learned, newest first."""
+        return _read_jsonl_tail(self._lessons_path, limit)
+
+    async def _log_lesson(
+        self,
+        result: PromotionResult,
+        challenger: SklearnForecaster,
+        selection_briers: dict[str, float],
+    ) -> None:
+        """Persist what this retrain learned — the feedback loop's memory."""
+        live: dict[str, float | int] | None = None
+        if self._predictions is not None:
+            rows = await self._predictions.list_resolved(limit=500)
+            pm = compute_post_mortem(rows)
+            live = {
+                "n_resolved": pm.sample_size,
+                "directional": pm.directional,
+                "accuracy": round(pm.directional_accuracy, 4),
+                "brier": round(pm.brier_score, 4),
+                "ece": round(pm.ece, 4),
+            }
+        top = sorted(
+            challenger.report.feature_importances.items(), key=lambda kv: kv[1], reverse=True
         )
+        entry = {
+            "at": datetime.now(UTC).isoformat(),
+            "promoted": result.promoted,
+            "demoted": result.demoted,
+            "family": result.challenger_family,
+            "challenger_brier": result.challenger_brier,
+            "champion_brier_fresh": result.champion_brier_fresh,
+            "selection": selection_briers,
+            "importances": {k: round(v, 6) for k, v in top},
+            "live": live,
+        }
+        with self._lessons_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+
+    # ---- lessons-driven pruning -------------------------------------------
+
+    def _pruned_features(self) -> tuple[str, ...]:
+        """Technical-feature subset for the pruned candidate.
+
+        Averages permutation importances over the last few lessons and drops
+        features that carried under ``_PRUNE_SHARE`` of the total — dead
+        weight that only adds variance. Before any lessons exist, a static
+        compact set stands in. Never returns fewer than
+        ``_PRUNE_MIN_FEATURES`` features.
+        """
+        lessons = [e for e in self.lessons_history(limit=3) if e.get("importances")]
+        if not lessons:
+            return _STATIC_COMPACT
+        totals: dict[str, float] = dict.fromkeys(FEATURE_NAMES, 0.0)
+        for entry in lessons:
+            imps = entry.get("importances")
+            if not isinstance(imps, dict):
+                continue
+            for name in FEATURE_NAMES:
+                value = imps.get(name)
+                if isinstance(value, (int, float)):
+                    totals[name] += float(value)
+        grand = sum(totals.values())
+        if grand <= 0:
+            return _STATIC_COMPACT
+        kept = tuple(n for n in FEATURE_NAMES if totals[n] / grand >= _PRUNE_SHARE)
+        if len(kept) < _PRUNE_MIN_FEATURES:
+            ranked = sorted(FEATURE_NAMES, key=lambda n: totals[n], reverse=True)
+            kept = tuple(sorted(ranked[:_PRUNE_MIN_FEATURES], key=FEATURE_NAMES.index))
+        return kept
 
     # ---- exogenous context (best effort — empty stores just narrow the family) ----
 
@@ -200,6 +328,75 @@ class PromotionService:
             if not macro_series.empty:
                 macro_by_ts = build_macro_by_ts(macro_series, timestamps)
         return news_by_ts, macro_by_ts
+
+    # ---- candidate configurations -----------------------------------------
+
+    def _candidate_configs(
+        self,
+        news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+        macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+    ) -> list[tuple[str, dict[str, Any]]]:
+        configs: list[tuple[str, dict[str, Any]]] = [("technical", {})]
+        if macro_by_ts is not None:
+            configs.append(("technical+macro", {"macro_by_ts": macro_by_ts}))
+        if news_by_ts is not None:
+            name = "technical+news+macro" if macro_by_ts is not None else "technical+news"
+            kwargs: dict[str, Any] = {"news_by_ts": news_by_ts}
+            if macro_by_ts is not None:
+                kwargs["macro_by_ts"] = macro_by_ts
+            configs.append((name, kwargs))
+        # A more conservative learner — shallower, more regularised. Same
+        # feature set as the strongest exogenous config available.
+        reg_kwargs: dict[str, Any] = {
+            "classifier_params": {"max_depth": 3, "l2_regularization": 4.0, "max_iter": 150}
+        }
+        if macro_by_ts is not None:
+            reg_kwargs["macro_by_ts"] = macro_by_ts
+        configs.append(("regularized" + ("+macro" if macro_by_ts is not None else ""), reg_kwargs))
+        # Lessons-driven pruned feature set (falls back to a static compact
+        # set before lessons exist). Skip if pruning changes nothing.
+        pruned = self._pruned_features()
+        if set(pruned) != set(FEATURE_NAMES):
+            pr_kwargs: dict[str, Any] = {"technical_features": pruned}
+            if macro_by_ts is not None:
+                pr_kwargs["macro_by_ts"] = macro_by_ts
+            configs.append(("pruned" + ("+macro" if macro_by_ts is not None else ""), pr_kwargs))
+        return configs
+
+    @staticmethod
+    def _walk_forward_select(
+        bars: list[PriceBar],
+        horizon_bars: int,
+        configs: list[tuple[str, dict[str, Any]]],
+    ) -> dict[str, float]:
+        """Mean validation Brier per config across sequential pre-tail folds.
+
+        Each fold trains on a prefix of the bars; the trainer's own trailing
+        test slice inside that prefix is the fold's validation window. Both
+        folds end before the final gate tail (the last 20% of the full
+        series), so selection never touches the data the gate will use.
+        """
+        n = len(bars)
+        scores: dict[str, float] = {}
+        for name, kwargs in configs:
+            fold_briers: list[float] = []
+            for frac in _SELECTION_FOLDS:
+                prefix = bars[: int(n * frac)]
+                if len(prefix) < 300:
+                    continue
+                try:
+                    model = train_sklearn_forecaster(
+                        bars=prefix, horizon_bars=horizon_bars, **kwargs
+                    )
+                except ValidationError as exc:
+                    log.warning("promotion.fold_skipped", config=name, error=str(exc))
+                    continue
+                fold_briers.append(model.report.test_brier)
+            if fold_briers:
+                scores[name] = sum(fold_briers) / len(fold_briers)
+        return scores
+
+    # ---- champion re-grade + demotion --------------------------------------
 
     def _regrade_champion(
         self,
@@ -226,6 +423,33 @@ class PromotionService:
             news_by_ts=news_by_ts,
             macro_by_ts=macro_by_ts,
         )
+
+    def _update_floor_streak(
+        self, champion: dict[str, object], champion_fresh: float | None
+    ) -> tuple[int, bool]:
+        """Advance the incumbent's floor-failure streak; True = demote now.
+
+        Only a *measured* fresh re-grade moves the streak — when re-grading
+        was impossible we neither punish nor forgive.
+        """
+        raw_streak = champion.get("floor_failures")
+        streak = int(raw_streak) if isinstance(raw_streak, (int, float)) else 0
+        if champion_fresh is None:
+            return streak, False
+        streak = streak + 1 if champion_fresh > _BASELINE_FLOOR else 0
+        raw_brier = champion.get("test_brier")
+        self._write_champion(
+            name=str(champion.get("model_name")),
+            brier=float(raw_brier) if isinstance(raw_brier, (int, float)) else 0.0,
+            family=str(champion.get("feature_family") or "unknown"),
+            floor_failures=streak,
+        )
+        return streak, streak >= _DEMOTION_AFTER
+
+    def _demote_champion(self) -> None:
+        self._champion_path.unlink(missing_ok=True)
+
+    # ---- first-champion decision -------------------------------------------
 
     def _decide_first_champion(
         self,
@@ -262,6 +486,8 @@ class PromotionService:
             candidate_briers=candidate_briers,
         )
 
+    # ---- the retrain ---------------------------------------------------------
+
     async def retrain_and_promote(
         self,
         *,
@@ -287,59 +513,35 @@ class PromotionService:
             raise ValidationError(f"need at least 300 bars to retrain; have {len(bars)}")
 
         news_by_ts, macro_by_ts = await self._exogenous_context(bars)
+        configs = self._candidate_configs(news_by_ts, macro_by_ts)
 
-        # Candidate family — every configuration the available data allows,
-        # all graded on the identical trailing test slice by the trainer.
-        # Training is minutes of pure CPU; run it in a worker thread so the
-        # event loop (and with it the whole single-process API) stays
-        # responsive while the loop retrains.
-        candidates: list[tuple[str, SklearnForecaster]] = [
-            (
-                "technical",
-                await asyncio.to_thread(
-                    train_sklearn_forecaster, bars=bars, horizon_bars=horizon_bars
-                ),
-            ),
-        ]
-        if macro_by_ts is not None:
-            candidates.append(
-                (
-                    "technical+macro",
-                    await asyncio.to_thread(
-                        train_sklearn_forecaster,
-                        bars=bars,
-                        horizon_bars=horizon_bars,
-                        macro_by_ts=macro_by_ts,
-                    ),
-                )
-            )
-        if news_by_ts is not None:
-            candidates.append(
-                (
-                    "technical+news+macro" if macro_by_ts is not None else "technical+news",
-                    await asyncio.to_thread(
-                        train_sklearn_forecaster,
-                        bars=bars,
-                        horizon_bars=horizon_bars,
-                        news_by_ts=news_by_ts,
-                        macro_by_ts=macro_by_ts,
-                    ),
-                )
-            )
+        # Walk-forward selection over pre-tail folds, then one final training
+        # of the winner on the full series. All CPU-heavy work runs in worker
+        # threads so the single-process API stays responsive.
+        selection = await asyncio.to_thread(
+            self._walk_forward_select, bars, horizon_bars, configs
+        )
+        if not selection:
+            raise ValidationError("no candidate configuration produced a valid fold score")
+        family = min(selection, key=lambda k: selection[k])
+        winner_kwargs = dict(configs)[family]
+        log.info("promotion.selection", folds=selection, winner=family)
 
-        candidate_briers = {fam: model.report.test_brier for fam, model in candidates}
-        family, challenger = min(candidates, key=lambda c: c[1].report.test_brier)
+        challenger = await asyncio.to_thread(
+            train_sklearn_forecaster,
+            bars=bars,
+            horizon_bars=horizon_bars,
+            **winner_kwargs,
+        )
         challenger_brier = challenger.report.test_brier
-        log.info("promotion.candidates", briers=candidate_briers, winner=family)
+        candidate_briers = dict(selection)
+        candidate_briers[f"{family} (final)"] = challenger_brier
 
         # Persist only the winning challenger — losers stay out of the store.
         stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         challenger_name = f"auto_{symbol.lower()}_{timeframe.value}_{stamp}"
         self._store.save(
-            challenger,
-            name=challenger_name,
-            symbol=symbol,
-            timeframe=timeframe.value,
+            challenger, name=challenger_name, symbol=symbol, timeframe=timeframe.value
         )
 
         # Absolute floor first: nobody ships without beating the coin flip.
@@ -355,10 +557,10 @@ class PromotionService:
                 beats_floor=beats_floor,
             )
             self._log_decision(first)
+            await self._log_lesson(first, challenger, selection)
             return first
 
         # Fair gate: champion re-graded on the same fresh window when possible.
-        # Also CPU-bound (feature building + inference over the tail) — thread.
         champion_fresh = await asyncio.to_thread(
             self._regrade_champion,
             champion,
@@ -367,11 +569,38 @@ class PromotionService:
             news_by_ts=news_by_ts,
             macro_by_ts=macro_by_ts,
         )
-        champion_stored = float(champion["test_brier"])  # type: ignore[arg-type]
+        decision = self._decide_vs_incumbent(
+            champion=champion,
+            champion_fresh=champion_fresh,
+            challenger_name=challenger_name,
+            challenger_brier=challenger_brier,
+            family=family,
+            candidate_briers=candidate_briers,
+            beats_floor=beats_floor,
+        )
+        self._log_decision(decision)
+        await self._log_lesson(decision, challenger, selection)
+        return decision
+
+    def _decide_vs_incumbent(
+        self,
+        *,
+        champion: dict[str, object],
+        champion_fresh: float | None,
+        challenger_name: str,
+        challenger_brier: float,
+        family: str,
+        candidate_briers: dict[str, float],
+        beats_floor: bool,
+    ) -> PromotionResult:
+        """Gate the challenger against the incumbent; handle demotion."""
+        raw_stored = champion.get("test_brier")
+        champion_stored = float(raw_stored) if isinstance(raw_stored, (int, float)) else 0.25
         champion_brier = champion_fresh if champion_fresh is not None else champion_stored
         basis = "re-graded on the same fresh window" if champion_fresh is not None else "stored"
 
         improvement = champion_brier - challenger_brier
+        demoted = False
         if improvement >= _PROMOTION_MARGIN and beats_floor:
             self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
             promoted = True
@@ -380,24 +609,44 @@ class PromotionService:
                 f"{champion_brier:.4f} ({basis}) by {improvement:.4f} "
                 f"(≥ {_PROMOTION_MARGIN}) and clears the coin-flip floor — promoted."
             )
-        elif improvement >= _PROMOTION_MARGIN and not beats_floor:
-            promoted = False
-            reason = (
-                f"Challenger ({family}) Brier {challenger_brier:.4f} beat the champion "
-                f"{champion_brier:.4f} ({basis}) but does not clear the coin-flip floor "
-                f"{_BASELINE_FLOOR:.3f} — not promoted. Beating a bad incumbent is not "
-                f"the same as being good."
-            )
         else:
             promoted = False
-            reason = (
-                f"Challenger ({family}) Brier {challenger_brier:.4f} did not beat champion "
-                f"{champion_brier:.4f} ({basis}) by the required {_PROMOTION_MARGIN} margin — "
-                f"champion kept. A worse model never ships."
-            )
+            if improvement >= _PROMOTION_MARGIN:
+                reason = (
+                    f"Challenger ({family}) Brier {challenger_brier:.4f} beat the champion "
+                    f"{champion_brier:.4f} ({basis}) but does not clear the coin-flip floor "
+                    f"{_BASELINE_FLOOR:.3f} — not promoted. Beating a bad incumbent is not "
+                    f"the same as being good."
+                )
+            else:
+                reason = (
+                    f"Challenger ({family}) Brier {challenger_brier:.4f} did not beat champion "
+                    f"{champion_brier:.4f} ({basis}) by the required {_PROMOTION_MARGIN} "
+                    f"margin — champion kept. A worse model never ships."
+                )
+            # The incumbent survived the challenge — but does it still deserve
+            # the crown? Track fresh-window floor failures with hysteresis.
+            streak, demote_now = self._update_floor_streak(champion, champion_fresh)
+            if demote_now:
+                self._demote_champion()
+                demoted = True
+                reason += (
+                    f" Incumbent's fresh re-grade failed the coin-flip floor "
+                    f"{streak} retrains in a row — demoted. The transparent baseline "
+                    f"rule predicts until a challenger genuinely earns the crown."
+                )
+                log.warning(
+                    "promotion.champion_demoted",
+                    champion=champion.get("model_name"),
+                    streak=streak,
+                )
+            elif champion_fresh is not None and champion_fresh > _BASELINE_FLOOR:
+                reason += f" (Incumbent floor-failure streak: {streak}/{_DEMOTION_AFTER}.)"
+
         log.info(
             "promotion.decision",
             promoted=promoted,
+            demoted=demoted,
             challenger=challenger_name,
             challenger_family=family,
             challenger_brier=challenger_brier,
@@ -405,7 +654,7 @@ class PromotionService:
             champion_brier=champion_brier,
             champion_brier_basis=basis,
         )
-        decision = PromotionResult(
+        return PromotionResult(
             challenger_name=challenger_name,
             challenger_brier=challenger_brier,
             champion_name=str(champion.get("model_name")),
@@ -415,6 +664,5 @@ class PromotionService:
             challenger_family=family,
             candidate_briers=candidate_briers,
             champion_brier_fresh=champion_fresh,
+            demoted=demoted,
         )
-        self._log_decision(decision)
-        return decision

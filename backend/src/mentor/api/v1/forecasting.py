@@ -591,6 +591,7 @@ async def loop_status(request: Request) -> LoopStatusResponse:
 class PromotionEntryDTO(BaseModel):
     at: str
     promoted: bool
+    demoted: bool = False
     challenger: str
     family: str
     challenger_brier: float
@@ -607,6 +608,27 @@ async def loop_promotions(settings: SettingsDep) -> list[PromotionEntryDTO]:
     the audit trail proving a worse model never shipped."""
     promo = PromotionService(model_store_dir=settings.model_store_dir)
     return [PromotionEntryDTO(**entry) for entry in promo.promotion_history()]
+
+
+class LessonEntryDTO(BaseModel):
+    at: str
+    promoted: bool
+    demoted: bool = False
+    family: str
+    challenger_brier: float
+    champion_brier_fresh: float | None = None
+    selection: dict[str, float] = {}
+    importances: dict[str, float] = {}
+    live: dict[str, float] | None = None
+
+
+@router.get("/loop/lessons", response_model=list[LessonEntryDTO])
+async def loop_lessons(settings: SettingsDep) -> list[LessonEntryDTO]:
+    """What each retrain learned — live post-mortem metrics, feature
+    importances, and the walk-forward selection scores. The feedback
+    loop's memory, newest first."""
+    promo = PromotionService(model_store_dir=settings.model_store_dir)
+    return [LessonEntryDTO(**entry) for entry in promo.lessons_history()]
 
 
 class PaperPointDTO(BaseModel):

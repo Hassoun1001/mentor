@@ -95,19 +95,25 @@ async def test_first_retrain_installs_champion_with_family_audit(tmp_path: Path)
     )
     assert result.promoted is True
     assert result.champion_name is None
-    # No news/macro repos → the family is technical-only, and audited as such.
-    assert result.challenger_family == "technical"
-    assert set(result.candidate_briers) == {"technical"}
+    # No news/macro repos → the family is one of the technical-side configs,
+    # chosen by walk-forward selection across pre-tail folds.
+    assert result.challenger_family in {"technical", "regularized", "pruned"}
+    # The audit carries every fold score plus the winner's final tail Brier.
+    assert len(result.candidate_briers) >= 2
+    assert any(k.endswith("(final)") for k in result.candidate_briers)
     champion = service.current_champion()
     assert champion is not None
     assert champion["model_name"] == result.challenger_name
-    assert champion["feature_family"] == "technical"
+    assert champion["feature_family"] == result.challenger_family
 
 
 async def test_second_retrain_regrades_champion_on_fresh_window(tmp_path: Path) -> None:
-    """Same data + same seed → identical challenger, so improvement is ~0 and
-    the champion must be kept. Crucially the gate must have used the fresh
-    re-grade (champion_brier_fresh set), not the stale stored number."""
+    """The gate must use the fresh re-grade (champion_brier_fresh set), and
+    the champion pointer must match the decision it recorded. Note: the
+    second retrain may legitimately promote — its pruned candidate consumes
+    the FIRST retrain's lesson, so the two runs are no longer identical.
+    That's the feedback loop working, and the invariants below hold either
+    way."""
     service = PromotionService(model_store_dir=tmp_path, prices=_FakePriceRepo(_bars()))  # type: ignore[arg-type]
     first = await service.retrain_and_promote(
         symbol="EURUSD", timeframe=Timeframe.H1, horizon_bars=_HORIZON
@@ -118,13 +124,16 @@ async def test_second_retrain_regrades_champion_on_fresh_window(tmp_path: Path) 
     assert second.champion_name == first.challenger_name
     assert second.champion_brier_fresh is not None  # fair gate exercised
     assert second.champion_brier == pytest.approx(second.champion_brier_fresh)
-    assert second.promoted is False  # identical model can't clear the margin
+    # Decision consistency: promotion iff margin AND floor were both cleared.
+    improvement = second.champion_brier - second.challenger_brier
+    should_promote = improvement >= 0.002 and second.challenger_brier <= 0.248
+    assert second.promoted is should_promote
     champion = service.current_champion()
     assert champion is not None
-    assert champion["model_name"] == first.challenger_name  # a worse model never ships
-    # Every decision lands in the durable audit log, newest first.
-    history = service.promotion_history()
-    assert len(history) == 2
-    assert history[0]["promoted"] is False
-    assert history[1]["promoted"] is True
-    assert history[1]["challenger"] == first.challenger_name
+    expected_champion = second.challenger_name if second.promoted else first.challenger_name
+    assert champion["model_name"] == expected_champion
+    # Every decision lands in the durable audit + lessons logs, newest first.
+    assert len(service.promotion_history()) == 2
+    lessons = service.lessons_history()
+    assert len(lessons) == 2
+    assert "importances" in lessons[0] and "selection" in lessons[0]

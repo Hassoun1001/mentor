@@ -21,6 +21,7 @@ from typing import Any
 
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.inspection import permutation_importance
 from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import accuracy_score, brier_score_loss, log_loss
 
@@ -213,12 +214,15 @@ def _assemble_samples(
     horizon_bars: int,
     news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+    technical_features: tuple[str, ...] = FEATURE_NAMES,
 ) -> tuple[list[tuple[list[float], int]], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     """Build labelled feature vectors (technical + optional news + macro).
 
-    Returns the samples plus the ordered ``feature_names`` and the news/macro
-    name subsets so the trainer records exactly which columns the model needs
-    at inference time.
+    ``technical_features`` lets a candidate train on a *subset* of the
+    technical columns (the lessons-driven "pruned" configuration); the
+    default is the full set. Returns the samples plus the ordered
+    ``feature_names`` and the news/macro name subsets so the trainer records
+    exactly which columns the model needs at inference time.
     """
     closes = [b.close for b in bars]
     timestamps = [b.ts for b in bars]
@@ -228,13 +232,13 @@ def _assemble_samples(
 
     news_names: tuple[str, ...] = NEWS_FEATURE_NAMES if news_by_ts is not None else ()
     macro_names: tuple[str, ...] = MACRO_FEATURE_NAMES if macro_by_ts is not None else ()
-    feature_names: tuple[str, ...] = FEATURE_NAMES + news_names + macro_names
+    feature_names: tuple[str, ...] = technical_features + news_names + macro_names
 
     samples: list[tuple[list[float], int]] = []
     for row in rows:
         if row.ts not in label_by_ts:
             continue  # tail rows have no label (horizon not elapsed)
-        vector = [float(row.features[name]) for name in FEATURE_NAMES]
+        vector = [float(row.features[name]) for name in technical_features]
         if news_by_ts is not None:
             news_row = news_by_ts.get(row.ts, {})
             vector.extend(float(news_row.get(name, 0.0)) for name in news_names)
@@ -350,6 +354,7 @@ def train_sklearn_forecaster(
     seed: int = 42,
     news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    technical_features: tuple[str, ...] = FEATURE_NAMES,
 ) -> SklearnForecaster:
     """Train on `bars`, holding out a *trailing* fraction as test.
 
@@ -374,6 +379,7 @@ def train_sklearn_forecaster(
         horizon_bars=horizon_bars,
         news_by_ts=news_by_ts,
         macro_by_ts=macro_by_ts,
+        technical_features=technical_features,
     )
     if len(samples) < 100:
         raise ValidationError(f"only {len(samples)} usable samples after labelling")
@@ -419,13 +425,28 @@ def train_sklearn_forecaster(
         clf, calib_x=calib_x, calib_y=calib_y, test_x=test_x, test_y=test_y
     )
 
-    # Gain-based feature importance from sklearn's tree mixin when available.
-    importances: dict[str, float] = {}
+    # Permutation importance on the *calibration* slice (data the classifier
+    # never fit on). HistGradientBoostingClassifier exposes no gain-based
+    # feature_importances_, so the old attribute lookup silently produced
+    # all-zeros — broken "top drivers" everywhere. Permutation importance is
+    # honest and model-agnostic: shuffle one column, measure how much the
+    # Brier degrades. Negative noise clips to zero.
+    importances: dict[str, float] = {name: 0.0 for name in feature_names}
     try:
-        gain = clf.feature_importances_
-        importances = {name: float(value) for name, value in zip(feature_names, gain, strict=True)}
-    except AttributeError:  # sklearn version without the attr
-        importances = {name: 0.0 for name in feature_names}
+        perm = permutation_importance(
+            clf,
+            calib_x,
+            calib_y,
+            scoring="neg_brier_score",
+            n_repeats=5,
+            random_state=seed,
+        )
+        importances = {
+            name: max(0.0, float(value))
+            for name, value in zip(feature_names, perm.importances_mean, strict=True)
+        }
+    except ValueError:  # degenerate slice (single class etc.) — keep zeros
+        pass
 
     report = TrainingReport(
         n_samples=len(samples),

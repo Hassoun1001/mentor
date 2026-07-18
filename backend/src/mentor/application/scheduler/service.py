@@ -299,10 +299,13 @@ class LoopScheduler:
                     prices=PriceBarRepository(session),
                     model_store_dir=s.model_store_dir,
                     # Exogenous stores unlock the +macro / +news challenger
-                    # configurations whenever their data is present.
+                    # configurations whenever their data is present; the
+                    # predictions repo lets each retrain record the live
+                    # post-mortem in its lesson.
                     news_tone=NewsToneRepository(session),
                     macro=MacroSeriesRepository(session),
                     news_query_key=s.news_query_key,
+                    predictions=PredictionRepository(session),
                 )
                 result = await promo.retrain_and_promote(
                     symbol=s.loop_symbol,
