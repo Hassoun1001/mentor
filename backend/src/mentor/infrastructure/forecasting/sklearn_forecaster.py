@@ -378,19 +378,26 @@ def train_sklearn_forecaster(
     if len(samples) < 100:
         raise ValidationError(f"only {len(samples)} usable samples after labelling")
 
-    # Three-way trailing split: fit | calibration | test. The classifier
-    # trains on `fit`, the isotonic calibrator is fitted on `calibration`
-    # (which the classifier never saw), and everything is graded on `test`.
+    # Three-way trailing split: fit | embargo | calibration | embargo | test.
+    # The classifier trains on `fit`, the isotonic calibrator is fitted on
+    # `calibration` (which the classifier never saw), and everything is graded
+    # on `test`. The embargo gaps matter: a sample at index t is labelled by
+    # bars t+1..t+horizon, so without dropping `horizon_bars` samples at each
+    # boundary the tail of one slice shares its outcome window with the head
+    # of the next — leakage that quietly flatters every reported Brier.
+    embargo = horizon_bars
     test_split = int(len(samples) * (1 - test_fraction))
     calib_size = max(30, int(test_split * 0.15))
-    fit_end = test_split - calib_size
+    calib_end = test_split - embargo
+    calib_start = calib_end - calib_size
+    fit_end = calib_start - embargo
     if fit_end < 50 or test_split >= len(samples):
         raise ValidationError("not enough samples to honour fit/calibration/test split")
 
     train_x = np.array([s[0] for s in samples[:fit_end]])
     train_y = np.array([s[1] for s in samples[:fit_end]])
-    calib_x = np.array([s[0] for s in samples[fit_end:test_split]])
-    calib_y = np.array([s[1] for s in samples[fit_end:test_split]])
+    calib_x = np.array([s[0] for s in samples[calib_start:calib_end]])
+    calib_y = np.array([s[1] for s in samples[calib_start:calib_end]])
     test_x = np.array([s[0] for s in samples[test_split:]])
     test_y = np.array([s[1] for s in samples[test_split:]])
 

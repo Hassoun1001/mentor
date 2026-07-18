@@ -41,7 +41,7 @@ from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
 from mentor.application.market import IngestionService
 from mentor.application.market.quality import scan_quality
-from mentor.application.scheduler.drift import assess_drift
+from mentor.application.scheduler.drift import assess_drift, select_independent
 from mentor.application.scheduler.health import LoopHealth
 from mentor.application.scheduler.quality_gate import assess_quality
 from mentor.config import Settings
@@ -193,6 +193,12 @@ class LoopScheduler:
                     prices=PriceBarRepository(session),
                     predictions=PredictionRepository(session),
                     model_store_dir=s.model_store_dir,
+                    # A promoted +macro/+news champion needs these at inference
+                    # time — without them its exogenous columns are silently
+                    # zeroed and the model predicts half-blind.
+                    news_tone=NewsToneRepository(session),
+                    news_query_key=s.news_query_key,
+                    macro=MacroSeriesRepository(session),
                 )
                 payload = await service.predict(
                     symbol=s.loop_symbol,
@@ -257,9 +263,17 @@ class LoopScheduler:
             if champion and champion.get("test_brier") is not None
             else None
         )
+        # Hourly predictions overlap 23/24 of their outcome windows — fetch a
+        # wide raw window, then reduce to non-overlapping calls so the drift
+        # thresholds count *independent* observations, not autocorrelated
+        # copies of the same market day.
+        fetch_limit = min(2000, s.loop_drift_window * s.loop_horizon_bars)
         async with self._sessions() as session:
-            rows = await PredictionRepository(session).list_resolved(limit=s.loop_drift_window)
-        outcomes = [(float(r.p_up), int(r.realised_outcome or 0)) for r in rows]
+            rows = await PredictionRepository(session).list_resolved(limit=fetch_limit)
+        calls = [
+            (r.asof, r.horizon_at, float(r.p_up), int(r.realised_outcome or 0)) for r in rows
+        ]
+        outcomes = select_independent(calls)[: s.loop_drift_window]
 
         verdict = assess_drift(
             outcomes,

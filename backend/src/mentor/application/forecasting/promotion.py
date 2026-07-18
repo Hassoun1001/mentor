@@ -57,6 +57,13 @@ _CHAMPION_FILE = "champion.json"
 _PROMOTIONS_FILE = "promotions.jsonl"  # append-only audit of every retrain decision
 # A challenger must beat the champion's Brier by at least this much to ship.
 _PROMOTION_MARGIN = 0.002
+# Absolute floor: always answering "50%" scores a Brier of exactly 0.25, so a
+# model that can't beat the coin flip (by the margin) has no business being
+# champion — regardless of how bad the incumbent is. Without this floor a
+# worse-than-random first champion could reign forever while the gate still
+# called itself honest.
+_COIN_FLIP_BRIER = 0.25
+_BASELINE_FLOOR = _COIN_FLIP_BRIER - _PROMOTION_MARGIN
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,6 +227,41 @@ class PromotionService:
             macro_by_ts=macro_by_ts,
         )
 
+    def _decide_first_champion(
+        self,
+        *,
+        challenger_name: str,
+        challenger_brier: float,
+        family: str,
+        candidate_briers: dict[str, float],
+        beats_floor: bool,
+    ) -> PromotionResult:
+        """No incumbent: install the challenger only if it clears the floor."""
+        if beats_floor:
+            self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
+            log.info("promotion.first_champion", name=challenger_name, brier=challenger_brier)
+            reason = (
+                f"No champion yet — challenger ({family}) Brier {challenger_brier:.4f} "
+                f"beats the coin-flip floor {_BASELINE_FLOOR:.3f}; installed as champion."
+            )
+        else:
+            log.info("promotion.floor_blocked", name=challenger_name, brier=challenger_brier)
+            reason = (
+                f"Challenger ({family}) Brier {challenger_brier:.4f} does not beat the "
+                f"coin-flip floor {_BASELINE_FLOOR:.3f} — no champion installed; the "
+                f"transparent baseline rule keeps predicting."
+            )
+        return PromotionResult(
+            challenger_name=challenger_name,
+            challenger_brier=challenger_brier,
+            champion_name=None,
+            champion_brier=None,
+            promoted=beats_floor,
+            reason=reason,
+            challenger_family=family,
+            candidate_briers=candidate_briers,
+        )
+
     async def retrain_and_promote(
         self,
         *,
@@ -300,19 +342,17 @@ class PromotionService:
             timeframe=timeframe.value,
         )
 
+        # Absolute floor first: nobody ships without beating the coin flip.
+        beats_floor = challenger_brier <= _BASELINE_FLOOR
+
         champion = self.current_champion()
         if champion is None:
-            self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
-            log.info("promotion.first_champion", name=challenger_name, brier=challenger_brier)
-            first = PromotionResult(
+            first = self._decide_first_champion(
                 challenger_name=challenger_name,
                 challenger_brier=challenger_brier,
-                champion_name=None,
-                champion_brier=None,
-                promoted=True,
-                reason="No champion yet — challenger installed as the first champion.",
-                challenger_family=family,
+                family=family,
                 candidate_briers=candidate_briers,
+                beats_floor=beats_floor,
             )
             self._log_decision(first)
             return first
@@ -332,13 +372,21 @@ class PromotionService:
         basis = "re-graded on the same fresh window" if champion_fresh is not None else "stored"
 
         improvement = champion_brier - challenger_brier
-        if improvement >= _PROMOTION_MARGIN:
+        if improvement >= _PROMOTION_MARGIN and beats_floor:
             self._write_champion(name=challenger_name, brier=challenger_brier, family=family)
             promoted = True
             reason = (
                 f"Challenger ({family}) Brier {challenger_brier:.4f} beat champion "
                 f"{champion_brier:.4f} ({basis}) by {improvement:.4f} "
-                f"(≥ {_PROMOTION_MARGIN}) — promoted."
+                f"(≥ {_PROMOTION_MARGIN}) and clears the coin-flip floor — promoted."
+            )
+        elif improvement >= _PROMOTION_MARGIN and not beats_floor:
+            promoted = False
+            reason = (
+                f"Challenger ({family}) Brier {challenger_brier:.4f} beat the champion "
+                f"{champion_brier:.4f} ({basis}) but does not clear the coin-flip floor "
+                f"{_BASELINE_FLOOR:.3f} — not promoted. Beating a bad incumbent is not "
+                f"the same as being good."
             )
         else:
             promoted = False

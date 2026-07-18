@@ -92,8 +92,11 @@ class Settings(BaseSettings):
     loop_train_max_bars: int = 6000
     # Drift watch: retrain early when the rolling Brier of recent *live*
     # resolved predictions degrades past champion + margin (see drift.py).
-    loop_drift_window: int = 40  # how many recent resolved predictions to grade
-    loop_drift_min_samples: int = 25  # below this, Brier is too noisy to act on
+    # Counts are in INDEPENDENT (non-overlapping) observations — hourly
+    # predictions with a 24-bar horizon reduce to ~1 independent sample per
+    # day, so 12 ≈ two-plus weeks of genuinely distinct outcomes.
+    loop_drift_window: int = 30  # independent observations to grade, at most
+    loop_drift_min_samples: int = 12  # below this, Brier is too noisy to act on
     loop_drift_margin: float = 0.02  # tolerated degradation before triggering
     loop_drift_cooldown_hours: int = 24  # minimum spacing between drift retrains
     # Alert when a live prediction's confidence (|p_up - 0.5| * 2) reaches

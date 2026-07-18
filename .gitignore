@@ -52,3 +52,6 @@ keys/
 *.key
 *.key.pub
 *.pem
+
+# Contains live passwords/secrets — local reference only, never push
+HANDOVER.md

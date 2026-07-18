@@ -22,11 +22,36 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from statistics import fmean
 
 # With no champion figure to compare against, anything clearly worse than
 # a coin flip (Brier 0.25) is degradation by definition.
 _COIN_FLIP_BRIER = 0.25
+
+
+def select_independent(
+    calls: Sequence[tuple[datetime, datetime, float, int]],
+) -> list[tuple[float, int]]:
+    """Reduce resolved calls to a non-overlapping subset, newest first.
+
+    Hourly predictions with a 24-bar horizon share 23/24 of their outcome
+    window — treating them as independent lets the drift watch fire (or stay
+    silent) on autocorrelated noise. Walking from the newest call backwards,
+    a call is kept only if its outcome window ends at or before the previous
+    kept call's start, so every kept observation covers disjoint market time.
+
+    ``calls`` are ``(asof, horizon_at, p_up, outcome)`` tuples in any order;
+    the result is ``(p_up, outcome)`` pairs suitable for ``assess_drift``.
+    """
+    ordered = sorted(calls, key=lambda c: c[0], reverse=True)
+    kept: list[tuple[float, int]] = []
+    window_floor: datetime | None = None
+    for asof, horizon_at, p_up, outcome in ordered:
+        if window_floor is None or horizon_at <= window_floor:
+            kept.append((p_up, outcome))
+            window_floor = asof
+    return kept
 
 
 @dataclass(frozen=True, slots=True)
