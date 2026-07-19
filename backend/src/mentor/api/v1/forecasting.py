@@ -6,6 +6,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import PurePath
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -551,6 +552,14 @@ async def loop_retrain(request: Request) -> RetrainResponse:
     return RetrainResponse(result=reason)
 
 
+@router.post("/loop/retrain-d1", response_model=RetrainResponse)
+async def loop_retrain_d1(request: Request) -> RetrainResponse:
+    """Retrain the D1 (daily) lane — ten years of history, weekly horizon."""
+    scheduler = request.app.state.scheduler
+    reason = await scheduler.run_retrain_d1_once()
+    return RetrainResponse(result=reason)
+
+
 class LoopJobDTO(BaseModel):
     id: str
     next_run: str | None
@@ -576,6 +585,7 @@ class LoopStatusResponse(BaseModel):
     timeframe: str
     horizon_bars: int
     champion: str
+    champion_d1: str = "baseline"
     jobs: list[LoopJobDTO]
     heartbeats: list[LoopHeartbeatDTO] = []
     events: list[LoopEventDTO] = []
@@ -602,11 +612,18 @@ class PromotionEntryDTO(BaseModel):
     reason: str
 
 
+def _lane_store_dir(settings_dir: str, lane: str) -> str:
+    """H1 keeps the root store; other lanes live in a substore."""
+    return settings_dir if lane == "h1" else str(PurePath(settings_dir) / lane)
+
+
 @router.get("/loop/promotions", response_model=list[PromotionEntryDTO])
-async def loop_promotions(settings: SettingsDep) -> list[PromotionEntryDTO]:
-    """Every retrain decision the loop has ever made, newest first —
+async def loop_promotions(
+    settings: SettingsDep, lane: Annotated[str, Query(pattern="^(h1|d1)$")] = "h1"
+) -> list[PromotionEntryDTO]:
+    """Every retrain decision the lane has ever made, newest first —
     the audit trail proving a worse model never shipped."""
-    promo = PromotionService(model_store_dir=settings.model_store_dir)
+    promo = PromotionService(model_store_dir=_lane_store_dir(settings.model_store_dir, lane))
     return [PromotionEntryDTO(**entry) for entry in promo.promotion_history()]
 
 
@@ -623,11 +640,13 @@ class LessonEntryDTO(BaseModel):
 
 
 @router.get("/loop/lessons", response_model=list[LessonEntryDTO])
-async def loop_lessons(settings: SettingsDep) -> list[LessonEntryDTO]:
+async def loop_lessons(
+    settings: SettingsDep, lane: Annotated[str, Query(pattern="^(h1|d1)$")] = "h1"
+) -> list[LessonEntryDTO]:
     """What each retrain learned — live post-mortem metrics, feature
     importances, and the walk-forward selection scores. The feedback
     loop's memory, newest first."""
-    promo = PromotionService(model_store_dir=settings.model_store_dir)
+    promo = PromotionService(model_store_dir=_lane_store_dir(settings.model_store_dir, lane))
     return [LessonEntryDTO(**entry) for entry in promo.lessons_history()]
 
 
@@ -655,10 +674,15 @@ async def loop_paper(
     session: SessionDep,
     min_confidence: Annotated[float, Query(ge=0.0, le=1.0)] = 0.0,
     spread: Annotated[float, Query(ge=0.0, le=0.01)] = 0.0001,
+    timeframe: Annotated[str | None, Query(pattern="^(1m|5m|1h|1d)$")] = None,
 ) -> PaperReportResponse:
     """Paper-trade the system's own resolved predictions: what following
-    every directional call (above the confidence floor) would have done."""
+    every directional call (above the confidence floor) would have done.
+    Optionally filtered to one lane's timeframe so H1 and D1 track records
+    stay separate."""
     rows = await PredictionRepository(session).list_resolved(limit=5000)
+    if timeframe is not None:
+        rows = [r for r in rows if r.timeframe == timeframe]
     report = simulate_own_signals(rows, min_confidence=min_confidence, spread=spread)
     return PaperReportResponse(
         trades=report.trades,

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -98,9 +99,16 @@ class LoopScheduler:
 
     # ---- champion resolution ----
 
-    def _champion_model(self) -> str:
+    def _lane_store(self, lane: str) -> str:
+        """Model-store directory for a lane: H1 keeps the root (backwards
+        compatible with the live volume); D1 lives in a `d1/` substore with
+        its own champion, promotions, and lessons."""
+        root = self._settings.model_store_dir
+        return root if lane == "h1" else str(Path(root) / lane)
+
+    def _champion_model(self, lane: str = "h1") -> str:
         # Reading the champion pointer needs no DB session.
-        promo = PromotionService(model_store_dir=self._settings.model_store_dir)
+        promo = PromotionService(model_store_dir=self._lane_store(lane))
         champion = promo.current_champion()
         if champion and isinstance(champion.get("model_name"), str):
             return str(champion["model_name"])
@@ -112,20 +120,19 @@ class LoopScheduler:
 
     # ---- job bodies (also callable on demand) ----
 
-    async def run_ingest_once(self) -> int:
-        """Pull fresh bars for the loop symbol so predictions/retrains use new data.
+    async def _ingest_lane(self, *, tf: Timeframe, job: str) -> int:
+        """Pull fresh bars for one lane's timeframe.
 
         Idempotent: the repository upserts on (symbol, timeframe, ts), so an
         overlapping window each tick just fills any gap without duplicating.
         """
         s = self._settings
-        tf = Timeframe(s.loop_timeframe)
         end = datetime.now(UTC)
         start = end - timedelta(days=_INGEST_DAYS.get(tf, 10))
         sources = build_sources(s)
         if not sources:
-            log.warning("loop.ingest_skipped", error="no market data sources configured")
-            self._health.beat("ingest", ok=False, note="no market data sources configured")
+            log.warning("loop.ingest_skipped", job=job, error="no sources configured")
+            self._health.beat(job, ok=False, note="no market data sources configured")
             return 0
         adapter = FailoverMarketDataAdapter(sources)
         try:
@@ -141,15 +148,15 @@ class LoopScheduler:
                     end=end,
                 )
                 await session.commit()
-            log.info("loop.ingested", persisted=result.persisted, fetched=result.fetched)
+            log.info("loop.ingested", job=job, persisted=result.persisted)
             self._health.beat(
-                "ingest", ok=True, note=f"{result.persisted} new bars ({result.fetched} fetched)"
+                job, ok=True, note=f"{result.persisted} new bars ({result.fetched} fetched)"
             )
             self._ingest_failures = 0
             return result.persisted
         except DomainError as exc:
-            log.warning("loop.ingest_skipped", error=str(exc))
-            self._health.beat("ingest", ok=False, note=str(exc))
+            log.warning("loop.ingest_skipped", job=job, error=str(exc))
+            self._health.beat(job, ok=False, note=str(exc))
             self._ingest_failures += 1
             if self._ingest_failures == s.loop_ingest_failure_alert_after:
                 detail = f"ingest failed {self._ingest_failures}x in a row: {exc}"
@@ -159,10 +166,15 @@ class LoopScheduler:
         finally:
             await close_sources(sources)
 
-    async def _quality_check(self) -> tuple[bool, str]:
+    async def run_ingest_once(self) -> int:
+        return await self._ingest_lane(tf=Timeframe(self._settings.loop_timeframe), job="ingest")
+
+    async def run_ingest_d1_once(self) -> int:
+        return await self._ingest_lane(tf=Timeframe.D1, job="ingest_d1")
+
+    async def _quality_check(self, tf: Timeframe) -> tuple[bool, str]:
         """Scan the recent bar window; False means 'do not predict on this'."""
         s = self._settings
-        tf = Timeframe(s.loop_timeframe)
         now = datetime.now(UTC)
         async with self._sessions() as session:
             repo = PriceBarRepository(session)
@@ -177,14 +189,16 @@ class LoopScheduler:
         verdict = assess_quality(report, now=now)
         return verdict.predict_ok, verdict.reason
 
-    async def run_predict_once(self) -> str | None:
+    async def _predict_lane(
+        self, *, tf: Timeframe, horizon_bars: int, lane: str, job: str
+    ) -> str | None:
         s = self._settings
 
-        predict_ok, quality_reason = await self._quality_check()
+        predict_ok, quality_reason = await self._quality_check(tf)
         if not predict_ok:
-            log.warning("loop.predict_quality_skip", reason=quality_reason)
-            self._health.beat("predict", ok=False, note=f"quality gate: {quality_reason}")
-            self._health.event("quality_skip", quality_reason)
+            log.warning("loop.predict_quality_skip", job=job, reason=quality_reason)
+            self._health.beat(job, ok=False, note=f"quality gate: {quality_reason}")
+            self._health.event("quality_skip", f"[{lane}] {quality_reason}")
             return None
 
         async with self._sessions() as session:
@@ -192,7 +206,7 @@ class LoopScheduler:
                 service = ForecastService(
                     prices=PriceBarRepository(session),
                     predictions=PredictionRepository(session),
-                    model_store_dir=s.model_store_dir,
+                    model_store_dir=self._lane_store(lane),
                     # A promoted +macro/+news champion needs these at inference
                     # time — without them its exogenous columns are silently
                     # zeroed and the model predicts half-blind.
@@ -202,22 +216,22 @@ class LoopScheduler:
                 )
                 payload = await service.predict(
                     symbol=s.loop_symbol,
-                    timeframe=Timeframe(s.loop_timeframe),
-                    model_name=self._champion_model(),
-                    horizon_bars=s.loop_horizon_bars,
+                    timeframe=tf,
+                    model_name=self._champion_model(lane),
+                    horizon_bars=horizon_bars,
                     record=True,
                 )
                 await session.commit()
             except DomainError as exc:
                 await session.rollback()
-                log.warning("loop.predict_skipped", error=str(exc))
-                self._health.beat("predict", ok=False, note=str(exc))
+                log.warning("loop.predict_skipped", job=job, error=str(exc))
+                self._health.beat(job, ok=False, note=str(exc))
                 return None
 
         f = payload.forecast
-        log.info("loop.predicted", id=str(payload.prediction_id))
+        log.info("loop.predicted", job=job, id=str(payload.prediction_id))
         self._health.beat(
-            "predict",
+            job,
             ok=True,
             note=f"{f.direction.value} P(up)={float(f.p_up):.2f} h={f.horizon_bars}",
         )
@@ -225,9 +239,27 @@ class LoopScheduler:
             await self._alert(
                 f"📈 Mentor signal: {f.symbol} {f.direction.value.upper()} — "
                 f"P(up) {float(f.p_up) * 100:.0f}% over the next {f.horizon_bars} bars "
-                f"({s.loop_timeframe}). Not advice; check the dashboard."
+                f"({tf.value}). Not advice; check the dashboard."
             )
         return str(payload.prediction_id)
+
+    async def run_predict_once(self) -> str | None:
+        s = self._settings
+        return await self._predict_lane(
+            tf=Timeframe(s.loop_timeframe),
+            horizon_bars=s.loop_horizon_bars,
+            lane="h1",
+            job="predict",
+        )
+
+    async def run_predict_d1_once(self) -> str | None:
+        s = self._settings
+        return await self._predict_lane(
+            tf=Timeframe.D1,
+            horizon_bars=s.loop_d1_horizon_bars,
+            lane="d1",
+            job="predict_d1",
+        )
 
     async def run_resolve_once(self) -> int:
         async with self._sessions() as session:
@@ -270,8 +302,14 @@ class LoopScheduler:
         fetch_limit = min(2000, s.loop_drift_window * s.loop_horizon_bars)
         async with self._sessions() as session:
             rows = await PredictionRepository(session).list_resolved(limit=fetch_limit)
+        # The drift watch grades the H1 lane only — mixing lanes would blur
+        # whose calibration actually drifted. (The D1 lane accumulates
+        # independent outcomes too slowly for a drift signal; its weekly
+        # retrain is its adaptation path.)
         calls = [
-            (r.asof, r.horizon_at, float(r.p_up), int(r.realised_outcome or 0)) for r in rows
+            (r.asof, r.horizon_at, float(r.p_up), int(r.realised_outcome or 0))
+            for r in rows
+            if r.timeframe == s.loop_timeframe
         ]
         outcomes = select_independent(calls)[: s.loop_drift_window]
 
@@ -291,13 +329,15 @@ class LoopScheduler:
         reason = await self.run_retrain_once()
         log.info("loop.drift_retrain_done", outcome=reason)
 
-    async def run_retrain_once(self) -> str:
+    async def _retrain_lane(
+        self, *, tf: Timeframe, horizon_bars: int, lane: str, job: str
+    ) -> str:
         s = self._settings
         async with self._sessions() as session:
             try:
                 promo = PromotionService(
                     prices=PriceBarRepository(session),
-                    model_store_dir=s.model_store_dir,
+                    model_store_dir=self._lane_store(lane),
                     # Exogenous stores unlock the +macro / +news challenger
                     # configurations whenever their data is present; the
                     # predictions repo lets each retrain record the live
@@ -309,22 +349,44 @@ class LoopScheduler:
                 )
                 result = await promo.retrain_and_promote(
                     symbol=s.loop_symbol,
-                    timeframe=Timeframe(s.loop_timeframe),
-                    horizon_bars=s.loop_horizon_bars,
+                    timeframe=tf,
+                    horizon_bars=horizon_bars,
                     max_bars=s.loop_train_max_bars,
                 )
                 await session.commit()
             except DomainError as exc:
                 await session.rollback()
-                log.warning("loop.retrain_skipped", error=str(exc))
-                self._health.beat("retrain", ok=False, note=str(exc))
+                log.warning("loop.retrain_skipped", job=job, error=str(exc))
+                self._health.beat(job, ok=False, note=str(exc))
                 return f"skipped: {exc}"
 
-        self._health.beat("retrain", ok=True, note=result.reason)
+        self._health.beat(job, ok=True, note=result.reason)
         if result.promoted:
-            self._health.event("promotion", result.reason)
-            await self._alert(f"🏆 Mentor: new champion model promoted. {result.reason}")
+            self._health.event("promotion", f"[{lane}] {result.reason}")
+            await self._alert(
+                f"🏆 Mentor: new {lane.upper()} champion promoted. {result.reason}"
+            )
+        if result.demoted:
+            self._health.event("demotion", f"[{lane}] {result.reason}")
         return result.reason
+
+    async def run_retrain_once(self) -> str:
+        s = self._settings
+        return await self._retrain_lane(
+            tf=Timeframe(s.loop_timeframe),
+            horizon_bars=s.loop_horizon_bars,
+            lane="h1",
+            job="retrain",
+        )
+
+    async def run_retrain_d1_once(self) -> str:
+        s = self._settings
+        return await self._retrain_lane(
+            tf=Timeframe.D1,
+            horizon_bars=s.loop_d1_horizon_bars,
+            lane="d1",
+            job="retrain_d1",
+        )
 
     async def run_cycle_once(self) -> CycleResult:
         """One predict + resolve cycle — what the API's run-once endpoint calls."""
@@ -372,6 +434,29 @@ class LoopScheduler:
             id="retrain",
             replace_existing=True,
         )
+        if s.loop_d1_enabled:
+            # The D1 flagship lane: same machinery, ten years of daily data.
+            self._scheduler.add_job(
+                self.run_ingest_d1_once,
+                "interval",
+                hours=s.loop_d1_ingest_interval_hours,
+                id="ingest_d1",
+                replace_existing=True,
+            )
+            self._scheduler.add_job(
+                self.run_predict_d1_once,
+                "interval",
+                hours=s.loop_d1_predict_interval_hours,
+                id="predict_d1",
+                replace_existing=True,
+            )
+            self._scheduler.add_job(
+                self.run_retrain_d1_once,
+                "interval",
+                hours=s.loop_d1_retrain_interval_hours,
+                id="retrain_d1",
+                replace_existing=True,
+            )
         self._scheduler.start()
         log.info(
             "loop.started",
@@ -406,6 +491,7 @@ class LoopScheduler:
             "timeframe": self._settings.loop_timeframe,
             "horizon_bars": self._settings.loop_horizon_bars,
             "champion": self._champion_model(),
+            "champion_d1": self._champion_model("d1"),
             "jobs": jobs,
             "heartbeats": heartbeats,
             "events": events,

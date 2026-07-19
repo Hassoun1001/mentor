@@ -99,6 +99,17 @@ class Settings(BaseSettings):
     loop_drift_min_samples: int = 12  # below this, Brier is too noisy to act on
     loop_drift_margin: float = 0.02  # tolerated degradation before triggering
     loop_drift_cooldown_hours: int = 24  # minimum spacing between drift retrains
+    # --- the D1 (daily) lane: the flagship ---
+    # Ten years of daily bars is ~40× the usable history of the hourly lane,
+    # and the two proven edges (volatility clustering, macro drivers) are
+    # daily phenomena. The D1 lane runs alongside H1 with its own champion,
+    # promotions, and lessons in a `d1/` substore of the model directory.
+    loop_d1_enabled: bool = True  # only active when loop_enabled is also true
+    loop_d1_horizon_bars: int = 5  # predict one trading week ahead
+    loop_d1_predict_interval_hours: int = 24
+    loop_d1_ingest_interval_hours: int = 24
+    loop_d1_retrain_interval_hours: int = 168  # weekly
+
     # Alert when a live prediction's confidence (|p_up - 0.5| * 2) reaches
     # this level — 0.30 ≈ P(up) ≥ 65% or ≤ 35%. Requires Telegram config.
     loop_alert_min_confidence: float = 0.30

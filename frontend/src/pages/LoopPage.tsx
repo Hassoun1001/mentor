@@ -81,12 +81,17 @@ function StatusPanel({ status, loading }: { status: LoopStatus | undefined; load
         <>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <Metric label="Symbol" value={status.symbol} />
-            <Metric label="Timeframe" value={status.timeframe} />
-            <Metric label="Horizon" value={`${status.horizon_bars} bars`} />
             <Metric
-              label="Champion"
+              label="Champion (hourly lane)"
               value={<span className="font-mono text-sm">{status.champion}</span>}
+              sub={`${status.timeframe} · ${status.horizon_bars}-bar horizon`}
             />
+            <Metric
+              label="Champion (daily lane)"
+              value={<span className="font-mono text-sm">{status.champion_d1}</span>}
+              sub="1d · weekly horizon · the flagship"
+            />
+            <Metric label="Horizon" value={`${status.horizon_bars} bars`} />
           </div>
           {!status.enabled && (
             <p className="rounded-lg border border-mentor-warn/40 bg-mentor-warn/5 p-3 text-sm text-mentor-fg">

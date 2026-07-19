@@ -30,6 +30,7 @@ const loopStatus = z.object({
   timeframe: z.string(),
   horizon_bars: z.number(),
   champion: z.string(),
+  champion_d1: z.string(),
   jobs: z.array(loopJob),
   heartbeats: z.array(heartbeat),
   events: z.array(loopEvent),
