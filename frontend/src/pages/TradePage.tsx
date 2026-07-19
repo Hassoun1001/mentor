@@ -156,8 +156,11 @@ function PlanView({ plan }: { plan: TradePlan }) {
           </Chip>
           <Chip>volatility: {plan.vol_regime}</Chip>
           <Chip>±{Number(plan.expected_move_pips).toFixed(0)} pips expected move</Chip>
+          <Chip>vol {Math.round(Number(plan.vol_percentile) * 100)}th pctile</Chip>
         </div>
       </div>
+
+      <ExpectedRange plan={plan} />
 
       {plan.warnings.length > 0 && (
         <div className="space-y-2">
@@ -243,6 +246,60 @@ function Chip({ children }: { children: React.ReactNode }) {
     <span className="rounded-full border border-mentor-border bg-mentor-panel px-2.5 py-1 font-mono text-mentor-fg">
       {children}
     </span>
+  );
+}
+
+// The honest range: a calibrated band on how far price is likely to travel,
+// drawn symmetrically around the entry. Only shown when the ML vol model
+// supplied a conformal band (the EWMA baseline doesn't).
+function ExpectedRange({ plan }: { plan: TradePlan }) {
+  const high =
+    plan.range_high_pips != null ? Number(plan.range_high_pips) : Number(plan.expected_move_pips);
+  const cov = plan.range_coverage != null ? Number(plan.range_coverage) : null;
+  const conformal = plan.range_high_pips != null && cov != null;
+  const pct = Math.max(4, Math.min(96, (Number(plan.expected_move_pips) / (high * 1.15)) * 100));
+
+  return (
+    <div className="panel-pad space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-mentor-muted">
+          How far price is likely to move
+        </h2>
+        <span className="text-xs text-mentor-muted">
+          {conformal
+            ? `${Math.round(cov! * 100)}% of moves land within this band`
+            : '1σ band — about two-in-three of moves land inside'}
+        </span>
+      </div>
+      <div className="relative h-16">
+        {/* full conformal band */}
+        <div className="absolute inset-x-0 top-1/2 h-9 -translate-y-1/2 rounded-xl border border-mentor-border bg-mentor-panelLight/60" />
+        {/* 1σ expected-move core, centred */}
+        <div
+          className="absolute top-1/2 h-9 -translate-y-1/2 rounded-xl bg-mentor-accent/15 ring-1 ring-mentor-accent/40"
+          style={{ left: `${50 - pct / 2}%`, width: `${pct}%` }}
+        />
+        {/* centre line = entry */}
+        <div className="absolute left-1/2 top-1/2 h-12 w-px -translate-x-1/2 -translate-y-1/2 bg-mentor-fg/50" />
+        <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[10px] text-mentor-muted">
+          entry
+        </span>
+        <span className="absolute left-0 bottom-0 font-mono text-[11px] text-mentor-muted">
+          −{Math.round(high)} pips
+        </span>
+        <span className="absolute right-0 bottom-0 font-mono text-[11px] text-mentor-muted">
+          +{Math.round(high)} pips
+        </span>
+        <span className="absolute left-1/2 bottom-0 -translate-x-1/2 font-mono text-[11px] text-mentor-accent">
+          ±{Math.round(Number(plan.expected_move_pips))} typical
+        </span>
+      </div>
+      <p className="text-xs text-mentor-muted">
+        This is the one thing the system forecasts with a real edge — <em>how far</em>, not{' '}
+        <em>which way</em>. Your stop sits just beyond the typical move so ordinary noise
+        can&apos;t clip it.
+      </p>
+    </div>
   );
 }
 

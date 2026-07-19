@@ -813,6 +813,13 @@ class TradePlanResponse(BaseModel):
     reasoning: str
     vol_regime: str
     expected_move_pips: Decimal
+    # Honest conformal band on the move: with `range_coverage` probability
+    # (e.g. 0.9) the realised move lands within ±range_high_pips. None when
+    # the EWMA baseline is used (no conformal calibration).
+    range_low_pips: Decimal | None = None
+    range_high_pips: Decimal | None = None
+    range_coverage: Decimal | None = None
+    vol_percentile: Decimal  # where today's expected vol sits vs its own history
     event_freeze: bool
     levels: TradePlanLevelsDTO | None  # None when standing aside
     size: TradePlanSizeDTO | None  # None when standing aside
@@ -916,6 +923,10 @@ async def trade_plan(
             reasoning=fc.reasoning,
             vol_regime=vol.forecast.regime.value,
             expected_move_pips=vol.forecast.expected_range_pips,
+            range_low_pips=vol.forecast.range_low_pips,
+            range_high_pips=vol.forecast.range_high_pips,
+            range_coverage=vol.forecast.coverage,
+            vol_percentile=vol.forecast.percentile_vs_history,
             event_freeze=guidance.event_freeze,
             levels=None,
             size=None,
@@ -971,6 +982,10 @@ async def trade_plan(
         reasoning=fc.reasoning,
         vol_regime=vol.forecast.regime.value,
         expected_move_pips=vol.forecast.expected_range_pips,
+        range_low_pips=vol.forecast.range_low_pips,
+        range_high_pips=vol.forecast.range_high_pips,
+        range_coverage=vol.forecast.coverage,
+        vol_percentile=vol.forecast.percentile_vs_history,
         event_freeze=guidance.event_freeze,
         levels=TradePlanLevelsDTO(
             entry=entry,

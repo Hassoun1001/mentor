@@ -7,6 +7,7 @@ import {
   listInstruments,
   type PositionSizeResponse,
 } from '../api/risk';
+import { fetchVolatility } from '../api/forecast';
 import { ApiError } from '../api/client';
 import { Field } from '../components/Field';
 import { Metric } from '../components/Metric';
@@ -109,6 +110,37 @@ export function RiskCalculatorPage() {
   const instrumentsQuery = useQuery({
     queryKey: ['instruments'],
     queryFn: listInstruments,
+  });
+
+  // Size from *measured* volatility rather than a guessed stop: pull the live
+  // vol forecast, anchor the entry to the latest price, and place the stop a
+  // volatility-appropriate distance away (beyond routine noise). Target
+  // defaults to 2× that distance.
+  const volFill = useMutation({
+    mutationFn: () =>
+      fetchVolatility({ symbol: state.symbol, timeframe: '1d', horizon_bars: 5, model: 'ml' }),
+    onSuccess: (data) => {
+      const pip = Number(
+        (instrumentsQuery.data ?? []).find((i) => i.symbol === state.symbol)?.pip_size ?? 0.0001
+      );
+      const entry = Number(data.forecast.asof_close);
+      const stopPips = Number(data.guidance.suggested_stop_pips);
+      const dir = state.direction === 'long' ? 1 : -1;
+      const stop = entry - dir * stopPips * pip;
+      const target = entry + dir * stopPips * 2 * pip;
+      const dp = pip < 0.001 ? 5 : 3;
+      setState((s) => ({
+        ...s,
+        entry: entry.toFixed(dp),
+        stop: stop.toFixed(dp),
+        target: target.toFixed(dp),
+      }));
+      setFormError(null);
+    },
+    onError: (err) =>
+      setFormError(
+        err instanceof ApiError ? err.message : 'Could not read live volatility right now.'
+      ),
   });
 
   const mutation = useMutation({
@@ -268,6 +300,22 @@ export function RiskCalculatorPage() {
               onChange={(e) => setState({ ...state, target: e.target.value })}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => volFill.mutate()}
+            disabled={volFill.isPending}
+            className="btn-ghost w-full"
+          >
+            {volFill.isPending
+              ? 'Reading volatility…'
+              : '📏 Set entry & stop from live volatility'}
+          </button>
+          <p className="-mt-3 text-xs text-mentor-muted">
+            Fills the entry with the latest price and the stop a
+            volatility-appropriate distance away — so your size flows from measured
+            noise, not a guess. Adjust freely afterward.
+          </p>
 
           {formError && (
             <div className="rounded-lg border border-mentor-danger/40 bg-mentor-danger/10 p-3 text-sm text-mentor-danger">
