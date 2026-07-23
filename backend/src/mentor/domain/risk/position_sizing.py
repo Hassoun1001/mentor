@@ -29,6 +29,18 @@ from mentor.domain.money import Money, Percent, quantize_money, round_down_to_st
 _MAX_RISK_PCT: Decimal = Decimal("0.10")  # 10% per trade — hard ceiling
 _RECOMMENDED_RISK_PCT: Decimal = Decimal("0.02")  # the "1–2% rule"
 
+# A stop this close to entry sits inside a normal dealing spread, so the
+# spread alone closes the trade. The formula still returns a confident lot
+# size for it — risk budget divided by a tiny distance gives an enormous
+# position — and says nothing about the fact that the "risk" is fiction.
+_MIN_SENSIBLE_STOP_PIPS = Decimal("3")
+
+# Notional beyond this multiple of the account is not a position anyone can
+# hold; it is an artefact of dividing by a stop that is too small. Brokers
+# cap leverage far below this, so a number above it means the inputs are
+# wrong rather than the trade being bold.
+_EXTREME_LEVERAGE = Decimal("100")
+
 
 class Direction(StrEnum):
     LONG = "long"
@@ -170,6 +182,21 @@ def calculate_position(inputs: RiskInputs) -> PositionSizing:
             f"R:R is {rr:.2f}, below 1.0 — the target is closer than the stop. "
             "Win-rate must be very high to be profitable; usually a sign to re-think the trade."
         )
+    if Decimal("0") < pip_distance < _MIN_SENSIBLE_STOP_PIPS:
+        notes.append(
+            f"The stop is only {pip_distance:.1f} pips from entry — inside a normal "
+            f"dealing spread. The spread alone would close this trade, so the risk "
+            f"figure below is not what you would actually lose. Widen the stop."
+        )
+    if lots > 0 and inputs.account_balance.amount > 0:
+        leverage = notional / inputs.account_balance.amount
+        if leverage > _EXTREME_LEVERAGE:
+            notes.append(
+                f"This size implies {leverage:.0f}:1 leverage on the account — far "
+                f"beyond what any broker permits. It comes from dividing the risk "
+                f"budget by a very small stop distance; the position is arithmetic, "
+                f"not a trade."
+            )
 
     return PositionSizing(
         lots=lots,
