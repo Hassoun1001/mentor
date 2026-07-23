@@ -24,6 +24,7 @@ from mentor.application.forecasting.replay import ReplayService
 from mentor.application.forecasting.self_backtest import simulate_own_signals
 from mentor.application.forecasting.vol_replay import VolReplayService
 from mentor.application.forecasting.vol_service import VolPayload, VolService
+from mentor.application.scheduler.drift import select_independent
 from mentor.domain.errors import DomainError, ValidationError
 from mentor.domain.forecasting.forecast import Direction, Forecast
 from mentor.domain.forecasting.vol_audit import RateCheck
@@ -878,6 +879,11 @@ class PaperReportResponse(BaseModel):
     win_rate_high: float = 0.0
     significant: bool = False
     trades_needed: int | None = None
+    # Signals overlap: hourly calls with a 24-bar horizon share 23/24 of
+    # their window, and a whole weekend's worth can resolve against one
+    # reopen price. The verdict is computed on the non-overlapping subset,
+    # and both counts are reported so the gap is visible.
+    independent_trades: int = 0
 
 
 @router.get("/loop/paper", response_model=PaperReportResponse)
@@ -895,9 +901,28 @@ async def loop_paper(
     if timeframe is not None:
         rows = [r for r in rows if r.timeframe == timeframe]
     report = simulate_own_signals(rows, min_confidence=min_confidence, spread=spread)
+
     # An equity curve is the most persuasive and least informative chart in
-    # trading. State plainly whether this one has earned any belief.
-    v = assess_proportion(report.wins, report.trades, label="paper trades")
+    # trading, and counting these signals as independent trades makes it
+    # worse. Consecutive hourly calls overlap by 96% of their window, and a
+    # weekend's worth resolve against a single reopen price — in production
+    # 92 of 183 shared one fill. Scored naively that reads as decisive
+    # evidence; scored on disjoint windows it is a handful of observations.
+    independent = select_independent(
+        [
+            (r.asof, r.horizon_at, float(r.p_up), int(r.realised_outcome))
+            for r in rows
+            if r.realised_outcome is not None
+            and r.direction != Direction.NEUTRAL.value
+            and float(r.confidence) >= min_confidence
+        ]
+    )
+    hits = sum(
+        1
+        for p_up, outcome in independent
+        if (p_up >= 0.5 and outcome == 1) or (p_up < 0.5 and outcome == 0)
+    )
+    v = assess_proportion(hits, len(independent), label="independent windows")
     return PaperReportResponse(
         trades=report.trades,
         skipped_low_confidence=report.skipped_low_confidence,
@@ -915,6 +940,7 @@ async def loop_paper(
         win_rate_high=v.high,
         significant=v.significant,
         trades_needed=v.n_needed,
+        independent_trades=len(independent),
     )
 
 

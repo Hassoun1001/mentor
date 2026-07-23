@@ -80,6 +80,7 @@ const paperReport = z.object({
   win_rate_high: z.number(),
   significant: z.boolean(),
   trades_needed: z.number().nullable(),
+  independent_trades: z.number(),
 });
 export type PaperReport = z.infer<typeof paperReport>;
 

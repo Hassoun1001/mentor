@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
 
 from mentor.application.forecasting.resolver import resolve_pending_predictions
+from mentor.application.scheduler.drift import select_independent
 from mentor.domain.market.bars import PriceBar, Timeframe
 
 _NOW = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
@@ -140,3 +141,30 @@ async def test_nothing_pending_is_not_an_error() -> None:
         predictions=_FakePredictions([]), prices=_FakePrices([]), now=_NOW
     )
     assert (result.examined, result.resolved, result.still_pending) == (0, 0, 0)
+
+
+# ---------- independence of the track record ----------
+
+
+def test_overlapping_signals_collapse_to_disjoint_windows() -> None:
+    """Regression: the paper verdict counted every hourly signal as an
+    independent trade. With a 24-bar horizon consecutive calls share 23/24
+    of their window, and in production 92 of 183 resolved against a single
+    weekend reopen price — one market moment counted ninety-two times. Scored
+    naively that reads "the edge is real"; scored on disjoint windows it is a
+    handful of observations."""
+    base = datetime(2026, 7, 20, tzinfo=UTC)
+    # 48 hourly calls, each with a 24-hour outcome window.
+    calls = [
+        (
+            base + timedelta(hours=i),
+            base + timedelta(hours=i + 24),
+            0.6,
+            1,
+        )
+        for i in range(48)
+    ]
+    kept = select_independent(calls)
+
+    assert len(kept) < len(calls) / 10  # 48 signals are not 48 observations
+    assert len(kept) == 2  # 48 hours of market time holds two 24h windows

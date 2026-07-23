@@ -298,6 +298,13 @@ function PaperPanel({
             points={report.curve.map((p) => ({ ts: p.ts, balance: String(p.equity) }))}
             height={260}
           />
+          <p className="text-xs text-mentor-muted">
+            {report.trades} signals, but consecutive hourly calls overlap by most of
+            their 24-hour window and a whole weekend can resolve against one reopen
+            price. The verdict below counts only the{' '}
+            <b>{report.independent_trades}</b> non-overlapping windows — the rest are
+            the same market moment counted repeatedly.
+          </p>
           <SignificanceNote
             verdict={report.verdict}
             significant={report.significant}
