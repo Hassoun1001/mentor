@@ -13,6 +13,16 @@ services:
   db:
     image: timescale/timescaledb:2.17.2-pg16
     restart: unless-stopped
+    # Unbounded json-file logs are how a long-running Docker host quietly
+    # fills its disk. This system is meant to run for months without a
+    # deploy, and the app logs every HTTP request, so the cap is not
+    # optional — 30MB per service is plenty for diagnosing a fault while
+    # never threatening the volume.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_DB: ${MENTOR_DB_NAME:-mentor}
       POSTGRES_USER: ${MENTOR_DB_USER:-mentor}
@@ -30,6 +40,16 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    # Unbounded json-file logs are how a long-running Docker host quietly
+    # fills its disk. This system is meant to run for months without a
+    # deploy, and the app logs every HTTP request, so the cap is not
+    # optional — 30MB per service is plenty for diagnosing a fault while
+    # never threatening the volume.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       db:
         condition: service_healthy
@@ -63,6 +83,16 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # Unbounded json-file logs are how a long-running Docker host quietly
+    # fills its disk. This system is meant to run for months without a
+    # deploy, and the app logs every HTTP request, so the cap is not
+    # optional — 30MB per service is plenty for diagnosing a fault while
+    # never threatening the volume.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - app
     environment:
