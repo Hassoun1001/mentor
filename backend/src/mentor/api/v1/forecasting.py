@@ -658,11 +658,20 @@ async def loop_policy(settings: SettingsDep) -> LoopPolicyResponse:
             ),
         )
 
-    if not report.abstains:
+    if report.n_covered == 0:
+        # Trained before abstention existed — never evaluated, so say that
+        # rather than claiming a finding nobody measured.
         explanation = (
-            "This model speaks every hour. On the held-out window, waiting for "
-            "more confident calls bought no measurable accuracy, so it was not "
-            "given a reason to stay quiet."
+            "This model was trained before the system could decline a call, so it "
+            "has no abstention policy and speaks every hour. The next retrain will "
+            "test whether staying quiet on the unopinionated hours would help."
+        )
+    elif not report.abstains:
+        explanation = (
+            "This model speaks every hour — and that was measured, not assumed. On "
+            "the held-out window, waiting for more confident calls bought no "
+            "accuracy worth the lost coverage, so it was given no reason to stay "
+            "quiet."
         )
     else:
         gain = report.test_brier - report.test_brier_covered
