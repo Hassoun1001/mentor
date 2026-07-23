@@ -159,3 +159,29 @@ def test_identical_returns_are_flagged_as_unrealistic() -> None:
     v = assess_expectancy([1.0] * 50)
     assert v.stdev == 0.0
     assert "not a realistic sample" in v.verdict
+
+
+# ---------- the small-sample floor ----------
+
+
+def test_a_perfect_short_run_is_not_called_an_edge() -> None:
+    """Regression: five correct out of five gives a Wilson lower bound near
+    57%, which excludes a coin flip — so it was reported as a real edge. Five
+    heads in a row happens by chance one time in thirty-two. Production hit
+    exactly this once overlapping signals were collapsed to five disjoint
+    windows."""
+    v = assess_proportion(5, 5, label="windows")
+    assert v.low > 0.5  # the interval really does exclude a coin flip
+    assert not v.significant  # and it is still refused
+    assert "looks decisive and is not" in v.verdict
+
+
+def test_the_floor_does_not_suppress_a_real_result() -> None:
+    v = assess_proportion(600, 1000)
+    assert v.significant
+
+
+def test_expectancy_honours_the_same_floor() -> None:
+    values = [1.0, -0.5] * 5  # only 10 trades, tight spread
+    v = assess_expectancy(values)
+    assert not v.significant

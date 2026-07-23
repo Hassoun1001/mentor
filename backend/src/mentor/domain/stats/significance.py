@@ -41,6 +41,22 @@ _Z = 1.959963984540054
 # starts being discouragement — report it as "more than this" instead.
 _MAX_REPORTABLE_N = 100_000
 
+# Below this many observations, no result is called significant no matter
+# what the interval does.
+#
+# The interval alone is not enough of a guard. Five correct calls out of
+# five gives a Wilson lower bound near 57%, which excludes a coin flip and
+# would be reported as a real edge — but five heads in a row happens by
+# chance one time in thirty-two, and anyone watching a handful of strategies
+# will see it regularly. Production hit exactly this: after collapsing
+# overlapping signals to disjoint windows the sample fell to five, all
+# correct, and the verdict read "the edge is real".
+#
+# Thirty is the conventional floor for treating a proportion this way, and
+# it is far below the sample a thin edge actually needs — so a result that
+# cannot clear even this is not close.
+_MIN_SAMPLE_FOR_VERDICT = 30
+
 
 @dataclass(frozen=True, slots=True)
 class ProportionVerdict:
@@ -129,7 +145,27 @@ def assess_proportion(
     observed = successes / n
     low, high = wilson_interval(successes, n)
     needed = trades_needed(observed, baseline)
-    significant = low > baseline or high < baseline
+    excludes_baseline = low > baseline or high < baseline
+    significant = excludes_baseline and n >= _MIN_SAMPLE_FOR_VERDICT
+
+    if excludes_baseline and not significant:
+        return ProportionVerdict(
+            n=n,
+            successes=successes,
+            observed=observed,
+            low=low,
+            high=high,
+            baseline=baseline,
+            significant=False,
+            n_needed=needed,
+            verdict=(
+                f"{n:,} {label}, {observed * 100:.0f}% correct. That looks decisive "
+                f"and is not: a run this short goes one way or the other by luck "
+                f"often enough to mean nothing. Nothing is called an edge below "
+                f"{_MIN_SAMPLE_FOR_VERDICT} {label}, and a thin edge needs far more "
+                f"than that."
+            ),
+        )
 
     pct = f"{observed * 100:.0f}%"
     band = f"[{low * 100:.0f}%, {high * 100:.0f}%]"
@@ -231,7 +267,7 @@ def assess_expectancy(values: list[float], *, label: str = "trades") -> MeanVerd
 
     margin = _Z * stdev / math.sqrt(n)
     low, high = mean - margin, mean + margin
-    significant = low > 0 or high < 0
+    significant = (low > 0 or high < 0) and n >= _MIN_SAMPLE_FOR_VERDICT
 
     # n such that the CI half-width is smaller than |mean|.
     needed = (
