@@ -131,3 +131,43 @@ export interface ChecklistRequest {
 export async function evaluateChecklist(body: ChecklistRequest): Promise<ChecklistResponse> {
   return apiPost('/checklist/pre-trade', body, checklistSchema);
 }
+
+// ---------- loss root causes ----------
+
+const mistakeDefinition = z.object({
+  tag: z.string(),
+  label: z.string(),
+  question: z.string(),
+  fix: z.string(),
+  is_process_error: z.boolean(),
+});
+export type MistakeDefinition = z.infer<typeof mistakeDefinition>;
+
+const rootCause = z.object({
+  tag: z.string(),
+  label: z.string(),
+  fix: z.string(),
+  is_process_error: z.boolean(),
+  occurrences: z.number(),
+  r_lost: decimalStr,
+});
+export type RootCause = z.infer<typeof rootCause>;
+
+const rootCauseReview = z.object({
+  closed_losses: z.number(),
+  tagged_losses: z.number(),
+  untagged_losses: z.number(),
+  process_error_losses: z.number(),
+  good_process_losses: z.number(),
+  causes: z.array(rootCause),
+  verdict: z.string(),
+});
+export type RootCauseReview = z.infer<typeof rootCauseReview>;
+
+export async function getMistakeCatalog(): Promise<MistakeDefinition[]> {
+  return apiGet('/trades/mistakes/catalog', z.array(mistakeDefinition));
+}
+
+export async function getRootCauseReview(): Promise<RootCauseReview> {
+  return apiGet('/trades/mistakes/review', rootCauseReview);
+}

@@ -10,6 +10,16 @@ from mentor.domain.journal.checklist import (
     PreTradeChecklist,
     evaluate_pre_trade_checklist,
 )
+from mentor.domain.journal.mistakes import (
+    MistakeDefinition,
+    MistakeTag,
+    RootCause,
+    RootCauseBreakdown,
+    compute_root_causes,
+    definition_for,
+    mistake_catalog,
+    normalise_tags,
+)
 from mentor.domain.journal.trade import (
     Trade,
     TradePlan,
@@ -22,13 +32,21 @@ from mentor.domain.journal.trade import (
 __all__ = [
     "ChecklistResult",
     "JournalAnalytics",
+    "MistakeDefinition",
+    "MistakeTag",
     "PreTradeChecklist",
+    "RootCause",
+    "RootCauseBreakdown",
     "Trade",
     "TradePlan",
     "TradeStatus",
     "close_trade",
     "compute_analytics",
+    "compute_root_causes",
+    "definition_for",
     "evaluate_pre_trade_checklist",
+    "mistake_catalog",
+    "normalise_tags",
     "open_trade",
     "plan_trade",
 ]

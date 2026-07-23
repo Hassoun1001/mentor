@@ -12,6 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from mentor.api.deps import SessionDep
 from mentor.application.journal import TradeService
+from mentor.domain.errors import ValidationError
+from mentor.domain.journal.mistakes import (
+    RootCauseBreakdown,
+    compute_root_causes,
+    mistake_catalog,
+    normalise_tags,
+)
 from mentor.domain.journal.trade import TradePlan, TradeStatus
 from mentor.domain.money import Money
 from mentor.domain.risk.position_sizing import Direction
@@ -172,13 +179,112 @@ async def cancel_trade_endpoint(trade_id: uuid.UUID, session: SessionDep) -> Tra
 async def close_trade_endpoint(
     trade_id: uuid.UUID, body: CloseTradeRequest, session: SessionDep
 ) -> TradeResponse:
+    try:
+        tags = normalise_tags(body.mistake_tags)
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     trade = await _service(session).close(
         trade_id,
         exit_price=body.exit_price,
         at=body.at,
         quote_to_account_rate=body.quote_to_account_rate,
-        mistake_tags=tuple(body.mistake_tags),
+        mistake_tags=tags,
         emotion=body.emotion,
         notes=body.notes,
     )
     return _to_response(trade)
+
+
+# ---------- loss root causes ----------
+
+
+class MistakeDefinitionDTO(BaseModel):
+    tag: str
+    label: str
+    question: str
+    fix: str
+    is_process_error: bool
+
+
+class RootCauseDTO(BaseModel):
+    tag: str
+    label: str
+    fix: str
+    is_process_error: bool
+    occurrences: int
+    r_lost: Decimal
+
+
+class RootCauseBreakdownResponse(BaseModel):
+    closed_losses: int
+    tagged_losses: int
+    untagged_losses: int
+    process_error_losses: int
+    good_process_losses: int
+    causes: list[RootCauseDTO]
+    verdict: str
+
+
+@router.get("/mistakes/catalog", response_model=list[MistakeDefinitionDTO])
+async def mistake_taxonomy() -> list[MistakeDefinitionDTO]:
+    """The closed set of root causes a loss may be tagged with."""
+    return [
+        MistakeDefinitionDTO(
+            tag=d.tag.value,
+            label=d.label,
+            question=d.question,
+            fix=d.fix,
+            is_process_error=d.is_process_error,
+        )
+        for d in mistake_catalog()
+    ]
+
+
+def _verdict(b: RootCauseBreakdown) -> str:
+    """One honest sentence about where the money is actually going."""
+    if b.closed_losses == 0:
+        return "No closed losses yet — nothing to diagnose."
+    if b.tagged_losses == 0:
+        return (
+            f"{b.closed_losses} losses, none tagged. Tag them when you close and this "
+            "turns into a list of habits to fix."
+        )
+    worst = b.worst
+    if worst is None:  # pragma: no cover — tagged_losses > 0 implies a cause
+        return "Tagged losses carry no recognised cause."
+    if not worst.is_process_error:
+        return (
+            f"Your biggest bucket is good process losing anyway ({worst.occurrences} of "
+            f"{b.tagged_losses} tagged losses). That is the cost of the edge, not a "
+            "mistake — do not change the system over it."
+        )
+    return (
+        f"'{worst.label}' cost you the most: {worst.r_lost:.2f}R across "
+        f"{worst.occurrences} trade(s). Fix that one habit before anything else."
+    )
+
+
+@router.get("/mistakes/review", response_model=RootCauseBreakdownResponse)
+async def root_cause_review(session: SessionDep) -> RootCauseBreakdownResponse:
+    """Why the losing trades lost, ranked by R bled rather than by count."""
+    trades = await _service(session).list_recent(limit=500)
+    b = compute_root_causes(trades)
+    return RootCauseBreakdownResponse(
+        closed_losses=b.closed_losses,
+        tagged_losses=b.tagged_losses,
+        untagged_losses=b.untagged_losses,
+        process_error_losses=b.process_error_losses,
+        good_process_losses=b.good_process_losses,
+        causes=[
+            RootCauseDTO(
+                tag=c.tag.value,
+                label=c.label,
+                fix=c.fix,
+                is_process_error=c.is_process_error,
+                occurrences=c.occurrences,
+                r_lost=c.r_lost,
+            )
+            for c in b.causes
+        ],
+        verdict=_verdict(b),
+    )
