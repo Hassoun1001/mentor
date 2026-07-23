@@ -185,3 +185,11 @@ def test_expectancy_honours_the_same_floor() -> None:
     values = [1.0, -0.5] * 5  # only 10 trades, tight spread
     v = assess_expectancy(values)
     assert not v.significant
+
+
+def test_the_sample_target_never_undercuts_the_verdict_floor() -> None:
+    """A wild rate on a tiny sample used to ask for eleven observations —
+    a bar that, once reached, still could not earn a verdict."""
+    v = assess_proportion(4, 5, label="windows")  # 80% of five
+    assert v.n_needed is not None
+    assert v.n_needed >= 30

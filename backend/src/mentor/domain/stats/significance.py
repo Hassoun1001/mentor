@@ -113,7 +113,11 @@ def trades_needed(observed: float, baseline: float = 0.5, z: float = _Z) -> int 
         return None
     variance = baseline * (1 - baseline)
     n = (z * z * variance) / (effect * effect)
-    return min(_MAX_REPORTABLE_N, max(1, math.ceil(n)))
+    # Never quote a target below the floor at which a verdict is possible.
+    # A wild observed rate on a tiny sample yields a tiny "needed" figure —
+    # 80% correct out of five asks for eleven — which would send the reader
+    # chasing a bar that still would not earn a verdict.
+    return min(_MAX_REPORTABLE_N, max(_MIN_SAMPLE_FOR_VERDICT, math.ceil(n)))
 
 
 def assess_proportion(
