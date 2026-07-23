@@ -120,7 +120,11 @@ class WalkForwardDTO(BaseModel):
     out_of_sample_avg_expectancy_r: Decimal
     degradation_pct: Decimal | None
     is_overfit_signal: bool
-    conclusive: bool = True
+    # Defaults deliberately claim nothing: an unset `conclusive` must not
+    # assert that a walk-forward was valid. A default that flatters is how
+    # the first attempt at this fix reported "conclusive: true" beside
+    # "0 of 4 windows traded".
+    conclusive: bool = False
     traded_in_sample_windows: int = 0
     traded_out_of_sample_windows: int = 0
 
@@ -212,6 +216,11 @@ async def run_backtest_endpoint(body: BacktestRequest, session: SessionDep) -> B
                 out_of_sample_avg_expectancy_r=payload.walk_forward.out_of_sample_avg_expectancy_r,
                 degradation_pct=payload.walk_forward.degradation_pct,
                 is_overfit_signal=payload.walk_forward.is_overfit_signal,
+                conclusive=payload.walk_forward.conclusive,
+                traded_in_sample_windows=payload.walk_forward.traded_in_sample_windows,
+                traded_out_of_sample_windows=(
+                    payload.walk_forward.traded_out_of_sample_windows
+                ),
             )
             if payload.walk_forward is not None
             else None
