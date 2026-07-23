@@ -22,6 +22,8 @@ import { Metric } from '../components/Metric';
 import { formatLots, formatMoney, formatNumber, formatPercent } from '../lib/format';
 
 interface NewTradeForm {
+  account_balance: string;
+  max_risk_percent: string;
   symbol: string;
   direction: 'long' | 'short';
   size_lots: string;
@@ -34,6 +36,9 @@ interface NewTradeForm {
 }
 
 const EMPTY_FORM: NewTradeForm = {
+  // Without these the guardrail rule cannot run at all.
+  account_balance: '10000',
+  max_risk_percent: '1',
   symbol: 'EURUSD',
   direction: 'long',
   size_lots: '0.33',
@@ -66,6 +71,11 @@ export function JournalPage() {
         initial_risk_amount: form.initial_risk_amount || '0.01',
         risk_currency: form.risk_currency,
         reason: form.reason,
+        // Without these the guardrail rule cannot run, and it used to
+        // report a green pass anyway — a risk control that reassured
+        // without ever checking anything.
+        account_balance: form.account_balance || null,
+        max_risk_per_trade_percent: form.max_risk_percent || null,
       }),
     enabled: isMostlyComplete(form),
     retry: false,
@@ -197,6 +207,25 @@ export function JournalPage() {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label="Account balance"
+              type="number"
+              step="any"
+              suffix={form.risk_currency}
+              value={form.account_balance}
+              onChange={(e) => setForm({ ...form, account_balance: e.target.value })}
+            />
+            <Field
+              label="Max risk per trade"
+              type="number"
+              step="0.1"
+              suffix="%"
+              value={form.max_risk_percent}
+              onChange={(e) => setForm({ ...form, max_risk_percent: e.target.value })}
+            />
+          </div>
+
           <div>
             <label className="label">Reason — why this trade?</label>
             <textarea
@@ -210,9 +239,12 @@ export function JournalPage() {
             </p>
           </div>
 
-          {checklist.data && checklist.data.failed_keys.length > 0 && (
-            <ChecklistFailures items={checklist.data.items.filter((i) => !i.passed)} />
-          )}
+          {checklist.data &&
+            checklist.data.items.some((i) => !i.passed || i.skipped) && (
+              <ChecklistFailures
+                items={checklist.data.items.filter((i) => !i.passed || i.skipped)}
+              />
+            )}
 
           {error && (
             <div className="rounded-lg border border-mentor-danger/40 bg-mentor-danger/10 p-3 text-sm text-mentor-danger">
@@ -403,7 +435,13 @@ function ChecklistFailures({ items }: { items: ChecklistResponse['items'] }) {
     <ul className="space-y-1.5 rounded-lg border border-mentor-warn/30 bg-mentor-warn/5 p-3 text-sm text-mentor-fg/90">
       {items.map((i) => (
         <li key={i.key}>
-          <span className="font-medium text-mentor-warn">×</span> {i.label}
+          <span
+            className={`font-medium ${i.skipped ? 'text-mentor-muted' : 'text-mentor-warn'}`}
+          >
+            {i.skipped ? '?' : '×'}
+          </span>{' '}
+          {i.label}
+          {i.skipped && <span className="text-mentor-muted"> (not checked)</span>}
           {i.detail && <span className="text-mentor-muted"> — {i.detail}</span>}
         </li>
       ))}

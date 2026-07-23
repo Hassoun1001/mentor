@@ -26,6 +26,11 @@ class ChecklistItem:
     label: str
     passed: bool
     detail: str | None = None
+    # A check that could not run is not a check that passed. Without this
+    # distinction the guardrail item rendered a green tick on every trade
+    # in production, having never evaluated anything — the most dangerous
+    # possible state for a risk control, because it reassures.
+    skipped: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +38,12 @@ class ChecklistResult:
     passed: bool
     items: tuple[ChecklistItem, ...]
     failed: tuple[ChecklistItem, ...]
+    skipped: tuple[ChecklistItem, ...] = ()
+
+    @property
+    def fully_checked(self) -> bool:
+        """True only when every rule actually ran and passed."""
+        return self.passed and not self.skipped
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,14 +133,42 @@ def evaluate_pre_trade_checklist(
         )
 
     if rules.require_passing_guardrails:
-        passed = guardrails is None or guardrails.passed
-        detail = None
-        if guardrails is not None and not guardrails.passed:
-            detail = "; ".join(b.message for b in guardrails.breaches)
-        items.append(_item("guardrails", "Account guardrails respected", passed, detail))
+        if guardrails is None:
+            items.append(
+                ChecklistItem(
+                    key="guardrails",
+                    label="Account guardrails respected",
+                    passed=False,
+                    skipped=True,
+                    detail=(
+                        "Not checked — no account balance or risk limits were "
+                        "supplied, so nothing verified that this trade sits inside "
+                        "them. Supply them to turn this into a real check."
+                    ),
+                )
+            )
+        else:
+            detail = (
+                None
+                if guardrails.passed
+                else "; ".join(b.message for b in guardrails.breaches)
+            )
+            items.append(
+                _item(
+                    "guardrails",
+                    "Account guardrails respected",
+                    guardrails.passed,
+                    detail,
+                )
+            )
 
     items.extend(extra_items)
     items.extend(rules.custom_rules)
 
-    failed = tuple(i for i in items if not i.passed)
-    return ChecklistResult(passed=not failed, items=tuple(items), failed=failed)
+    skipped = tuple(i for i in items if i.skipped)
+    failed = tuple(i for i in items if not i.passed and not i.skipped)
+    # A skipped check does not block the trade — the user may simply not have
+    # configured limits — but it must not be counted as a pass either.
+    return ChecklistResult(
+        passed=not failed, items=tuple(items), failed=failed, skipped=skipped
+    )

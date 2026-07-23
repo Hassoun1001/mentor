@@ -134,8 +134,10 @@ class ChecklistRequest(BaseModel):
     risk_currency: str
     reason: str
 
-    # Optional guardrail-context inputs; if absent, the checklist will
-    # treat guardrails as passing (UI may still show the warning).
+    # Guardrail context. Supplying account_balance and
+    # max_risk_per_trade_percent is enough to check the rule that matters
+    # most; the other two limits refine it. With none of them the guardrail
+    # item reports as *not checked* rather than as passing.
     account_balance: Annotated[Decimal, Field(gt=0)] | None = None
     max_risk_per_trade_percent: Annotated[Decimal, Field(gt=0, le=10)] | None = None
     max_open_risk_percent: Annotated[Decimal, Field(gt=0, le=25)] | None = None
@@ -148,6 +150,7 @@ class ChecklistItemDTO(BaseModel):
     key: str
     label: str
     passed: bool
+    skipped: bool = False
     detail: str | None
 
 
@@ -171,18 +174,27 @@ async def pre_trade_checklist(body: ChecklistRequest) -> ChecklistResponse:
     )
 
     guardrails = None
-    if (
-        body.account_balance is not None
-        and body.max_risk_per_trade_percent is not None
-        and body.max_open_risk_percent is not None
-        and body.daily_loss_limit_percent is not None
-    ):
+    # Per-trade risk is the limit that actually stops accounts dying, so it
+    # is checkable on its own. Requiring all four before evaluating anything
+    # meant the common case — a user who set a risk percent and nothing else
+    # — silently got no check at all.
+    if body.account_balance is not None and body.max_risk_per_trade_percent is not None:
         guardrails = check_guardrails(
             account_balance=Money(body.account_balance, body.risk_currency),
             limits=GuardrailLimits(
                 max_risk_per_trade=Percent.from_percent(body.max_risk_per_trade_percent),
-                max_open_risk=Percent.from_percent(body.max_open_risk_percent),
-                daily_loss_limit=Percent.from_percent(body.daily_loss_limit_percent),
+                # Absent limits fall back to the schema's own ceilings rather
+                # than blocking the per-trade check that was supplied.
+                max_open_risk=Percent.from_percent(
+                    body.max_open_risk_percent
+                    if body.max_open_risk_percent is not None
+                    else Decimal("25")
+                ),
+                daily_loss_limit=Percent.from_percent(
+                    body.daily_loss_limit_percent
+                    if body.daily_loss_limit_percent is not None
+                    else Decimal("25")
+                ),
             ),
             prospective_trade_risk=Money(body.initial_risk_amount, body.risk_currency),
             open_positions=[OpenPosition(Money(p.amount, p.currency)) for p in body.open_positions],
@@ -197,7 +209,13 @@ async def pre_trade_checklist(body: ChecklistRequest) -> ChecklistResponse:
     return ChecklistResponse(
         passed=result.passed,
         items=[
-            ChecklistItemDTO(key=i.key, label=i.label, passed=i.passed, detail=i.detail)
+            ChecklistItemDTO(
+                key=i.key,
+                label=i.label,
+                passed=i.passed,
+                detail=i.detail,
+                skipped=i.skipped,
+            )
             for i in result.items
         ],
         failed_keys=[i.key for i in result.failed],

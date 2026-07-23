@@ -112,6 +112,8 @@ const checklistItem = z.object({
   label: z.string(),
   passed: z.boolean(),
   detail: z.string().nullable(),
+  // A rule that could not run is neither a pass nor a failure.
+  skipped: z.boolean(),
 });
 const checklistSchema = z.object({
   passed: z.boolean(),
