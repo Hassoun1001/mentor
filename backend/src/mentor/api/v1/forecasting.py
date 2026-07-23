@@ -22,9 +22,11 @@ from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.replay import ReplayService
 from mentor.application.forecasting.self_backtest import simulate_own_signals
+from mentor.application.forecasting.vol_replay import VolReplayService
 from mentor.application.forecasting.vol_service import VolService
 from mentor.domain.errors import DomainError, ValidationError
 from mentor.domain.forecasting.forecast import Direction
+from mentor.domain.forecasting.vol_audit import RateCheck
 from mentor.domain.forecasting.volatility import (
     VolForecast,
     VolRegime,
@@ -608,6 +610,84 @@ class LoopStatusResponse(BaseModel):
 async def loop_status(request: Request) -> LoopStatusResponse:
     scheduler = request.app.state.scheduler
     return LoopStatusResponse(**scheduler.status())
+
+
+class RateCheckDTO(BaseModel):
+    label: str
+    n: int
+    observed: float
+    expected: float
+    low: float
+    high: float
+    significant: bool
+    understates_risk: bool
+    verdict: str
+
+
+class VolAuditResponse(BaseModel):
+    """Whether the volatility forecast means what it says."""
+
+    symbol: str
+    timeframe: str
+    horizon_bars: int
+    n: int
+    one_sigma: RateCheckDTO
+    band: RateCheckDTO | None
+    median_ratio: float
+    mae_pips: float
+    benchmark_mae_pips: dict[str, float]
+    beats_benchmarks: bool
+    verdict: str
+
+
+@router.get("/vol/audit", response_model=VolAuditResponse)
+async def vol_audit(
+    session: SessionDep,
+    settings: SettingsDep,
+    timeframe: Timeframe = Timeframe.D1,
+    horizon_bars: Annotated[int, Query(ge=1, le=30)] = 1,
+) -> VolAuditResponse:
+    """Grade the volatility forecast against what price actually did.
+
+    Every stop distance, position size and trailing distance in the app is
+    derived from this forecast, and until now nothing checked whether its
+    1-sigma claim held. Windows are non-overlapping so the confidence
+    intervals are not quietly inflated.
+    """
+    service = VolReplayService(prices=PriceBarRepository(session))
+    try:
+        r = await service.audit(
+            symbol=settings.loop_symbol, timeframe=timeframe, horizon_bars=horizon_bars
+        )
+    except (ValidationError, DomainError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def dto(c: RateCheck) -> RateCheckDTO:
+        return RateCheckDTO(
+            label=c.label,
+            n=c.n,
+            observed=c.observed,
+            expected=c.expected,
+            low=c.low,
+            high=c.high,
+            significant=c.significant,
+            understates_risk=c.understates_risk,
+            verdict=c.verdict,
+        )
+
+    return VolAuditResponse(
+        symbol=settings.loop_symbol,
+        timeframe=timeframe.value,
+        horizon_bars=horizon_bars,
+        n=r.n,
+        one_sigma=dto(r.one_sigma),
+        band=dto(r.band) if r.band is not None else None,
+        median_ratio=r.median_ratio,
+        mae_pips=r.mae_pips,
+        benchmark_mae_pips=r.benchmark_mae_pips,
+        beats_benchmarks=r.beats_benchmarks,
+        verdict=r.verdict,
+    )
 
 
 class LoopPolicyResponse(BaseModel):
