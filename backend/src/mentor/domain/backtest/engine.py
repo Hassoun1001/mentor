@@ -124,11 +124,15 @@ def _close_position(
         instrument=instrument,
         quote_to_account=quote_to_account,
     )
-    # Commission is paid as a round-trip charge at close.
+    # Commission is paid as a round-trip charge at close. Spread and
+    # slippage were already taken out of the fill prices, so they must not
+    # be deducted again — but they are still a cost the reader is entitled
+    # to see, so they are counted here and reported alongside.
     commission = cost_model.commission_for(pos.size_lots)
+    friction = cost_model.friction_for(pos.size_lots, instrument)
     net = realised - commission
     state.cash += net
-    state.costs_paid += commission
+    state.costs_paid += commission + friction
     r = net / pos.initial_risk_amount if pos.initial_risk_amount > 0 else Decimal("0")
     state.closed.append(
         ClosedTrade(
@@ -141,7 +145,7 @@ def _close_position(
             initial_risk_amount=pos.initial_risk_amount,
             realised_pnl_account=net,
             realised_r=r,
-            costs_paid=commission,
+            costs_paid=commission + friction,
             exit_reason=reason,
             reason=pos.reason,
         )

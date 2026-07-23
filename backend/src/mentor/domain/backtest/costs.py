@@ -71,3 +71,18 @@ class CostModel:
 
     def commission_for(self, lots: Decimal) -> Decimal:
         return lots * self.commission_per_lot_round_trip
+
+    def friction_for(self, lots: Decimal, instrument: Instrument) -> Decimal:
+        """What the spread and slippage cost this round trip, in money.
+
+        Entry and exit fills are each worsened by half the spread plus
+        slippage, so a round trip pays ``spread + 2 x slippage`` in pips.
+        That charge is real — it is inside the fill prices — but it was
+        invisible: ``total_costs_paid`` accumulated commission only, which
+        defaults to zero. A backtest reporting "total costs: 0.00" while
+        quietly charging a pip and a bit per trade tells the reader the
+        opposite of the truth.
+        """
+        per_trip_pips = self.spread_pips + Decimal("2") * self.slippage_pips
+        units = lots * instrument.contract_size
+        return per_trip_pips * instrument.pip_size * units

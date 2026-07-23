@@ -149,3 +149,28 @@ def test_stop_hit_within_bar_range() -> None:
     assert trade.exit_reason is ExitReason.STOP
     assert trade.exit_price == Decimal("1.0750")
     assert trade.realised_r < 0
+
+
+# ---------- cost reporting ----------
+
+
+def test_reported_costs_include_the_friction_actually_charged() -> None:
+    """Regression: spread and slippage are taken out of the fill prices, but
+    `total_costs_paid` accumulated commission only — which defaults to zero.
+    A production run of 25 trades reported "total costs paid: 0.00" while
+    charging 1.2 pips of friction on every round trip. The number told the
+    reader the opposite of the truth."""
+    instrument = get_instrument("EURUSD")
+    model = CostModel(
+        spread_pips=Decimal("0.8"),
+        slippage_pips=Decimal("0.2"),
+        commission_per_lot_round_trip=Decimal("0"),
+    )
+
+    # 0.8 spread + 2 x 0.2 slippage = 1.2 pips per round trip.
+    friction = model.friction_for(Decimal("1.0"), instrument)
+    expected = Decimal("1.2") * instrument.pip_size * instrument.contract_size
+
+    assert friction == expected
+    assert friction > 0  # the whole point: never silently zero
+    assert model.commission_for(Decimal("1.0")) == Decimal("0")
