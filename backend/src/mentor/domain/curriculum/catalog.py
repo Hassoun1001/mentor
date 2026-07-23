@@ -4137,6 +4137,532 @@ limited access if you want to share.
 # ---------------------------------------------------------------------------
 
 
+_RISK_FIRST_EXT = (
+    Lesson(
+        slug="risk-first/managing-the-open-trade",
+        module_id="risk-first",
+        order_in_module=5,
+        title="Managing the trade after you're in",
+        summary=(
+            "Break-even, trailing, partials and time stops - decided while you are "
+            "calm, not while money is moving."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "break-even",
+            "trailing stop",
+            "partial close",
+            "time stop",
+            "R multiple",
+        ),
+        figures=(
+            Figure(
+                key="trade-management",
+                caption=(
+                    "The four decisions that happen after entry, and where each one "
+                    "sits relative to your risk."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "You are long, 40 pips in profit on a trade that risked 50 pips. "
+                    "Price stalls. What does the plan say?"
+                ),
+                options=(
+                    "Close now - a profit is a profit",
+                    "Widen the stop so it has room to work",
+                    "Nothing yet - 40 is not 1R; the rules trigger at 50",
+                ),
+                correct_index=2,
+                explanation=(
+                    "The whole point of pre-committing is that 'price stalled and I "
+                    "felt nervous' is not one of the triggers. Your rules fire at 1R "
+                    "(50 pips here), not when your pulse changes. And widening the "
+                    "stop is never on the menu."
+                ),
+            ),
+        ),
+        body_md="""
+Almost every trading course spends its time on **entry**. Where do I buy?
+Where's my stop? What's my target? Then it stops talking - as if the
+trade plays itself from there.
+
+It doesn't. An hour after you enter, you are sitting there watching a
+number move, and you have to make decisions. And here is the cruel part:
+**those decisions are made in the worst possible mental state.** Money is
+moving. You are hopeful, or scared, or both. That is not the moment to
+be inventing a rule.
+
+So we decide everything *now*, before a cent is at risk. Four rules.
+
+---
+
+## First: what "R" means
+
+Everything below is measured in **R**, which just means *the amount you
+risked on this trade*.
+
+If your entry is 1.1000 and your stop is 1.0950, you are risking 50 pips.
+So for this trade, **1R = 50 pips**. If price moves 50 pips your way,
+you are "up 1R". If it moves 100 pips your way, you are "up 2R".
+
+Why bother with this instead of pips or dollars? Because R makes every
+trade comparable. A 20-pip trade and a 200-pip trade are wildly different
+in pips but identical in R if you sized them properly. When you look back
+at 100 trades, "average +0.3R" tells you something true. "Average +12
+pips" tells you almost nothing.
+
+---
+
+## Rule 1 - Break-even at 1R
+
+**What it means:** once price has moved 1R in your favour, move your stop
+from its original spot up to your entry price.
+
+**What it buys you:** the trade can no longer lose. If it turns around
+and comes back, you get stopped out at roughly zero instead of -1R. You
+have taken risk off the table entirely.
+
+**What it costs you:** some winners will now stop you out at break-even
+and *then* run to target without you. That is a real cost and you should
+expect it to happen regularly. It is the price of never letting a winner
+become a loser.
+
+**Why 1R and not sooner?** This is the part beginners get wrong. Moving
+to break-even after 10 pips feels safe, but 10 pips is *inside normal
+noise* - the market wiggles that much without meaning anything. You would
+be stopped out of nearly every trade by random movement. Waiting for a
+full R means price has done something meaningful before you tighten up.
+
+On your trade ticket, the app shows this as **"Move stop to break-even
+at"** with the exact price.
+
+---
+
+## Rule 2 - Then trail, by one sigma
+
+**What it means:** after break-even, keep moving your stop up behind
+price as it advances. Never down. Only up (for a long; only down for a
+short).
+
+**How far behind?** This is where most trailing advice is useless. "Trail
+by 20 pips" is a guess that ignores what the market is doing today. On a
+quiet day 20 pips is miles away and you give back too much. On a wild day
+20 pips is nothing and you get clipped instantly.
+
+So the app trails by **one sigma of the expected move** - roughly, the
+typical distance this market is travelling right now, from the volatility
+forecast. Quiet market, tighter trail. Wild market, wider trail. Same
+rule, different number, automatically.
+
+You will see this on the ticket as **"Then trail by N pips"**, and N
+changes day to day. That is not inconsistency; that is the point.
+
+---
+
+## Rule 3 - Bank half at 1R
+
+**What it means:** at the same moment you move to break-even, close
+**half** the position and keep the other half running to target.
+
+**What it buys you:** two things, and the second matters more than the
+first.
+
+1. Real money in the account. Paper profit is not profit; it is a number
+   that can evaporate.
+2. **It makes holding the rest bearable.** This is the honest reason.
+   Having banked something, you stop white-knuckling the remaining half.
+   Traders who take nothing off frequently panic-close the *whole*
+   position at the first pullback - and that costs far more than the
+   upside they gave up by scaling out.
+
+**What it costs you:** on the trades that run straight to a 3R target,
+you made less than you could have. Accept that. You are buying the
+ability to actually hold the runners, and that trade is worth it for most
+people.
+
+This one is marked **optional** on the ticket. If you know you can hold a
+full position without flinching, you may be better off not scaling out.
+Be honest with yourself rather than aspirational.
+
+---
+
+## Rule 4 - The time stop
+
+This is the rule nobody teaches, and it is the one that quietly saves the
+most money.
+
+**What it means:** if neither your stop nor your target has been hit
+within the forecast's horizon - 24 hourly bars, say - **close the trade.
+Flat. Whatever the price is.**
+
+**Why:** the prediction had an expiry date baked into it from the moment
+it was made. The model was asked "what happens over the next 24 hours?"
+It answered. Twenty-four hours later, that answer has been used up. It
+says nothing whatsoever about hour 200.
+
+A position sitting open long past its horizon is no longer your system's
+trade. It is a *hope*, held because closing it would make the loss real.
+Meanwhile it is occupying margin, occupying attention, and quietly
+accruing swap charges every night.
+
+The ticket shows this as **"Time stop: N bars"**.
+
+---
+
+## Rule 5 - the one that is not negotiable
+
+> **Never move your stop away from price.**
+
+Not "rarely". Not "only when you're really sure". Never.
+
+Here is why this specific habit is so lethal: **it works.** Most of the
+time, widening a stop on a losing trade means price comes back and you
+escape. You get rewarded. So you do it again. And again. Each time the
+reward trains the habit deeper.
+
+Then one day price does not come back, and the position you kept
+widening is now four times the size of a normal loss. That single trade
+erases months. This is the single most common way a funded account dies -
+not a bad entry, not a bad system, this.
+
+A stop is a decision you made when you were thinking clearly. Moving it
+because you are now uncomfortable is overruling your calm self with your
+scared self. That trade never ends well.
+
+---
+
+## Putting it together
+
+The ticket on your Trade page already has all of this filled in with real
+numbers. Your job is not to compute it - it is to **do what it says**,
+including on the trade where doing what it says feels wrong. That feeling
+is the tax you pay for a process that survives.
+""",
+    ),
+)
+
+_PSYCHOLOGY_EXT2 = (
+    Lesson(
+        slug="psychology/learning-from-losses",
+        module_id="psychology",
+        order_in_module=5,
+        title="Learning from losses without punishing yourself",
+        summary=(
+            "Most losses are not mistakes. Telling the difference is what turns a "
+            "journal into an edge."
+        ),
+        est_minutes=7,
+        key_concepts=(
+            "root cause",
+            "process error",
+            "outcome bias",
+            "resulting",
+            "R bled",
+        ),
+        figures=(
+            Figure(
+                key="loss-root-causes",
+                caption=(
+                    "Losses split into two piles. Only one of them contains "
+                    "anything you should change."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "You followed your plan exactly and lost. What should you "
+                    "change?"
+                ),
+                options=(
+                    "Tighten the entry rules so it doesn't happen again",
+                    "Nothing - tag it 'good process' and move on",
+                    "Reduce size until you start winning again",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Any edge that wins 55% of the time loses 45 times in 100. "
+                    "Those 45 losses are not evidence of anything wrong. Changing a "
+                    "working system because of a normal loss is called 'resulting', "
+                    "and it is how good traders talk themselves into bad systems."
+                ),
+            ),
+        ),
+        body_md="""
+Here is a question that sounds simple and is not:
+
+> You just lost money. What went wrong?
+
+The honest answer, most of the time, is **nothing**. And if you cannot
+sit with that answer, your journal will slowly make you a worse trader
+instead of a better one.
+
+---
+
+## The trap: judging decisions by outcomes
+
+Poker players call it **resulting**: judging the quality of a *decision*
+by the quality of its *outcome*. It is one of the most natural mistakes
+a human brain makes, and in trading it is everywhere.
+
+Think about what a 55%-win system actually looks like from the inside.
+It loses 45 trades out of every 100. Those losses are not failures -
+they are the system working exactly as designed. But they *feel*
+identical to the losses caused by real mistakes. Same red number. Same
+sting.
+
+So the trader "fixes" things. Tightens an entry rule. Adds a filter.
+Cuts size. Skips the next signal. And the system that was profitable
+gets tuned into one that is not, one small reasonable-sounding change at
+a time.
+
+The cure is not more discipline. It is **separating the two kinds of
+loss**, in writing, at the moment you close the trade.
+
+---
+
+## Two piles
+
+**Pile one: the market beat a sound plan.** You followed your rules, the
+size was right, the stop was where you said it would be, and it lost
+anyway. This is the cost of doing business. There is nothing here to fix.
+In this app that is the tag **"Good process, bad outcome"** - and it is
+deliberately a real, first-class tag, not an afterthought.
+
+**Pile two: you did something you control.** You entered without a setup.
+You were three times normal size. You moved your stop. You took it to win
+back the last one. These are habits, they repeat, and they *are* fixable.
+
+Almost all improvement in trading comes from shrinking pile two. Almost
+all self-inflicted damage comes from treating pile one as if it were pile
+two.
+
+---
+
+## Why the tags are a fixed list
+
+You might reasonably ask: why not just type what went wrong in your own
+words?
+
+Because the point of tagging is **counting**, and free text cannot be
+counted. Write your losses up honestly for three months and you will have
+"bad entry", "entry was bad", "rushed the entry", "shouldn't have taken
+it" and "impatient" - five phrases describing one habit that is costing
+you real money, and not one of them appears often enough to look like a
+pattern. The habit hides in the spelling.
+
+A fixed list of thirteen tags means the same habit lands in the same
+bucket every time. After thirty losses, the pattern is unmissable.
+
+---
+
+## Ranked by damage, not by frequency
+
+Open the review panel on the Journal page and you will notice the causes
+are sorted by **R bled** - total risk lost - not by how often each one
+happened.
+
+That ordering is deliberate. Suppose you have:
+
+- five trades tagged "bad timing", losing 0.2R each -> **1.0R total**
+- one trade tagged "position too large", losing 3.0R -> **3.0R total**
+
+Sorted by frequency, "bad timing" looks like your big problem: five
+occurrences versus one. Sorted by damage, the truth appears - the
+oversized trade cost you three times as much as all five timing errors
+combined.
+
+Fix the thing bleeding the most, not the thing happening the most. They
+are frequently not the same thing, and frequency is the more seductive of
+the two.
+
+---
+
+## How to actually do it
+
+When you close a losing trade, the tag buttons appear. Two rules:
+
+1. **Tag it immediately.** Not later. Ten minutes later you will have
+   already started constructing a story where it wasn't your fault. The
+   memory you want is the one you have right now.
+
+2. **Be willing to use "Good process".** If you never reach for it, you
+   are not being rigorous - you are being hard on yourself, and the
+   review will fill up with false mistakes that send you chasing fixes
+   for problems you do not have.
+
+A loss you correctly diagnosed as normal variance costs you money once.
+A loss you *misdiagnosed* as a mistake costs you money, plus the working
+system you dismantled trying to prevent it.
+""",
+    ),
+)
+
+_UNDER_THE_HOOD_EXT2 = (
+    Lesson(
+        slug="under-the-hood/knowing-when-to-say-nothing",
+        module_id="under-the-hood",
+        order_in_module=11,
+        title="Knowing when to say nothing",
+        summary=(
+            "Why the model is allowed to decline a call - and why its silence is "
+            "information."
+        ),
+        est_minutes=7,
+        key_concepts=(
+            "abstention",
+            "selective prediction",
+            "coverage",
+            "confidence margin",
+            "Brier score",
+        ),
+        figures=(
+            Figure(
+                key="abstention",
+                caption=(
+                    "Only the confident tails get a call. The crowded middle is "
+                    "where edges go to die."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "The system says it acts on 30% of hours. Is that good or bad?"
+                ),
+                options=(
+                    "Bad - it should have an opinion every hour",
+                    "Good if those 30% score better than all hours would; the "
+                    "number itself is neutral",
+                    "Bad - it means the model is broken",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Coverage on its own means nothing. What matters is whether the "
+                    "hours it acts on score meaningfully better than the average of "
+                    "all hours. Both numbers are on the Loop page precisely so you "
+                    "can check rather than assume."
+                ),
+            ),
+        ),
+        body_md="""
+For most of this system's life it had a slightly silly obligation: every
+single hour, it had to produce a direction. Up or down. No option to
+shrug.
+
+That obligation was quietly wrecking its score, and here is why.
+
+---
+
+## The problem, in one picture
+
+Imagine sorting every hour of the last two years by how confident the
+model was. At the two extremes - the hours it said 65% up, or 35% up -
+it is genuinely picking up something real. In the enormous middle - the
+hours it said 51%, 49%, 52% - it is doing nothing but describing noise
+back to you with a decimal point attached.
+
+Now: the middle is most of the hours. That is not a flaw in this model,
+it is what EUR/USD *is* over a 24-hour horizon. Most hours genuinely do
+not contain a predictable move.
+
+When you average one number across everything, the useless middle drowns
+the useful tails. The result is a score hovering around 0.25 - the
+coin-flip mark - even when the tails are genuinely good. **The average
+was hiding the edge.**
+
+---
+
+## The fix: let it decline
+
+The model now learns a single number, called the **margin**.
+
+It is the distance from 50/50 that a probability has to reach before the
+model is willing to call anything at all. If the margin is 0.06, then:
+
+- 58% up -> distance is 8 points -> **above the margin, it calls it**
+- 52% up -> distance is 2 points -> **below the margin, it stays quiet**
+
+When it stays quiet, your Trade page shows **stand aside** and tells you
+plainly that this hour sits inside the band where the model learned it
+has no edge.
+
+**That is not a failure. That is the most useful thing it can say.** A
+system that tells you "I don't know" on the 70% of hours where it doesn't
+know is worth vastly more than one that manufactures an opinion to fill
+the silence.
+
+---
+
+## Coverage: the number that keeps it honest
+
+There is an obvious way to cheat here, and we have to close it.
+
+If the model is allowed to pick its own margin with no constraints, it
+will push the margin sky-high, keep the four luckiest hours in the
+sample, and report a spectacular score. Technically true. Completely
+worthless - four hours proves nothing, and you cannot trade a system that
+speaks four times a year.
+
+So there are two guardrails:
+
+**1. A coverage floor.** A policy must be willing to act on at least
+**15% of hours** to even be considered. Below that, the remaining sample
+is too small for its score to mean anything, and it is thrown out
+regardless of how good the number looks.
+
+**2. The margin is chosen on one slice of data and graded on another.**
+The model picks its margin using the calibration window, then that margin
+is tested on a completely separate stretch of history it has never seen.
+This matters more than it sounds: a threshold picked and scored on the
+same data is just a *description* of that data. Only a threshold that
+survives fresh data is a **prediction rule**.
+
+---
+
+## What the Loop page shows you
+
+Look at the panel titled **"When the model is willing to speak"** and you
+get four numbers:
+
+- **Brier when it acts** - the score on hours it chose to call. This is
+  the number that matters.
+- **Brier across all hours** - what it would have scored under the old
+  every-hour obligation.
+- **Gain from abstaining** - the difference. **This can be zero or
+  negative**, and when it is, the model does not abstain at all. It is
+  allowed to conclude that shutting up bought it nothing.
+- **Accuracy when it acts** - how often the calls it did make were right.
+
+Plus the coverage bar: what share of hours it speaks on versus stands
+aside.
+
+---
+
+## Where this leaves you
+
+Two things follow, and both are uncomfortable in a useful way.
+
+**Fewer signals is the intended outcome.** If the system now stands aside
+most days, it is not broken and it is not being lazy. It is refusing to
+give you a trade it has no reason to believe in. The urge to trade
+anyway, on the grounds that you opened the app and want something to do,
+is exactly the urge this feature exists to resist.
+
+**And it might find nothing.** It is entirely possible that no confidence
+band on this market shows a real edge - that the tails are noise too. If
+so, the gain will read zero, the model will not abstain, and the honest
+conclusion is that this system does not currently have an edge worth
+trading. That would be a genuinely useful thing to learn, and it is
+better to learn it from a number on a page than from an account balance.
+""",
+    ),
+)
+
+
 CATALOG: Final[tuple[Module, ...]] = (
     Module(
         id="market-basics",
@@ -4150,7 +4676,7 @@ CATALOG: Final[tuple[Module, ...]] = (
         order=2,
         title="Risk first",
         summary="Most traders fail on sizing. The risk engine is built first for a reason.",
-        lessons=_RISK_FIRST,
+        lessons=_RISK_FIRST + _RISK_FIRST_EXT,
     ),
     Module(
         id="reading-charts",
@@ -4231,7 +4757,7 @@ CATALOG: Final[tuple[Module, ...]] = (
         order=12,
         title="Psychology & process",
         summary="Your behaviour is the biggest risk in the system. The journal is the cure.",
-        lessons=_PSYCHOLOGY + _PSYCHOLOGY_EXT,
+        lessons=_PSYCHOLOGY + _PSYCHOLOGY_EXT + _PSYCHOLOGY_EXT2,
     ),
     Module(
         id="market-study",
@@ -4274,7 +4800,7 @@ CATALOG: Final[tuple[Module, ...]] = (
         summary=(
             "Every data source, prediction method, and watchdog the system uses, with diagrams."
         ),
-        lessons=_UNDER_THE_HOOD + _UNDER_THE_HOOD_EXT,
+        lessons=_UNDER_THE_HOOD + _UNDER_THE_HOOD_EXT + _UNDER_THE_HOOD_EXT2,
     ),
 )
 

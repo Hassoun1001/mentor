@@ -152,6 +152,11 @@ class TrainReport(BaseModel):
     test_brier_uncalibrated: float = 0.0
     calibration_applied: bool = False
     n_calibration: int = 0
+    abstain_margin: float = 0.0
+    coverage: float = 1.0
+    n_covered: int = 0
+    test_brier_covered: float = 0.0
+    test_accuracy_covered: float = 0.0
 
 
 @router.post("/train", response_model=TrainReport)
@@ -196,6 +201,11 @@ def _train_report_dto(name: str, r: TrainingReport) -> TrainReport:
         test_brier_uncalibrated=r.test_brier_uncalibrated,
         calibration_applied=r.calibration_applied,
         n_calibration=r.n_calibration,
+        abstain_margin=r.abstain_margin,
+        coverage=r.coverage,
+        n_covered=r.n_covered,
+        test_brier_covered=r.test_brier_covered,
+        test_accuracy_covered=r.test_accuracy_covered,
     )
 
 
@@ -599,6 +609,88 @@ async def loop_status(request: Request) -> LoopStatusResponse:
     return LoopStatusResponse(**scheduler.status())
 
 
+class LoopPolicyResponse(BaseModel):
+    """How often the champion is willing to have an opinion."""
+
+    model_name: str
+    abstains: bool
+    abstain_margin: float
+    coverage: float
+    n_covered: int
+    n_test: int
+    brier_all: float
+    brier_covered: float
+    accuracy_covered: float
+    explanation: str
+
+
+@router.get("/loop/policy", response_model=LoopPolicyResponse)
+async def loop_policy(settings: SettingsDep) -> LoopPolicyResponse:
+    """The champion's abstention policy, or the honest 'always speaks' answer."""
+    promo = PromotionService(model_store_dir=settings.model_store_dir)
+    champion = promo.current_champion()
+    name = (
+        str(champion["model_name"])
+        if champion and isinstance(champion.get("model_name"), str)
+        else "baseline"
+    )
+    report: TrainingReport | None = None
+    if name != "baseline":
+        for meta in ModelStore(settings.model_store_dir).list():
+            if meta.name == name:
+                report = meta.report
+                break
+
+    if report is None:
+        return LoopPolicyResponse(
+            model_name=name,
+            abstains=False,
+            abstain_margin=0.0,
+            coverage=1.0,
+            n_covered=0,
+            n_test=0,
+            brier_all=0.0,
+            brier_covered=0.0,
+            accuracy_covered=0.0,
+            explanation=(
+                "The baseline rule is predicting — it has no learned abstention "
+                "policy and gives an opinion every hour."
+            ),
+        )
+
+    if not report.abstains:
+        explanation = (
+            "This model speaks every hour. On the held-out window, waiting for "
+            "more confident calls bought no measurable accuracy, so it was not "
+            "given a reason to stay quiet."
+        )
+    else:
+        gain = report.test_brier - report.test_brier_covered
+        explanation = (
+            f"This model only calls a direction when P(up) is at least "
+            f"{report.abstain_margin * 100:.0f} points away from 50/50 — about "
+            f"{report.coverage * 100:.0f}% of hours. On those hours it scores "
+            f"{report.test_brier_covered:.4f} Brier versus {report.test_brier:.4f} "
+            f"across all hours ({gain:+.4f}), and is right "
+            f"{report.test_accuracy_covered * 100:.0f}% of the time. The other "
+            f"{(1 - report.coverage) * 100:.0f}% of hours it has nothing useful to say, "
+            f"and saying so is worth more than guessing."
+        )
+
+    return LoopPolicyResponse(
+        model_name=name,
+        abstains=report.abstains,
+        abstain_margin=report.abstain_margin,
+        coverage=report.coverage,
+        n_covered=report.n_covered,
+        n_test=report.n_test,
+        brier_all=report.test_brier,
+        brier_covered=report.test_brier_covered,
+        accuracy_covered=report.test_accuracy_covered,
+        explanation=explanation,
+    )
+
+
 class PromotionEntryDTO(BaseModel):
     at: str
     promoted: bool
@@ -841,6 +933,23 @@ class TradePlanResponse(BaseModel):
 
 
 _PLAN_MIN_CONFIDENCE = Decimal("0.10")
+
+
+def _champion_margin(model_store_dir: str, model_name: str) -> Decimal | None:
+    """The champion's learned abstention margin, or None if it never abstains.
+
+    Read from the model sidecar rather than loading the pickle — the trade
+    plan runs on every page view and does not need the classifier.
+    """
+    if model_name == "baseline":
+        return None
+    try:
+        for meta in ModelStore(model_store_dir).list():
+            if meta.name == model_name and meta.report.abstain_margin > 0:
+                return Decimal(str(meta.report.abstain_margin))
+    except (OSError, ValueError, KeyError):
+        return None
+    return None
 _PLAN_CHECKLIST = [
     "The stance matches my own read of the chart — I am not outsourcing judgment.",
     "The stop is placed and the position size comes from the stop, not from hope.",
@@ -875,6 +984,10 @@ async def trade_plan(
         if champion and isinstance(champion.get("model_name"), str)
         else "baseline"
     )
+
+    # The champion may have learned that it only has an edge when it is far
+    # enough from 50/50. Honour that instead of a hand-picked threshold.
+    learned_margin = _champion_margin(settings.model_store_dir, model_name)
 
     forecast_service = ForecastService(
         prices=PriceBarRepository(session),
@@ -916,12 +1029,21 @@ async def trade_plan(
         )
 
     stance: Literal["long", "short", "stand_aside"]
-    if fc.direction.value == "neutral" or fc.confidence < _PLAN_MIN_CONFIDENCE:
+    distance = abs(fc.p_up - Decimal("0.5"))
+    below_learned = learned_margin is not None and distance < learned_margin
+    if fc.direction.value == "neutral" or fc.confidence < _PLAN_MIN_CONFIDENCE or below_learned:
         stance = "stand_aside"
-        headline = (
-            f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), which is "
-            f"too close to a coin flip to risk money on. Not trading is a position."
-        )
+        if below_learned and learned_margin is not None:
+            headline = (
+                f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), inside the "
+                f"±{float(learned_margin) * 100:.0f}pp band where it learned it has no edge. "
+                f"It is declining to call this one, which is the honest answer."
+            )
+        else:
+            headline = (
+                f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), which is "
+                f"too close to a coin flip to risk money on. Not trading is a position."
+            )
         return TradePlanResponse(
             stance=stance,
             headline=headline,

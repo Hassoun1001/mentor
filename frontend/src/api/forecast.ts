@@ -121,6 +121,11 @@ const trainReport = z.object({
   test_brier_uncalibrated: z.number(),
   calibration_applied: z.boolean(),
   n_calibration: z.number(),
+  abstain_margin: z.number(),
+  coverage: z.number(),
+  n_covered: z.number(),
+  test_brier_covered: z.number(),
+  test_accuracy_covered: z.number(),
 });
 export type TrainReport = z.infer<typeof trainReport>;
 

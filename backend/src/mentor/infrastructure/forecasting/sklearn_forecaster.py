@@ -45,6 +45,11 @@ from mentor.domain.forecasting.regime import (
     FeatureDistribution,
     build_feature_distribution,
 )
+from mentor.domain.forecasting.selective import (
+    SelectivePolicy,
+    grade_policy,
+    select_margin,
+)
 from mentor.domain.market.bars import PriceBar, Timeframe
 
 
@@ -65,6 +70,26 @@ class TrainingReport:
     ece: float = 0.0  # of the *shipped* probabilities (calibrated if applied)
     ece_uncalibrated: float = 0.0
     calibration_applied: bool = False
+    # Selective prediction (added later; defaults = "never abstains").
+    abstain_margin: float = 0.0  # act only when |p_up - 0.5| >= this
+    coverage: float = 1.0  # share of test hours the policy acts on
+    n_covered: int = 0
+    test_brier_covered: float = 0.0
+    test_accuracy_covered: float = 0.0
+
+    @property
+    def abstains(self) -> bool:
+        return self.abstain_margin > 0.0 and self.n_covered > 0
+
+    @property
+    def effective_brier(self) -> float:
+        """The score on the hours the model actually acts on.
+
+        Falls back to the all-hours Brier for models that never abstain —
+        including models trained before abstention existed, whose metadata
+        carries the zero defaults.
+        """
+        return self.test_brier_covered if self.abstains else self.test_brier
 
 
 @dataclass(slots=True)
@@ -87,6 +112,7 @@ class SklearnForecaster(Forecaster):
     _macro_feature_names: tuple[str, ...] = ()
     _htf_feature_names: tuple[str, ...] = ()
     _calibrator: IsotonicRegression | None = None
+    _abstain_margin: float = 0.0
 
     @property
     def feature_names(self) -> tuple[str, ...]:
@@ -121,6 +147,14 @@ class SklearnForecaster(Forecaster):
     def calibrator(self) -> IsotonicRegression | None:
         # getattr guard: old pickles predate this slot → uncalibrated.
         return getattr(self, "_calibrator", None)
+
+    @property
+    def abstain_margin(self) -> float:
+        """Act only when ``|p_up - 0.5|`` reaches this. 0.0 = never abstain.
+
+        ``getattr`` so models pickled before abstention existed still load.
+        """
+        return float(getattr(self, "_abstain_margin", 0.0))
 
     @property
     def name(self) -> str:
@@ -273,29 +307,20 @@ def _assemble_samples(
     return samples, feature_names, news_names, macro_names, htf_names
 
 
-def evaluate_forecaster_on_tail(
+def _tail_samples(
     forecaster: SklearnForecaster,
     *,
     bars: Sequence[PriceBar],
     horizon_bars: int,
-    test_fraction: float = 0.2,
-    news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
-    macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
-    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
-) -> float | None:
-    """Grade an already-trained forecaster on the trailing test slice of `bars`.
+    test_fraction: float,
+    news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+    macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+) -> list[tuple[list[float], int]] | None:
+    """Assemble the trailing test slice in the forecaster's own column order.
 
-    This is what makes champion/challenger promotion *fair*: the champion's
-    stored Brier was measured on the data of its own era, while a fresh
-    challenger is graded on today's tail. Re-grading both on the **same**
-    trailing window compares like with like. Feature vectors are assembled in
-    the forecaster's own column order (technical-only and news/macro-aware
-    models both work); missing exogenous columns default to neutral 0.0,
-    exactly as at inference time.
-
-    Returns the Brier score of the shipped (calibrated when the model carries
-    a calibrator) probabilities, or ``None`` when the tail is too small to
-    grade meaningfully.
+    Missing exogenous columns default to neutral 0.0, exactly as at
+    inference time. Returns ``None`` when the tail is too small to grade.
     """
     rows = build_feature_series(bars)
     closes = [b.close for b in bars]
@@ -325,12 +350,82 @@ def evaluate_forecaster_on_tail(
     if len(tail) < 20:
         return None
 
+    return tail
+
+
+def evaluate_forecaster_on_tail(
+    forecaster: SklearnForecaster,
+    *,
+    bars: Sequence[PriceBar],
+    horizon_bars: int,
+    test_fraction: float = 0.2,
+    news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+) -> float | None:
+    """Grade an already-trained forecaster on the trailing test slice of `bars`.
+
+    This is what makes champion/challenger promotion *fair*: the champion's
+    stored Brier was measured on the data of its own era, while a fresh
+    challenger is graded on today's tail. Re-grading both on the **same**
+    trailing window compares like with like. Feature vectors are assembled in
+    the forecaster's own column order (technical-only and news/macro-aware
+    models both work); missing exogenous columns default to neutral 0.0,
+    exactly as at inference time.
+
+    Returns the Brier score of the shipped (calibrated when the model carries
+    a calibrator) probabilities, or ``None`` when the tail is too small to
+    grade meaningfully.
+    """
+    tail = _tail_samples(
+        forecaster,
+        bars=bars,
+        horizon_bars=horizon_bars,
+        test_fraction=test_fraction,
+        news_by_ts=news_by_ts,
+        macro_by_ts=macro_by_ts,
+        htf_by_ts=htf_by_ts,
+    )
+    if tail is None:
+        return None
     x = np.array([s[0] for s in tail])
     y = np.array([s[1] for s in tail])
-    raw = forecaster._classifier.predict_proba(x)[:, 1]
-    calibrator = forecaster.calibrator
-    shipped = np.clip(calibrator.predict(raw), 0.0, 1.0) if calibrator is not None else raw
-    return float(brier_score_loss(y, shipped))
+    shipped = _shipped_probs(forecaster._classifier, forecaster.calibrator, x)
+    return float(brier_score_loss(y, np.array(shipped)))
+
+
+def evaluate_policy_on_tail(
+    forecaster: SklearnForecaster,
+    *,
+    bars: Sequence[PriceBar],
+    horizon_bars: int,
+    test_fraction: float = 0.2,
+    news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+) -> SelectivePolicy | None:
+    """Re-grade a champion under **its own** abstention margin.
+
+    The challenger is scored on the hours its policy would act on, so the
+    incumbent must be scored the same way or the comparison hands the
+    challenger a free advantage. A champion trained before abstention
+    existed carries margin 0.0 and is simply graded on every hour — which
+    is exactly what it does in production.
+    """
+    tail = _tail_samples(
+        forecaster,
+        bars=bars,
+        horizon_bars=horizon_bars,
+        test_fraction=test_fraction,
+        news_by_ts=news_by_ts,
+        macro_by_ts=macro_by_ts,
+        htf_by_ts=htf_by_ts,
+    )
+    if tail is None:
+        return None
+    x = np.array([s[0] for s in tail])
+    shipped = _shipped_probs(forecaster._classifier, forecaster.calibrator, x)
+    return grade_policy(forecaster.abstain_margin, shipped, [s[1] for s in tail])
 
 
 def _fit_and_grade_calibration(
@@ -370,6 +465,18 @@ def _fit_and_grade_calibration(
         "calibration_applied": applied,
     }
     return (iso if applied else None), metrics
+
+
+def _shipped_probs(
+    clf: HistGradientBoostingClassifier,
+    calibrator: IsotonicRegression | None,
+    x: Any,
+) -> list[float]:
+    """The probabilities this model would actually publish for these rows."""
+    raw = clf.predict_proba(x)[:, 1]
+    if calibrator is not None:
+        raw = np.clip(calibrator.predict(raw), 0.0, 1.0)
+    return [float(v) for v in raw]
 
 
 def train_sklearn_forecaster(
@@ -477,6 +584,16 @@ def train_sklearn_forecaster(
     except ValueError:  # degenerate slice (single class etc.) — keep zeros
         pass
 
+    # Selective prediction. The margin is *chosen* on the calibration slice
+    # and *graded* on test, which it never saw — so the covered score below
+    # is a claim about future hours, not a description of past ones.
+    policy = select_margin(
+        _shipped_probs(clf, calibrator, calib_x), [int(v) for v in calib_y]
+    )
+    graded = grade_policy(
+        policy.margin, _shipped_probs(clf, calibrator, test_x), [int(v) for v in test_y]
+    )
+
     report = TrainingReport(
         n_samples=len(samples),
         n_train=fit_end,
@@ -492,6 +609,11 @@ def train_sklearn_forecaster(
         ece=float(cal["ece"]),
         ece_uncalibrated=float(cal["ece_uncalibrated"]),
         calibration_applied=bool(cal["calibration_applied"]),
+        abstain_margin=graded.margin,
+        coverage=graded.coverage,
+        n_covered=graded.n_covered,
+        test_brier_covered=graded.brier_covered,
+        test_accuracy_covered=graded.accuracy_covered,
     )
 
     # Capture the empirical p5/p95 envelope of every feature seen during
@@ -509,4 +631,5 @@ def train_sklearn_forecaster(
         _macro_feature_names=macro_names,
         _htf_feature_names=htf_names,
         _calibrator=calibrator,
+        _abstain_margin=graded.margin,
     )

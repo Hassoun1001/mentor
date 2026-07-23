@@ -81,3 +81,23 @@ export type PaperReport = z.infer<typeof paperReport>;
 export function fetchLoopPaper(minConfidence: number): Promise<PaperReport> {
   return apiGet(`/forecasting/loop/paper?min_confidence=${minConfidence}`, paperReport);
 }
+
+// ---------- abstention policy ----------
+
+const loopPolicy = z.object({
+  model_name: z.string(),
+  abstains: z.boolean(),
+  abstain_margin: z.number(),
+  coverage: z.number(),
+  n_covered: z.number(),
+  n_test: z.number(),
+  brier_all: z.number(),
+  brier_covered: z.number(),
+  accuracy_covered: z.number(),
+  explanation: z.string(),
+});
+export type LoopPolicy = z.infer<typeof loopPolicy>;
+
+export async function getLoopPolicy(): Promise<LoopPolicy> {
+  return apiGet('/forecasting/loop/policy', loopPolicy);
+}

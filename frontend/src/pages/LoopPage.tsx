@@ -4,12 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import {
   type Heartbeat,
   type LoopEvent,
+  type LoopPolicy,
   type LoopStatus,
   type PaperReport,
   type PromotionEntry,
   fetchLoopPaper,
   fetchLoopPromotions,
   fetchLoopStatus,
+  getLoopPolicy,
 } from '../api/loop';
 import { EquityCurve } from '../components/EquityCurve';
 import { Metric } from '../components/Metric';
@@ -33,6 +35,11 @@ export function LoopPage() {
     queryKey: ['loop-paper', minConfidence],
     queryFn: () => fetchLoopPaper(minConfidence),
   });
+  const policy = useQuery({
+    queryKey: ['loop-policy'],
+    queryFn: getLoopPolicy,
+    refetchInterval: REFRESH_MS * 2,
+  });
 
   return (
     <section className="space-y-8">
@@ -47,6 +54,7 @@ export function LoopPage() {
       </header>
 
       <StatusPanel status={status.data} loading={status.isLoading} />
+      {policy.data && <PolicyPanel policy={policy.data} />}
       <PaperPanel
         report={paper.data}
         loading={paper.isLoading}
@@ -56,6 +64,76 @@ export function LoopPage() {
       <EventsPanel events={status.data?.events ?? []} />
       <PromotionsPanel rows={promotions.data ?? []} loading={promotions.isLoading} />
     </section>
+  );
+}
+
+// ---------- abstention policy ----------
+
+function PolicyPanel({ policy }: { policy: LoopPolicy }) {
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const gain = policy.brier_all - policy.brier_covered;
+
+  return (
+    <div className="panel-pad space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-mentor-muted">
+          When the model is willing to speak
+        </h2>
+        <span
+          className={`pill ${
+            policy.abstains ? 'text-mentor-accent' : 'text-mentor-muted'
+          }`}
+        >
+          {policy.abstains ? `speaks ${pct(policy.coverage)} of hours` : 'always speaks'}
+        </span>
+      </div>
+
+      <p className="max-w-3xl text-sm leading-relaxed text-mentor-fg">
+        {policy.explanation}
+      </p>
+
+      {policy.abstains && (
+        <>
+          <div className="space-y-1.5">
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-mentor-panelLight">
+              <div
+                className="h-full bg-mentor-accent"
+                style={{ width: `${policy.coverage * 100}%` }}
+                title="hours it calls a direction"
+              />
+            </div>
+            <div className="flex justify-between text-xs text-mentor-muted">
+              <span>{pct(policy.coverage)} acted on ({policy.n_covered} hours)</span>
+              <span>{pct(1 - policy.coverage)} stood aside</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <Metric
+              label="Brier when it acts"
+              value={policy.brier_covered.toFixed(4)}
+              sub="lower is better"
+              tone={policy.brier_covered < 0.248 ? 'positive' : undefined}
+            />
+            <Metric
+              label="Brier across all hours"
+              value={policy.brier_all.toFixed(4)}
+              sub="what it would score speaking always"
+            />
+            <Metric
+              label="Gain from abstaining"
+              value={`${gain >= 0 ? '+' : ''}${gain.toFixed(4)}`}
+              tone={gain > 0 ? 'positive' : 'danger'}
+            />
+            <Metric
+              label="Accuracy when it acts"
+              value={pct(policy.accuracy_covered)}
+              sub={`of ${policy.n_covered} calls`}
+            />
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

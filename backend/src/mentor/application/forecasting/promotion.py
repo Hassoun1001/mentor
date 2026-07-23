@@ -60,7 +60,7 @@ from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import (
     SklearnForecaster,
-    evaluate_forecaster_on_tail,
+    evaluate_policy_on_tail,
     train_sklearn_forecaster,
 )
 from mentor.infrastructure.repositories.macro_series import MacroSeriesRepository
@@ -81,6 +81,9 @@ _PROMOTION_MARGIN = 0.002
 # champion — regardless of how bad the incumbent is.
 _COIN_FLIP_BRIER = 0.25
 _BASELINE_FLOOR = _COIN_FLIP_BRIER - _PROMOTION_MARGIN
+# A challenger that abstains on almost everything can post a great covered
+# Brier off a handful of lucky hours. It must be willing to speak this often.
+_MIN_COVERAGE = 0.15
 # Demote the incumbent after this many CONSECUTIVE fresh-window floor
 # failures. Hysteresis: one passing re-grade resets the streak.
 _DEMOTION_AFTER = 3
@@ -414,7 +417,7 @@ class PromotionService:
                 except ValidationError as exc:
                     log.warning("promotion.fold_skipped", config=name, error=str(exc))
                     continue
-                fold_briers.append(model.report.test_brier)
+                fold_briers.append(model.report.effective_brier)
             if fold_briers:
                 scores[name] = sum(fold_briers) / len(fold_briers)
         return scores
@@ -431,7 +434,11 @@ class PromotionService:
         macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
         htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     ) -> float | None:
-        """Champion Brier on the same fresh tail the challengers used."""
+        """Champion Brier on the same fresh tail the challengers used.
+
+        Graded under the champion's own abstention margin, so incumbent and
+        challenger are both judged on the hours they each choose to act on.
+        """
         name = str(champion.get("model_name") or "")
         if not name:
             return None
@@ -440,13 +447,18 @@ class PromotionService:
         except (ValidationError, OSError, ValueError, KeyError) as exc:
             log.warning("promotion.champion_regrade_failed", name=name, error=str(exc))
             return None
-        return evaluate_forecaster_on_tail(
+        policy = evaluate_policy_on_tail(
             model,
             bars=bars,
             horizon_bars=horizon_bars,
             news_by_ts=news_by_ts,
             macro_by_ts=macro_by_ts,
         )
+        if policy is None:
+            return None
+        # A champion whose margin has stopped clearing anything is not
+        # meaningfully predicting; grade it on every hour instead.
+        return policy.brier_covered if policy.n_covered > 0 else policy.brier_all
 
     def _update_floor_streak(
         self, champion: dict[str, object], champion_fresh: float | None
@@ -557,7 +569,7 @@ class PromotionService:
             horizon_bars=horizon_bars,
             **winner_kwargs,
         )
-        challenger_brier = challenger.report.test_brier
+        challenger_brier = challenger.report.effective_brier
         candidate_briers = dict(selection)
         candidate_briers[f"{family} (final)"] = challenger_brier
 
@@ -568,8 +580,12 @@ class PromotionService:
             challenger, name=challenger_name, symbol=symbol, timeframe=timeframe.value
         )
 
-        # Absolute floor first: nobody ships without beating the coin flip.
-        beats_floor = challenger_brier <= _BASELINE_FLOOR
+        # Absolute floor first: nobody ships without beating the coin flip —
+        # measured on the hours it would actually act on. A model that
+        # abstains its way below the coverage floor fails regardless of score.
+        r = challenger.report
+        enough_coverage = not r.abstains or r.coverage >= _MIN_COVERAGE
+        beats_floor = challenger_brier <= _BASELINE_FLOOR and enough_coverage
 
         champion = self.current_champion()
         if champion is None:

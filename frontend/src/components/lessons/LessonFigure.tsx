@@ -2218,11 +2218,173 @@ function TabsToolkit() {
   );
 }
 
+function TradeManagement() {
+  // A long trade's life: entry, the 1R line where three rules fire, and the
+  // horizon where the idea expires.
+  const y0 = 150; // entry line
+  const y1R = 92; // +1R line
+  const yStop = 178; // original stop
+  return (
+    <Svg vb="0 0 440 210">
+      {/* price path */}
+      <path
+        d="M40 150 L90 138 L130 146 L175 108 L215 96 L260 78 L305 86 L350 70"
+        className={TONE.fg}
+        stroke="currentColor"
+        strokeWidth={1.6}
+        fill="none"
+      />
+
+      {/* stop / entry / 1R levels */}
+      <line x1={36} y1={yStop} x2={404} y2={yStop} className={TONE.danger}
+        stroke="currentColor" strokeWidth={1.2} strokeDasharray="4 3" />
+      <T x={32} y={yStop + 3} tone="danger" size={9} anchor="end">stop</T>
+
+      <line x1={36} y1={y0} x2={404} y2={y0} className={TONE.border}
+        stroke="currentColor" strokeWidth={1.2} />
+      <T x={32} y={y0 + 3} tone="muted" size={9} anchor="end">entry</T>
+
+      <line x1={36} y1={y1R} x2={404} y2={y1R} className={TONE.accent}
+        stroke="currentColor" strokeWidth={1.2} strokeDasharray="4 3" />
+      <T x={32} y={y1R + 3} tone="accent" size={9} anchor="end">+1R</T>
+
+      {/* the three rules that fire at 1R */}
+      <Arrow x1={215} y1={96} x2={215} y2={y0 - 4} tone="accent" dashed />
+      <Box x={150} y={26} w={135} h={40} tone="accent" fill />
+      <T x={217} y={41} tone="accent" size={9} bold>at +1R:</T>
+      <T x={217} y={53} tone="fg" size={8.5}>stop to break-even + bank 50%</T>
+      <T x={217} y={62} tone="muted" size={8}>then trail by 1 sigma</T>
+
+      {/* trailing stop steps */}
+      <path
+        d="M215 132 L260 132 L260 116 L305 116 L305 122 L350 122"
+        className={TONE.accentSoft}
+        stroke="currentColor"
+        strokeWidth={1.3}
+        strokeDasharray="3 2"
+        fill="none"
+      />
+      <T x={330} y={137} tone="accentSoft" size={8}>trailing stop</T>
+
+      {/* time stop */}
+      <line x1={370} y1={20} x2={370} y2={196} className={TONE.warn}
+        stroke="currentColor" strokeWidth={1.3} strokeDasharray="5 3" />
+      <T x={374} y={196} tone="warn" size={8.5} anchor="start">time</T>
+      <T x={374} y={205} tone="warn" size={8.5} anchor="start">stop</T>
+
+      <T x={110} y={196} tone="muted" size={8.5}>
+        risk is on
+      </T>
+      <T x={280} y={196} tone="muted" size={8.5}>
+        risk is off — only upside left
+      </T>
+    </Svg>
+  );
+}
+
+function LossRootCauses() {
+  return (
+    <Svg vb="0 0 440 205">
+      <T x={220} y={18} bold>Every losing trade goes in exactly one of two piles</T>
+
+      {/* pile 1 */}
+      <Box x={26} y={34} w={185} h={128} tone="accent" fill />
+      <T x={118} y={54} tone="accent" size={11} bold>Good process</T>
+      <T x={118} y={69} tone="muted" size={9}>you followed the plan</T>
+      <T x={118} y={80} tone="muted" size={9}>and lost anyway</T>
+      <line x1={44} y1={90} x2={193} y2={90} className={TONE.border}
+        stroke="currentColor" strokeWidth={1} />
+      <T x={118} y={107} tone="fg" size={9.5} bold>Change: nothing</T>
+      <T x={118} y={124} tone="muted" size={8.5}>a 55% system loses 45</T>
+      <T x={118} y={135} tone="muted" size={8.5}>times in 100. None of</T>
+      <T x={118} y={146} tone="muted" size={8.5}>them are mistakes.</T>
+
+      {/* pile 2 */}
+      <Box x={229} y={34} w={185} h={128} tone="danger" fill />
+      <T x={321} y={54} tone="danger" size={11} bold>Process error</T>
+      <T x={321} y={69} tone="muted" size={9}>oversized · moved stop</T>
+      <T x={321} y={80} tone="muted" size={9}>no setup · revenge</T>
+      <line x1={247} y1={90} x2={396} y2={90} className={TONE.border}
+        stroke="currentColor" strokeWidth={1} />
+      <T x={321} y={107} tone="fg" size={9.5} bold>Change: the habit</T>
+      <T x={321} y={124} tone="muted" size={8.5}>ranked by R bled, not</T>
+      <T x={321} y={135} tone="muted" size={8.5}>by count — one big loss</T>
+      <T x={321} y={146} tone="muted" size={8.5}>beats five small ones.</T>
+
+      <T x={220} y={186} tone="warn" size={9}>
+        Treating pile one as pile two is how good systems get dismantled.
+      </T>
+    </Svg>
+  );
+}
+
+function Abstention() {
+  // Distribution of predicted probabilities: confident tails act, middle abstains.
+  const cx = 220;
+  const base = 150;
+  const bars: { x: number; h: number }[] = [
+    { x: 58, h: 14 }, { x: 76, h: 22 }, { x: 94, h: 34 }, { x: 112, h: 50 },
+    { x: 130, h: 68 }, { x: 148, h: 84 }, { x: 166, h: 96 }, { x: 184, h: 104 },
+    { x: 202, h: 108 }, { x: 220, h: 110 }, { x: 238, h: 108 }, { x: 256, h: 104 },
+    { x: 274, h: 96 }, { x: 292, h: 84 }, { x: 310, h: 68 }, { x: 328, h: 50 },
+    { x: 346, h: 34 }, { x: 364, h: 22 },
+  ];
+  const inBand = (x: number) => Math.abs(x - cx) < 58;
+  return (
+    <Svg vb="0 0 440 205">
+      <T x={220} y={16} bold>Where the model is willing to speak</T>
+
+      {/* abstain band */}
+      <rect x={cx - 58} y={26} width={116} height={base - 26} rx={6}
+        className={TONE.muted} fill="currentColor" fillOpacity={0.10} />
+
+      {bars.map(({ x, h }) => (
+        <rect
+          key={x}
+          x={x - 7}
+          y={base - h}
+          width={14}
+          height={h}
+          rx={2}
+          className={inBand(x) ? TONE.muted : TONE.accent}
+          fill="currentColor"
+          fillOpacity={inBand(x) ? 0.35 : 0.75}
+        />
+      ))}
+
+      {/* axis */}
+      <line x1={40} y1={base} x2={400} y2={base} className={TONE.border}
+        stroke="currentColor" strokeWidth={1.2} />
+      <T x={48} y={base + 14} tone="muted" size={9} anchor="start">35% up</T>
+      <T x={cx} y={base + 14} tone="muted" size={9}>50/50</T>
+      <T x={392} y={base + 14} tone="muted" size={9} anchor="end">65% up</T>
+
+      {/* margin markers */}
+      <line x1={cx - 58} y1={26} x2={cx - 58} y2={base} className={TONE.accent}
+        stroke="currentColor" strokeWidth={1.3} strokeDasharray="4 3" />
+      <line x1={cx + 58} y1={26} x2={cx + 58} y2={base} className={TONE.accent}
+        stroke="currentColor" strokeWidth={1.3} strokeDasharray="4 3" />
+
+      <T x={cx} y={68} tone="muted" size={9.5} bold>stands aside</T>
+      <T x={cx} y={82} tone="muted" size={8.5}>no edge here</T>
+
+      <T x={108} y={base + 30} tone="accent" size={9.5} bold>calls it</T>
+      <T x={332} y={base + 30} tone="accent" size={9.5} bold>calls it</T>
+      <T x={220} y={base + 46} tone="warn" size={8.5}>
+        Coverage floor: it must be willing to act on at least 15% of hours to count.
+      </T>
+    </Svg>
+  );
+}
+
 const FIGURES: Record<string, () => ReactNode> = {
   'honest-thesis': HonestThesis,
   'data-pipeline': DataPipeline,
   'feature-families': FeatureFamilies,
   'point-in-time': PointInTime,
+  'trade-management': TradeManagement,
+  'loss-root-causes': LossRootCauses,
+  abstention: Abstention,
   'direction-model': DirectionModel,
   'vol-cone': VolCone,
   reliability: Reliability,
