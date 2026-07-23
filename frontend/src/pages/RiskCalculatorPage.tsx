@@ -118,7 +118,13 @@ export function RiskCalculatorPage() {
   // defaults to 2× that distance.
   const volFill = useMutation({
     mutationFn: () =>
-      fetchVolatility({ symbol: state.symbol, timeframe: '1d', horizon_bars: 5, model: 'ml' }),
+      // EWMA, not ML. The ML path retrains from scratch on every request —
+      // 125 seconds on the server, which no button click survives — while
+      // this returns in about two. The button only consumes the close and
+      // the suggested stop, and the EWMA forecast is the one measured as
+      // calibrated (70% of moves inside its 1-sigma band over 400 windows).
+      // The ML model's advantage is point accuracy, which this does not use.
+      fetchVolatility({ symbol: state.symbol, timeframe: '1d', horizon_bars: 5, model: 'ewma' }),
     onSuccess: (data) => {
       const pip = Number(
         (instrumentsQuery.data ?? []).find((i) => i.symbol === state.symbol)?.pip_size ?? 0.0001

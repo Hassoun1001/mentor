@@ -33,7 +33,12 @@ export function RiskOfRuinPanel({ currency = 'USD' }: { currency?: string }) {
       n_runs: 5000,
       ruin_fraction: '0.5',
       use_journal: true,
-      fallback_distribution: ['2', '-1', '-1', '2', '-1', '3', '-1'], // synthetic ~+0.4R EV
+      // With no journal there is no measured edge, so assume none: 2R wins
+      // at a 1-in-3 hit rate is exactly break-even. The old fallback baked
+      // in ~+0.43R per trade — a better edge than most professionals run,
+      // and far better than anything this system has demonstrated — which
+      // made "0% risk of ruin" a statement about a fantasy.
+      fallback_distribution: ['2', '-1', '-1'],
     });
 
   const result: MonteCarloResponse | undefined = mutation.data;
@@ -129,7 +134,7 @@ export function RiskOfRuinPanel({ currency = 'USD' }: { currency?: string }) {
           <p className="text-xs text-mentor-muted">
             {result.used_journal
               ? `Sampled from ${result.sample_size} closed trades in your journal.`
-              : 'No closed trades in the journal — used a synthetic fallback distribution. The simulator becomes more accurate as you log real trades.'}
+              : 'No closed trades in your journal, so this assumes no edge at all — 2R wins one time in three, which breaks even. What you see is what position sizing alone does to an account. Log real trades and this becomes a simulation of your actual results.'}
           </p>
         </>
       )}
