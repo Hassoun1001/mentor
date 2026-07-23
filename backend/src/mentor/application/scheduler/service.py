@@ -42,6 +42,7 @@ from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
 from mentor.application.market import IngestionService
 from mentor.application.market.quality import scan_quality
+from mentor.application.news.tone_ingest import ToneIngestService
 from mentor.application.scheduler.drift import assess_drift, select_independent
 from mentor.application.scheduler.health import LoopHealth
 from mentor.application.scheduler.quality_gate import assess_quality
@@ -58,6 +59,12 @@ from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.logging import get_logger
 
 log = get_logger("mentor.scheduler")
+
+# GDELT publishes daily; refreshing every 6 hours keeps the latest day
+# current without hammering a free service. The lookback re-fetches a
+# fortnight each time so revised days and any missed window self-heal.
+_TONE_REFRESH_HOURS = 6
+_TONE_REFRESH_DAYS = 14
 
 # How much history to (idempotently) pull each ingest tick, per timeframe.
 _INGEST_DAYS: dict[Timeframe, int] = {
@@ -171,6 +178,38 @@ class LoopScheduler:
 
     async def run_ingest_d1_once(self) -> int:
         return await self._ingest_lane(tf=Timeframe.D1, job="ingest_d1")
+
+    async def run_news_tone_once(self) -> int:
+        """Refresh GDELT daily news sentiment.
+
+        This feeds the model's news features. It is free and needs no API
+        key, but nothing was scheduled to run it — so production had a
+        healthy backfill that quietly went stale, and every prediction since
+        was reading week-old sentiment as if it were current. A failure here
+        must never take the loop down: stale tone is a degraded feature, not
+        an outage.
+        """
+        s = self._settings
+        try:
+            async with self._sessions() as session:
+                service = ToneIngestService(
+                    repo=NewsToneRepository(session),
+                    query=s.news_query,
+                    query_key=s.news_query_key,
+                )
+                result = await service.backfill(
+                    start=datetime.now(UTC) - timedelta(days=_TONE_REFRESH_DAYS),
+                    end=datetime.now(UTC),
+                )
+                await session.commit()
+            self._health.beat(
+                "news_tone", ok=True, note=f"{result.rows_written} day(s) refreshed"
+            )
+            return result.rows_written
+        except (DomainError, OSError) as exc:
+            log.warning("loop.news_tone_failed", error=str(exc))
+            self._health.event("news_tone_error", f"news sentiment refresh failed: {exc}")
+            return 0
 
     async def _quality_check(self, tf: Timeframe) -> tuple[bool, str]:
         """Scan the recent bar window; False means 'do not predict on this'."""
@@ -406,6 +445,14 @@ class LoopScheduler:
             log.info("loop.disabled")
             return
         s = self._settings
+        self._scheduler.add_job(
+            self.run_news_tone_once,
+            "interval",
+            hours=_TONE_REFRESH_HOURS,
+            id="news_tone",
+            max_instances=1,
+            coalesce=True,
+        )
         self._scheduler.add_job(
             self.run_ingest_once,
             "interval",

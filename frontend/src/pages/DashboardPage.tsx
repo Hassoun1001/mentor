@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 
 import { type EventFreeze, getEventFreeze, sweepAlerts } from '../api/alerts';
+import { type Integration, getIntegrations } from '../api/health';
+import { fetchLoopStatus } from '../api/loop';
 import { type SnapshotResponse, fetchForecastSnapshot } from '../api/forecast';
 import { type Analytics, type Trade, getAnalytics, listTrades } from '../api/journal';
 import { type NewsItem, listNews } from '../api/news';
@@ -20,12 +22,34 @@ const SYMBOL = 'EURUSD';
 export function DashboardPage() {
   const queryClient = useQueryClient();
 
-  const snapshot = useQuery({
-    queryKey: ['dashboard', 'snapshot', SYMBOL],
-    queryFn: () =>
-      fetchForecastSnapshot({ symbol: SYMBOL, timeframe: '1h', model_name: 'baseline', horizon_bars: 24 }),
+  // Which model is actually in charge. The Dashboard used to hardcode
+  // 'baseline', so the moment a champion was promoted this screen and the
+  // Trade page would quietly disagree about the same market.
+  const loop = useQuery({
+    queryKey: ['loop-status-dashboard'],
+    queryFn: fetchLoopStatus,
     refetchInterval: 5 * 60 * 1000,
   });
+  const champion = loop.data?.champion ?? 'baseline';
+
+  const snapshot = useQuery({
+    queryKey: ['dashboard', 'snapshot', SYMBOL, champion],
+    queryFn: () =>
+      fetchForecastSnapshot({
+        symbol: SYMBOL,
+        timeframe: '1h',
+        model_name: champion,
+        horizon_bars: 24,
+      }),
+    refetchInterval: 5 * 60 * 1000,
+  });
+  const integrations = useQuery({
+    queryKey: ['integrations'],
+    queryFn: getIntegrations,
+    staleTime: Infinity,
+  });
+  const missing = (key: string): Integration | undefined =>
+    integrations.data?.find((i) => i.key === key && !i.configured);
   const news = useQuery({
     queryKey: ['news', 'dashboard'],
     queryFn: () => listNews({ limit: 6, onlyClassified: true, minImpact: '0.4' }),
@@ -69,8 +93,12 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <NewsCard items={news.data ?? []} loading={news.isLoading} />
-        <EconomicCalendar />
+        <NewsCard
+          items={news.data ?? []}
+          loading={news.isLoading}
+          missing={missing('news_headlines')}
+        />
+        <EconomicCalendar missing={missing('economic_calendar')} />
       </div>
 
       <OpenRiskCard
@@ -325,7 +353,15 @@ function PulseCard({ analytics, loading }: { analytics: Analytics | undefined; l
 
 // ---------- news ----------
 
-function NewsCard({ items, loading }: { items: NewsItem[]; loading: boolean }) {
+function NewsCard({
+  items,
+  loading,
+  missing,
+}: {
+  items: NewsItem[];
+  loading: boolean;
+  missing?: Integration;
+}) {
   return (
     <div className="card-pad space-y-3">
       <div>
@@ -333,10 +369,15 @@ function NewsCard({ items, loading }: { items: NewsItem[]; loading: boolean }) {
         <p className="text-xs text-mentor-muted">Recent headlines the classifier flagged as market-relevant.</p>
       </div>
       {loading && <p className="text-sm text-mentor-muted">Loading…</p>}
-      {!loading && items.length === 0 && (
+      {!loading && items.length === 0 && missing && (
         <EmptyHint>
-          No classified news in the last window. Pull the latest from the Forecast page if you&apos;ve
-          set NEWSAPI_KEY.
+          Not configured — headlines need <b>{missing.env_var}</b> in the server&apos;s{' '}
+          <code>.env</code>. {missing.why}
+        </EmptyHint>
+      )}
+      {!loading && items.length === 0 && !missing && (
+        <EmptyHint>
+          No classified news in the last window. Pull the latest from the Forecast page.
         </EmptyHint>
       )}
       <ul className="space-y-2.5">

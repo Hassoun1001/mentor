@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { Integration } from '../api/health';
 import { ApiError } from '../api/client';
 import { type EconomicEvent, ingestCalendar, listEvents } from '../api/calendar';
 
@@ -10,7 +11,7 @@ import { type EconomicEvent, ingestCalendar, listEvents } from '../api/calendar'
  * hours. Past events are dimmed; the soonest upcoming event is bolded.
  * One click on Refresh pulls the latest from the configured adapter.
  */
-export function EconomicCalendar() {
+export function EconomicCalendar({ missing }: { missing?: Integration } = {}) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -36,7 +37,8 @@ export function EconomicCalendar() {
         <button
           type="button"
           onClick={() => ingest.mutate()}
-          disabled={ingest.isPending}
+          disabled={ingest.isPending || missing != null}
+          title={missing ? `Needs ${missing.env_var} on the server` : undefined}
           className="rounded-md border border-mentor-border bg-mentor-panelLight px-3 py-1 text-xs text-mentor-muted hover:text-mentor-fg disabled:opacity-50"
         >
           {ingest.isPending ? 'Fetching…' : 'Refresh'}
@@ -50,10 +52,18 @@ export function EconomicCalendar() {
       )}
 
       {query.isLoading && <p className="text-sm text-mentor-muted">Loading…</p>}
-      {!query.isLoading && (query.data ?? []).length === 0 && (
+      {!query.isLoading && (query.data ?? []).length === 0 && missing && (
         <p className="text-sm text-mentor-muted">
-          No medium-or-high impact events in the window. Press <b>Refresh</b>{' '}
-          once <code className="font-mono">FINNHUB_KEY</code> is set.
+          Not configured — the calendar needs{' '}
+          <code className="font-mono">{missing.env_var}</code> in the server&apos;s{' '}
+          <code className="font-mono">.env</code>. {missing.why} Refresh cannot work
+          until it is set.
+        </p>
+      )}
+      {!query.isLoading && (query.data ?? []).length === 0 && !missing && (
+        <p className="text-sm text-mentor-muted">
+          No medium-or-high impact events in this window. Press <b>Refresh</b> to pull
+          the latest.
         </p>
       )}
 
