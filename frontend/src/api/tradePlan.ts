@@ -40,6 +40,18 @@ const management = z.object({
 });
 export type TradeManagement = z.infer<typeof management>;
 
+const realism = z.object({
+  stop_sigma: decimalStr,
+  target_sigma: decimalStr,
+  reward_risk: decimalStr,
+  breakeven_win_rate: decimalStr,
+  random_walk_hit_rate: decimalStr,
+  model_win_rate: decimalStr.nullable(),
+  has_edge: z.boolean().nullable(),
+  note: z.string(),
+});
+export type TargetRealism = z.infer<typeof realism>;
+
 const tradePlan = z.object({
   stance: z.enum(['long', 'short', 'stand_aside']),
   headline: z.string(),
@@ -61,6 +73,9 @@ const tradePlan = z.object({
   levels: levels.nullable(),
   size: size.nullable(),
   management: management.nullable(),
+  realism: realism.nullable(),
+  data_age_minutes: z.number(),
+  data_stale: z.boolean(),
   warnings: z.array(z.string()),
   checklist: z.array(z.string()),
   disclaimer: z.string(),

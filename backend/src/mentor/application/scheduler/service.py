@@ -66,6 +66,23 @@ log = get_logger("mentor.scheduler")
 _TONE_REFRESH_HOURS = 6
 _TONE_REFRESH_DAYS = 14
 
+# APScheduler interval jobs first fire one whole interval AFTER registration,
+# so a restart silently reset every clock: no ingest or predict for an hour,
+# no daily lane for 24 hours, no news sentiment for 6. Deploy a few times in
+# a day and the loop does almost nothing while looking perfectly healthy —
+# which is exactly what happened, and why the trade plan was serving a price
+# over two hours old.
+#
+# Data-refresh jobs therefore get a kick shortly after boot. The delay lets
+# the app finish starting before work begins. Retraining is deliberately NOT
+# in this set: it costs about an hour of CPU, and running it on every deploy
+# would be far worse than waiting for its weekly slot.
+_STARTUP_DELAY_SECONDS = 45
+
+
+def _soon(seconds: int = _STARTUP_DELAY_SECONDS) -> datetime:
+    return datetime.now(UTC) + timedelta(seconds=seconds)
+
 # How much history to (idempotently) pull each ingest tick, per timeframe.
 _INGEST_DAYS: dict[Timeframe, int] = {
     Timeframe.M1: 3,
@@ -450,6 +467,7 @@ class LoopScheduler:
             "interval",
             hours=_TONE_REFRESH_HOURS,
             id="news_tone",
+            next_run_time=_soon(),
             max_instances=1,
             coalesce=True,
         )
@@ -458,6 +476,7 @@ class LoopScheduler:
             "interval",
             minutes=s.loop_ingest_interval_minutes,
             id="ingest",
+            next_run_time=_soon(),
             replace_existing=True,
         )
         self._scheduler.add_job(
@@ -465,6 +484,7 @@ class LoopScheduler:
             "interval",
             minutes=s.loop_predict_interval_minutes,
             id="predict",
+            next_run_time=_soon(),
             replace_existing=True,
         )
         self._scheduler.add_job(
@@ -472,6 +492,7 @@ class LoopScheduler:
             "interval",
             minutes=s.loop_resolve_interval_minutes,
             id="resolve",
+            next_run_time=_soon(),
             replace_existing=True,
         )
         self._scheduler.add_job(
@@ -488,6 +509,7 @@ class LoopScheduler:
                 "interval",
                 hours=s.loop_d1_ingest_interval_hours,
                 id="ingest_d1",
+                next_run_time=_soon(),
                 replace_existing=True,
             )
             self._scheduler.add_job(
@@ -495,6 +517,7 @@ class LoopScheduler:
                 "interval",
                 hours=s.loop_d1_predict_interval_hours,
                 id="predict_d1",
+                next_run_time=_soon(),
                 replace_existing=True,
             )
             self._scheduler.add_job(

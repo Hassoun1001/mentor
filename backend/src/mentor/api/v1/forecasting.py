@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import PurePath
 from typing import Annotated, Literal
@@ -23,13 +23,14 @@ from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.replay import ReplayService
 from mentor.application.forecasting.self_backtest import simulate_own_signals
 from mentor.application.forecasting.vol_replay import VolReplayService
-from mentor.application.forecasting.vol_service import VolService
+from mentor.application.forecasting.vol_service import VolPayload, VolService
 from mentor.domain.errors import DomainError, ValidationError
-from mentor.domain.forecasting.forecast import Direction
+from mentor.domain.forecasting.forecast import Direction, Forecast
 from mentor.domain.forecasting.vol_audit import RateCheck
 from mentor.domain.forecasting.volatility import (
     VolForecast,
     VolRegime,
+    VolSizingGuidance,
     build_sizing_guidance,
 )
 from mentor.domain.instruments import get_instrument
@@ -37,6 +38,7 @@ from mentor.domain.market.bars import Timeframe
 from mentor.domain.money import Money, Percent
 from mentor.domain.risk import Direction as RiskDirection
 from mentor.domain.risk import RiskInputs, calculate_position
+from mentor.domain.risk.target_realism import assess_target
 from mentor.domain.risk.trade_management import build_trade_management
 from mentor.domain.stats.significance import assess_proportion
 from mentor.infrastructure.forecasting.model_store import ModelStore
@@ -1007,6 +1009,17 @@ class TradeManagementDTO(BaseModel):
     rules: list[str]
 
 
+class TargetRealismDTO(BaseModel):
+    stop_sigma: Decimal
+    target_sigma: Decimal
+    reward_risk: Decimal
+    breakeven_win_rate: Decimal
+    random_walk_hit_rate: Decimal
+    model_win_rate: Decimal | None
+    has_edge: bool | None
+    note: str
+
+
 class TradePlanResponse(BaseModel):
     stance: Literal["long", "short", "stand_aside"]
     headline: str
@@ -1031,12 +1044,41 @@ class TradePlanResponse(BaseModel):
     levels: TradePlanLevelsDTO | None  # None when standing aside
     size: TradePlanSizeDTO | None  # None when standing aside
     management: TradeManagementDTO | None = None  # post-entry rules
+    realism: TargetRealismDTO | None = None  # can this target actually be hit?
+    # How old the price this plan is built on actually is. The ticket tells
+    # the user to copy these levels into a broker, so staleness is not a
+    # cosmetic detail — it is the difference between a live price and a
+    # number from two hours ago.
+    data_age_minutes: int = 0
+    data_stale: bool = False
     warnings: list[str]
     checklist: list[str]
     disclaimer: str
 
 
 _PLAN_MIN_CONFIDENCE = Decimal("0.10")
+
+
+def _measured_win_rate(model_store_dir: str, model_name: str) -> Decimal | None:
+    """The model's own out-of-sample accuracy, or None if it has none.
+
+    The baseline rule ships no measured accuracy, and saying "unknown" is
+    more honest than substituting a coin flip that looks like a measurement.
+    """
+    if model_name.startswith("baseline"):
+        return None
+    try:
+        for meta in ModelStore(model_store_dir).list():
+            if meta.name == model_name:
+                acc = (
+                    meta.report.test_accuracy_covered
+                    if meta.report.abstains
+                    else meta.report.test_accuracy
+                )
+                return Decimal(str(acc)) if acc > 0 else None
+    except (OSError, ValueError, KeyError):
+        return None
+    return None
 
 
 def _champion_margin(model_store_dir: str, model_name: str) -> Decimal | None:
@@ -1065,6 +1107,62 @@ _PLAN_DISCLAIMER = (
     "This is a decision aid generated from a probabilistic model, not financial advice. "
     "The edge on any single call is small; the discipline around it is where accounts survive."
 )
+
+
+def _stand_aside(
+    *,
+    fc: Forecast,
+    vol: VolPayload,
+    guidance: VolSizingGuidance,
+    timeframe: Timeframe,
+    learned_margin: Decimal | None,
+    warnings: list[str],
+    age_minutes: int,
+    data_stale: bool,
+) -> TradePlanResponse:
+    """The honest no-trade ticket.
+
+    ``learned_margin`` is set only when the model declined because the call
+    fell inside the band where it measured no edge — a different and more
+    informative reason than simply being near a coin flip.
+    """
+    if learned_margin is not None:
+        headline = (
+            f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), inside the "
+            f"±{float(learned_margin) * 100:.0f}pp band where it learned it has no edge. "
+            f"It is declining to call this one, which is the honest answer."
+        )
+    else:
+        headline = (
+            f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), which is "
+            f"too close to a coin flip to risk money on. Not trading is a position."
+        )
+    return TradePlanResponse(
+        stance="stand_aside",
+        headline=headline,
+        symbol=fc.symbol,
+        timeframe=timeframe.value,
+        horizon_bars=fc.horizon_bars,
+        asof=fc.asof,
+        model_name=fc.model_name,
+        p_up=fc.p_up,
+        confidence=fc.confidence,
+        reasoning=fc.reasoning,
+        vol_regime=vol.forecast.regime.value,
+        expected_move_pips=vol.forecast.expected_range_pips,
+        range_low_pips=vol.forecast.range_low_pips,
+        range_high_pips=vol.forecast.range_high_pips,
+        range_coverage=vol.forecast.coverage,
+        vol_percentile=vol.forecast.percentile_vs_history,
+        event_freeze=guidance.event_freeze,
+        levels=None,
+        size=None,
+        warnings=warnings,
+        data_age_minutes=age_minutes,
+        data_stale=data_stale,
+        checklist=_PLAN_CHECKLIST,
+        disclaimer=_PLAN_DISCLAIMER,
+    )
 
 
 @router.get("/trade-plan", response_model=TradePlanResponse)
@@ -1125,52 +1223,37 @@ async def trade_plan(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     guidance = build_sizing_guidance(vol.forecast)
 
+    age_minutes = int((datetime.now(UTC) - fc.asof).total_seconds() // 60)
+    # One bar late is normal (the current bar has not closed). Beyond two,
+    # the feed has actually stopped and the levels below are not tradeable.
+    stale_after = settings.loop_ingest_interval_minutes * 2
+    data_stale = age_minutes > stale_after
+
     warnings: list[str] = []
+    if data_stale:
+        warnings.append(
+            f"These prices are {age_minutes} minutes old — the data feed has not "
+            f"updated since. Do not place these levels; refresh once the loop has "
+            f"ingested fresh bars."
+        )
     if guidance.event_freeze:
         warnings.append(
             "Volatility is in an event-like regime — the honest play is to sit out "
             "or halve size until it normalizes."
         )
 
-    stance: Literal["long", "short", "stand_aside"]
     distance = abs(fc.p_up - Decimal("0.5"))
     below_learned = learned_margin is not None and distance < learned_margin
     if fc.direction.value == "neutral" or fc.confidence < _PLAN_MIN_CONFIDENCE or below_learned:
-        stance = "stand_aside"
-        if below_learned and learned_margin is not None:
-            headline = (
-                f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), inside the "
-                f"±{float(learned_margin) * 100:.0f}pp band where it learned it has no edge. "
-                f"It is declining to call this one, which is the honest answer."
-            )
-        else:
-            headline = (
-                f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), which is "
-                f"too close to a coin flip to risk money on. Not trading is a position."
-            )
-        return TradePlanResponse(
-            stance=stance,
-            headline=headline,
-            symbol=fc.symbol,
-            timeframe=timeframe.value,
-            horizon_bars=fc.horizon_bars,
-            asof=fc.asof,
-            model_name=fc.model_name,
-            p_up=fc.p_up,
-            confidence=fc.confidence,
-            reasoning=fc.reasoning,
-            vol_regime=vol.forecast.regime.value,
-            expected_move_pips=vol.forecast.expected_range_pips,
-            range_low_pips=vol.forecast.range_low_pips,
-            range_high_pips=vol.forecast.range_high_pips,
-            range_coverage=vol.forecast.coverage,
-            vol_percentile=vol.forecast.percentile_vs_history,
-            event_freeze=guidance.event_freeze,
-            levels=None,
-            size=None,
+        return _stand_aside(
+            fc=fc,
+            vol=vol,
+            guidance=guidance,
+            timeframe=timeframe,
+            learned_margin=learned_margin if below_learned else None,
             warnings=warnings,
-            checklist=_PLAN_CHECKLIST,
-            disclaimer=_PLAN_DISCLAIMER,
+            age_minutes=age_minutes,
+            data_stale=data_stale,
         )
 
     instrument = get_instrument(symbol)
@@ -1193,6 +1276,16 @@ async def trade_plan(
         quote_to_account_rate=Decimal("1"),
     )
     sizing = calculate_position(inputs)
+    # Does this target survive contact with the volatility forecast? A 2:1
+    # reward on a 1.5-sigma stop puts the target three sigma out, inside a
+    # horizon the time stop closes — worth saying before money is committed.
+    realism = assess_target(
+        stop_pips=stop_pips,
+        target_pips=target_pips,
+        expected_move_pips=vol.forecast.expected_range_pips,
+        model_win_rate=_measured_win_rate(settings.model_store_dir, model_name),
+    )
+
     # Pre-commit the post-entry rules while the decision is still calm.
     management = build_trade_management(
         direction=RiskDirection(fc.direction.value),
@@ -1260,6 +1353,18 @@ async def trade_plan(
             time_stop_bars=management.time_stop_bars,
             rules=list(management.rules),
         ),
+        realism=TargetRealismDTO(
+            stop_sigma=realism.stop_sigma,
+            target_sigma=realism.target_sigma,
+            reward_risk=realism.reward_risk,
+            breakeven_win_rate=realism.breakeven_win_rate,
+            random_walk_hit_rate=realism.random_walk_hit_rate,
+            model_win_rate=realism.model_win_rate,
+            has_edge=realism.has_edge,
+            note=realism.note,
+        ),
+        data_age_minutes=age_minutes,
+        data_stale=data_stale,
         warnings=warnings,
         checklist=_PLAN_CHECKLIST,
         disclaimer=_PLAN_DISCLAIMER,

@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { type TradeManagement, type TradePlan, fetchTradePlan } from '../api/tradePlan';
+import {
+  type TargetRealism,
+  type TradeManagement,
+  type TradePlan,
+  fetchTradePlan,
+} from '../api/tradePlan';
 import { Metric } from '../components/Metric';
 
 export function TradePage() {
@@ -160,6 +165,19 @@ function PlanView({ plan }: { plan: TradePlan }) {
         </div>
       </div>
 
+      {plan.data_stale && (
+        <div className="rounded-lg border-2 border-mentor-danger/50 bg-mentor-danger/10 p-4">
+          <p className="text-sm font-medium text-mentor-danger">
+            These prices are {plan.data_age_minutes} minutes old.
+          </p>
+          <p className="mt-1 text-sm text-mentor-fg">
+            The data feed has not updated since, so the levels below are not tradeable —
+            the market has moved and these numbers have not. Wait for the loop to ingest
+            fresh bars before placing anything.
+          </p>
+        </div>
+      )}
+
       <ExpectedRange plan={plan} />
 
       {plan.warnings.length > 0 && (
@@ -226,6 +244,8 @@ function PlanView({ plan }: { plan: TradePlan }) {
         </div>
       )}
 
+      {plan.realism && <RealismPanel r={plan.realism} />}
+
       {plan.management && <ManagementPanel m={plan.management} />}
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -239,6 +259,54 @@ function PlanView({ plan }: { plan: TradePlan }) {
       </div>
 
       <p className="text-xs text-mentor-muted">{plan.disclaimer}</p>
+    </div>
+  );
+}
+
+function RealismPanel({ r }: { r: TargetRealism }) {
+  const breakeven = Number(r.breakeven_win_rate) * 100;
+  const model = r.model_win_rate == null ? null : Number(r.model_win_rate) * 100;
+  const tone =
+    r.has_edge === true ? 'accent' : r.has_edge === false ? 'danger' : 'warn';
+
+  return (
+    <div className="panel-pad space-y-4">
+      <div>
+        <h2 className="text-sm font-medium uppercase tracking-wider text-mentor-muted">
+          Can this target actually be hit?
+        </h2>
+        <p className="mt-1 text-xs text-mentor-muted">
+          A reward multiple is arithmetic, not an edge — widening the target lowers the
+          hit rate by exactly the proportion it raises the payoff.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Metric
+          label="Target distance"
+          value={<Mono>{Number(r.target_sigma).toFixed(1)}σ</Mono>}
+          sub="of the expected move"
+          tone={Number(r.target_sigma) >= 2 ? 'danger' : undefined}
+        />
+        <Metric
+          label="Stop distance"
+          value={<Mono>{Number(r.stop_sigma).toFixed(1)}σ</Mono>}
+          sub="beyond routine noise"
+        />
+        <Metric
+          label="Win rate to break even"
+          value={<Mono>{breakeven.toFixed(0)}%</Mono>}
+          sub={`at ${Number(r.reward_risk).toFixed(1)}:1`}
+        />
+        <Metric
+          label="Model's measured accuracy"
+          value={<Mono>{model == null ? '—' : `${model.toFixed(0)}%`}</Mono>}
+          sub={model == null ? 'not measured' : 'out of sample'}
+          tone={tone === 'accent' ? 'positive' : tone === 'danger' ? 'danger' : undefined}
+        />
+      </div>
+
+      <p className="text-sm leading-relaxed text-mentor-fg">{r.note}</p>
     </div>
   );
 }
