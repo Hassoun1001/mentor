@@ -44,6 +44,13 @@ MIN_COVERAGE = 0.15
 # abstain" competes on equal terms and wins when abstention doesn't help.
 _MARGIN_GRID: tuple[float, ...] = tuple(round(0.01 * i, 4) for i in range(0, 26))
 
+# Abstention must buy at least this much Brier on the selection slice.
+# Without it the search happily pays a 75% cut in coverage for a 0.0001
+# improvement that is pure noise — and noise does not survive to the test
+# window. Same order of magnitude as the promotion margin, for the same
+# reason: a difference smaller than this is not a difference.
+_MIN_GAIN = 0.002
+
 
 @dataclass(frozen=True, slots=True)
 class SelectivePolicy:
@@ -138,23 +145,36 @@ def select_margin(
 ) -> SelectivePolicy:
     """Choose the abstention margin on this slice.
 
-    Minimises Brier over the hours the policy would act on, subject to the
-    coverage floor. Ties break toward the *smaller* margin: if abstaining
-    more buys no measurable accuracy, the model should keep speaking —
+    Minimises Brier over the hours the policy would act on, subject to two
+    constraints: the coverage floor, and a **minimum improvement** over
+    simply speaking every hour. Ties break toward the smaller margin —
     coverage is worth something, and a rule that trades more often on the
     same edge is the better rule.
 
-    Returns the never-abstain policy when nothing clears the floor.
+    The minimum-gain rule is what stops this from being a noise machine.
+    Measured on live EUR/USD data, an unconstrained search picked a margin
+    that discarded three-quarters of all hours to buy a Brier improvement
+    of ~0.0001 on the selection slice — an improvement that promptly
+    reversed on the test window. A policy has to earn its silence.
+
+    Returns the never-abstain policy when nothing clears both bars.
     """
     _validate(probs, outcomes)
     if not 0 < min_coverage <= 1:
         raise ValidationError("min_coverage must be in (0, 1]", field="min_coverage")
 
+    speak_always = grade_policy(0.0, probs, outcomes)
+    required = speak_always.brier_all - _MIN_GAIN
+
     best: SelectivePolicy | None = None
     for margin in _MARGIN_GRID:
+        if margin == 0.0:
+            continue  # the incumbent, handled below
         policy = grade_policy(margin, probs, outcomes)
         if policy.coverage < min_coverage:
             continue  # too few hours left for the score to mean anything
+        if policy.brier_covered > required:
+            continue  # not a big enough win to justify going quiet
         if best is None or policy.brier_covered < best.brier_covered - 1e-9:
             best = policy
-    return best if best is not None else grade_policy(0.0, probs, outcomes)
+    return best if best is not None else speak_always

@@ -124,6 +124,15 @@ def _dict_to_meta(payload: dict[str, Any]) -> StoredModelMeta:
         ece=float(report_payload.get("ece", 0.0)),
         ece_uncalibrated=float(report_payload.get("ece_uncalibrated", 0.0)),
         calibration_applied=bool(report_payload.get("calibration_applied", False)),
+        # Abstention policy. `.get` with defaults so sidecars written before
+        # selective prediction existed still load as never-abstaining models —
+        # but they MUST be read, or every model reads back with a zeroed
+        # policy and the gate silently compares all-hours Brier instead.
+        abstain_margin=float(report_payload.get("abstain_margin", 0.0)),
+        coverage=float(report_payload.get("coverage", 1.0)),
+        n_covered=int(report_payload.get("n_covered", 0)),
+        test_brier_covered=float(report_payload.get("test_brier_covered", 0.0)),
+        test_accuracy_covered=float(report_payload.get("test_accuracy_covered", 0.0)),
     )
     return StoredModelMeta(
         name=payload["name"],

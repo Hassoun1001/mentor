@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import math
 import random
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 from mentor.domain.market.bars import PriceBar, Timeframe
+from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import (
     TrainingReport,
     evaluate_policy_on_tail,
@@ -126,3 +129,61 @@ def test_regrading_honours_the_models_own_margin() -> None:
 def test_regrade_returns_none_on_a_tail_too_small_to_judge() -> None:
     model = train_sklearn_forecaster(bars=_bars(), horizon_bars=_HORIZON)
     assert evaluate_policy_on_tail(model, bars=_bars(120), horizon_bars=_HORIZON) is None
+
+
+# ---------- persistence ----------
+
+
+def test_the_policy_survives_a_save_load_round_trip(tmp_path: Path) -> None:
+    """Regression: the sidecar loader rebuilt TrainingReport field by field
+    and never read the abstention fields back. They were written to JSON and
+    silently dropped on load, so every model came back with a zeroed policy
+    and the promotion gate compared all-hours Brier without saying so. The
+    feature was inert in production and nothing failed."""
+    store = ModelStore(str(tmp_path))
+    model = train_sklearn_forecaster(bars=_bars(), horizon_bars=_HORIZON)
+    # Force a policy so the assertion bites regardless of what this fixture
+    # happens to learn — the bug is in persistence, not in selection.
+    object.__setattr__(model.report, "abstain_margin", 0.07)
+    object.__setattr__(model.report, "coverage", 0.42)
+    object.__setattr__(model.report, "n_covered", 55)
+    object.__setattr__(model.report, "test_brier_covered", 0.2301)
+    object.__setattr__(model.report, "test_accuracy_covered", 0.571)
+
+    store.save(model, name="round_trip", symbol="EURUSD", timeframe=Timeframe.H1.value)
+    assert (tmp_path / "round_trip.json").exists()
+
+    _, meta = store.load("round_trip")
+    r = meta.report
+    assert r.abstain_margin == 0.07
+    assert r.coverage == 0.42
+    assert r.n_covered == 55
+    assert r.test_brier_covered == 0.2301
+    assert r.test_accuracy_covered == 0.571
+    assert r.abstains
+    assert r.effective_brier == 0.2301  # the gate sees the covered score
+
+
+def test_a_sidecar_without_abstention_fields_still_loads(tmp_path: Path) -> None:
+    """Models stored before selective prediction must keep working — as
+    never-abstaining models graded on every hour, not as perfect ones."""
+    store = ModelStore(str(tmp_path))
+    model = train_sklearn_forecaster(bars=_bars(), horizon_bars=_HORIZON)
+    store.save(model, name="legacy", symbol="EURUSD", timeframe=Timeframe.H1.value)
+
+    path = tmp_path / "legacy.json"
+    payload = json.loads(path.read_text())
+    for key in (
+        "abstain_margin",
+        "coverage",
+        "n_covered",
+        "test_brier_covered",
+        "test_accuracy_covered",
+    ):
+        payload["report"].pop(key, None)
+    payload["report"]["test_brier"] = 0.31
+    path.write_text(json.dumps(payload))
+
+    _, meta = store.load("legacy")
+    assert not meta.report.abstains
+    assert meta.report.effective_brier == 0.31  # not 0.0

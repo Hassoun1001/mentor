@@ -121,3 +121,27 @@ def test_negative_margin_is_rejected() -> None:
 def test_absurd_min_coverage_is_rejected() -> None:
     with pytest.raises(ValidationError):
         select_margin([0.5], [1], min_coverage=0)
+
+
+# ---------- the minimum-gain rule ----------
+
+
+def test_a_trivial_gain_does_not_buy_silence() -> None:
+    """Regression: measured on live EUR/USD, the unconstrained search threw
+    away 74% of hours for a ~0.0001 Brier improvement that reversed on the
+    test window. Noise must not be able to purchase abstention."""
+    # The 0.62 calls are wrong often enough that skipping the 0.52 calls
+    # buys nothing at all — the two groups score within 0.002 of each other.
+    probs = [0.62] * 30 + [0.52] * 70
+    outcomes = [1] * 19 + [0] * 11 + [1] * 70
+    tiny = grade_policy(0.10, probs, outcomes)
+    assert tiny.coverage == pytest.approx(0.3)  # it would have abstained a lot
+    assert abs(tiny.brier_gain) < 0.002  # for no measurable gain
+    assert select_margin(probs, outcomes).margin == 0.0  # so it is refused
+
+
+def test_a_real_gain_still_earns_silence() -> None:
+    probs, outcomes = _confident_edge()
+    policy = select_margin(probs, outcomes)
+    assert policy.abstains
+    assert policy.brier_gain >= 0.002
