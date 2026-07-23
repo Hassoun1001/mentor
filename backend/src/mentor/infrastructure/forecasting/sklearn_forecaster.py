@@ -485,6 +485,7 @@ def train_sklearn_forecaster(
     horizon_bars: int,
     test_fraction: float = 0.2,
     classifier_params: dict[str, Any] | None = None,
+    compute_importances: bool = True,
     seed: int = 42,
     news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
@@ -567,22 +568,27 @@ def train_sklearn_forecaster(
     # all-zeros — broken "top drivers" everywhere. Permutation importance is
     # honest and model-agnostic: shuffle one column, measure how much the
     # Brier degrades. Negative noise clips to zero.
+    # Walk-forward selection only reads the Brier, never the importances —
+    # and permutation importance costs n_features x n_repeats extra scoring
+    # passes per fit. Skipping it there removes most of a retrain's wasted
+    # work without changing a single decision.
     importances: dict[str, float] = {name: 0.0 for name in feature_names}
-    try:
-        perm = permutation_importance(
-            clf,
-            calib_x,
-            calib_y,
-            scoring="neg_brier_score",
-            n_repeats=5,
-            random_state=seed,
-        )
-        importances = {
-            name: max(0.0, float(value))
-            for name, value in zip(feature_names, perm.importances_mean, strict=True)
-        }
-    except ValueError:  # degenerate slice (single class etc.) — keep zeros
-        pass
+    if compute_importances:
+        try:
+            perm = permutation_importance(
+                clf,
+                calib_x,
+                calib_y,
+                scoring="neg_brier_score",
+                n_repeats=5,
+                random_state=seed,
+            )
+            importances = {
+                name: max(0.0, float(value))
+                for name, value in zip(feature_names, perm.importances_mean, strict=True)
+            }
+        except ValueError:  # degenerate slice (single class etc.) — keep zeros
+            pass
 
     # Selective prediction. The margin is *chosen* on the calibration slice
     # and *graded* on test, which it never saw — so the covered score below

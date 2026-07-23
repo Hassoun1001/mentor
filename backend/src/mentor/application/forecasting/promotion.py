@@ -412,7 +412,10 @@ class PromotionService:
                     continue
                 try:
                     model = train_sklearn_forecaster(
-                        bars=prefix, horizon_bars=horizon_bars, **kwargs
+                        bars=prefix,
+                        horizon_bars=horizon_bars,
+                        compute_importances=False,
+                        **kwargs,
                     )
                 except ValidationError as exc:
                     log.warning("promotion.fold_skipped", config=name, error=str(exc))

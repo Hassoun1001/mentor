@@ -24,9 +24,20 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the backend (includes src, models, alembic via the copied tree).
+# Dependencies change rarely; source changes on every commit. Install them
+# in that order, or the COPY invalidates the pip layer and every deploy
+# reinstalls numpy/scipy/scikit-learn/pandas from scratch — minutes of pure
+# waste on a 2-vCPU box. The stub package exists only so hatchling can build
+# something to resolve dependencies against.
+COPY backend/pyproject.toml ./backend/
+RUN mkdir -p backend/src/mentor \
+    && touch backend/src/mentor/__init__.py \
+    && pip install ./backend \
+    && rm -rf backend/src
+
+# Now the real source. --no-deps because the layer above already has them.
 COPY backend/ ./backend/
-RUN pip install ./backend
+RUN pip install --no-deps --force-reinstall ./backend
 
 # Stash the baked baseline models so the entrypoint can seed a fresh
 # persistent model-store volume on first boot (the volume mount hides the
