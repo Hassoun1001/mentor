@@ -140,27 +140,34 @@ function LoopControls({
             off by default (enable with <code className="font-mono">MENTOR_LOOP_ENABLED=true</code>)
           </>
         )}
-        . Use the buttons to drive it by hand: <b>Replay</b> backfills hundreds of
-        point-in-time predictions from history so you have real hits/misses now;{' '}
-        <b>Run one cycle</b> fires a single live predict+resolve; <b>Retrain</b> trains
-        a challenger and promotes it only if it beats the champion.
+        . <b>Run one cycle</b> fires a single live predict+resolve; <b>Retrain</b>{' '}
+        trains a challenger and promotes it only if it beats the champion.
+      </p>
+      <p className="text-xs text-mentor-muted">
+        <b>Replay history</b> backfills predictions from past bars. Only the baseline
+        rule can be replayed — it has no fitted parameters, so it cannot have seen
+        the outcomes. Replaying a trained model would be in-sample and the hit rate
+        would be fiction. Replayed rows are tagged{' '}
+        <span className="pill">replay</span> and are excluded from the paper P&amp;L
+        and the track record, because a backfill is not a forward prediction.
       </p>
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
           disabled={busy}
-          onClick={onReplay}
+          onClick={onRunOnce}
           className="btn-primary"
         >
-          Replay history
+          Run one cycle
         </button>
         <button
           type="button"
           disabled={busy}
-          onClick={onRunOnce}
-          className="rounded-lg border border-mentor-border bg-mentor-panelLight px-4 py-2 text-sm text-mentor-fg hover:border-mentor-accent disabled:opacity-50"
+          onClick={onReplay}
+          title="Backfills baseline-rule predictions from history. Tagged 'replay' and kept out of the track record."
+          className="rounded-lg border border-mentor-border bg-mentor-panelLight px-4 py-2 text-sm text-mentor-muted hover:border-mentor-accent hover:text-mentor-fg disabled:opacity-50"
         >
-          Run one cycle
+          Replay history
         </button>
         <button
           type="button"
@@ -312,7 +319,17 @@ function RowWithReason({
     <>
       <tr className="border-b border-mentor-border">
         <td className="py-2 font-mono text-mentor-muted">{new Date(row.asof).toLocaleString()}</td>
-        <td className="py-2 font-mono text-mentor-muted">{shortModel(row.model_name)}</td>
+        <td className="py-2 font-mono text-mentor-muted">
+          {shortModel(row.model_name)}
+          {row.origin === 'replay' && (
+            <span
+              className="ml-2 rounded-full border border-mentor-warn/40 bg-mentor-warn/10 px-1.5 py-0.5 font-sans text-[10px] text-mentor-warn"
+              title="Backfilled from history — not a forward prediction, and excluded from the track record."
+            >
+              replay
+            </span>
+          )}
+        </td>
         <td className="py-2 capitalize">{row.direction}</td>
         <td className="py-2 text-right font-mono">{Math.round(Number(row.p_up) * 100)}%</td>
         <td className="py-2 text-right font-mono text-mentor-muted">

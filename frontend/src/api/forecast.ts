@@ -159,6 +159,7 @@ const auditPrediction = z.object({
   realised_close: decimalStr.nullable(),
   realised_outcome: z.number().nullable(),
   correct: z.boolean().nullable(),
+  origin: z.string(),
   features: featureMap,
 });
 export type AuditPrediction = z.infer<typeof auditPrediction>;

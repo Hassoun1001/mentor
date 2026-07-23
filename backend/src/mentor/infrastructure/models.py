@@ -319,6 +319,12 @@ class PredictionORM(Base, _TimestampMixin):
     # JSON snapshot of the features used — for audit, not derivation
     features_json: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # 'live' = predicted forward, in real time, before the outcome existed.
+    # 'replay' = backfilled over history. Both are point-in-time in their
+    # feature construction, but only 'live' is a track record — mixing them
+    # silently inflates every scoreboard in the app.
+    origin: Mapped[str] = mapped_column(String(16), nullable=False, default="live")
+
     realised_close: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
     realised_outcome: Mapped[int | None] = mapped_column(nullable=True)  # 1 = up, 0 = not up
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -326,6 +332,7 @@ class PredictionORM(Base, _TimestampMixin):
     __table_args__ = (
         CheckConstraint("direction IN ('long','short','neutral')", name="ck_predictions_direction"),
         CheckConstraint("p_up >= 0 AND p_up <= 1", name="ck_predictions_p_up"),
+        CheckConstraint("origin IN ('live','replay')", name="ck_predictions_origin"),
         Index("ix_predictions_symbol_asof", "symbol", asof.desc()),
         Index("ix_predictions_unresolved", "horizon_at", "resolved_at"),
     )

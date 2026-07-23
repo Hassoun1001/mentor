@@ -238,6 +238,7 @@ class AuditPredictionDTO(BaseModel):
     realised_close: Decimal | None
     realised_outcome: int | None
     correct: bool | None  # hit/miss for directional calls; null for neutral or pending
+    origin: str  # 'live' = forward prediction | 'replay' = backfilled history
     features: dict[str, Decimal]
 
 
@@ -270,6 +271,7 @@ async def audit_log(session: SessionDep, limit: int = 100) -> list[AuditPredicti
             realised_close=Decimal(row.realised_close) if row.realised_close is not None else None,
             realised_outcome=row.realised_outcome,
             correct=_directional_hit(row.direction, row.realised_outcome),
+            origin=row.origin,
             features={k: Decimal(v) for k, v in json.loads(row.features_json).items()},
         )
         for row in rows
@@ -506,6 +508,24 @@ async def replay(body: ReplayRequest, session: SessionDep, settings: SettingsDep
     """Backfill the audit log with point-in-time historical predictions that
     resolve immediately against bars that have already printed — so the
     System Predictions view and the post-mortem have real hits/misses now."""
+    # A replay is only out-of-sample when the forecaster has no fitted
+    # parameters. The baseline is a fixed rule, so replaying it is honest.
+    # A trained model has already seen the outcomes it would be "predicting"
+    # here, and the resulting hit rate is fiction that then contaminates the
+    # calibration chart, the post-mortem and the paper P&L.
+    if body.model_name != "baseline":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"'{body.model_name}' is a trained model, and replaying it over its "
+                f"own training period is in-sample: it already knows these outcomes, "
+                f"so the hit rate would be fiction. Only the baseline rule — which "
+                f"has no fitted parameters and therefore cannot leak — may be "
+                f"replayed. To measure a trained model, let the live loop score it "
+                f"forward."
+            ),
+        )
+
     service = ReplayService(
         prices=PriceBarRepository(session),
         predictions=PredictionRepository(session),

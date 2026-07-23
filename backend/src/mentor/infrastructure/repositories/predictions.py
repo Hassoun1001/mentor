@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mentor.domain.forecasting.forecast import Forecast
@@ -19,7 +19,7 @@ class PredictionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def record(self, forecast: Forecast) -> uuid.UUID:
+    async def record(self, forecast: Forecast, *, origin: str = "live") -> uuid.UUID:
         horizon_at = forecast.asof + timedelta(
             seconds=forecast.horizon_bars * forecast.timeframe.seconds
         )
@@ -38,6 +38,7 @@ class PredictionRepository:
                 confidence=forecast.confidence,
                 direction=forecast.direction.value,
                 reasoning=forecast.reasoning,
+            origin=origin,
                 features_json=json.dumps({k: str(v) for k, v in forecast.features.items()}),
             )
         )
@@ -45,7 +46,12 @@ class PredictionRepository:
         return prediction_id
 
     async def record_and_resolve(
-        self, forecast: Forecast, *, realised_close: Decimal, resolved_at: datetime
+        self,
+        forecast: Forecast,
+        *,
+        realised_close: Decimal,
+        resolved_at: datetime,
+        origin: str = "replay",
     ) -> uuid.UUID:
         """Log a prediction whose outcome is already known (replay path).
 
@@ -54,22 +60,46 @@ class PredictionRepository:
         printed. No lookahead — the caller supplies a forecast built only
         from data up to `forecast.asof` and the close `horizon_bars` later.
         """
-        prediction_id = await self.record(forecast)
+        prediction_id = await self.record(forecast, origin=origin)
         await self.resolve(prediction_id, realised_close=realised_close, resolved_at=resolved_at)
         return prediction_id
 
-    async def list_recent(self, limit: int = 50) -> Sequence[PredictionORM]:
-        stmt = select(PredictionORM).order_by(PredictionORM.asof.desc()).limit(limit)
+    async def list_recent(
+        self, limit: int = 50, *, include_replay: bool = True
+    ) -> Sequence[PredictionORM]:
+        """Recent predictions for the audit log.
+
+        Defaults to including replays here — the audit log is the one place
+        the user should see everything that was written, so long as each row
+        says which it is.
+        """
+        stmt = select(PredictionORM)
+        if not include_replay:
+            stmt = stmt.where(PredictionORM.origin == "live")
+        stmt = stmt.order_by(PredictionORM.asof.desc()).limit(limit)
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
-    async def list_resolved(self, limit: int = 1000) -> Sequence[PredictionORM]:
-        stmt = (
-            select(PredictionORM)
-            .where(PredictionORM.resolved_at.is_not(None))
-            .order_by(PredictionORM.asof.desc())
-            .limit(limit)
-        )
+    async def count_by_origin(self) -> dict[str, int]:
+        """How many predictions of each origin exist — surfaced so a polluted
+        track record is visible rather than inferred."""
+        stmt = select(PredictionORM.origin, func.count()).group_by(PredictionORM.origin)
+        result = await self._session.execute(stmt)
+        return {str(origin): int(n) for origin, n in result.all()}
+
+    async def list_resolved(
+        self, limit: int = 1000, *, include_replay: bool = False
+    ) -> Sequence[PredictionORM]:
+        """Resolved predictions, live-only by default.
+
+        Replayed rows are excluded unless explicitly asked for: they are
+        backfilled history, not a track record, and every scoreboard that
+        reads this would be inflated by including them.
+        """
+        stmt = select(PredictionORM).where(PredictionORM.resolved_at.is_not(None))
+        if not include_replay:
+            stmt = stmt.where(PredictionORM.origin == "live")
+        stmt = stmt.order_by(PredictionORM.asof.desc()).limit(limit)
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
