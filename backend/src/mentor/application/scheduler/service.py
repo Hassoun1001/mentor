@@ -83,6 +83,12 @@ _STARTUP_DELAY_SECONDS = 45
 def _soon(seconds: int = _STARTUP_DELAY_SECONDS) -> datetime:
     return datetime.now(UTC) + timedelta(seconds=seconds)
 
+
+# An overdue retrain still waits this long after boot: it costs about an
+# hour of CPU, and a container that crash-loops must not spend every restart
+# retraining instead of serving.
+_OVERDUE_RETRAIN_DELAY = timedelta(minutes=10)
+
 # How much history to (idempotently) pull each ingest tick, per timeframe.
 _INGEST_DAYS: dict[Timeframe, int] = {
     Timeframe.M1: 3,
@@ -426,6 +432,42 @@ class LoopScheduler:
             self._health.event("demotion", f"[{lane}] {result.reason}")
         return result.reason
 
+    def _next_retrain_time(self, lane: str) -> datetime:
+        """When retraining should next happen, measured from the last one.
+
+        Interval jobs count from registration, so a weekly retrain on a
+        system that is deployed weekly never fires at all — every deploy
+        pushes it another seven days out. Excluding retrain from the startup
+        kick (it costs an hour of CPU) would have left exactly that hole, so
+        the cadence is anchored to the durable promotions log instead: the
+        last decision actually recorded, plus the interval.
+
+        A retrain that is already overdue runs shortly after boot rather
+        than immediately, so a crash-looping container cannot burn every
+        restart on training.
+        """
+        interval = timedelta(hours=self._settings.loop_retrain_interval_hours)
+        store = self._lane_store(lane)
+        try:
+            history = PromotionService(model_store_dir=str(store)).promotion_history(limit=1)
+        except (OSError, ValueError):  # pragma: no cover - unreadable log
+            history = []
+
+        last: datetime | None = None
+        if history:
+            raw = history[0].get("at")
+            if isinstance(raw, str):
+                try:
+                    last = datetime.fromisoformat(raw)
+                except ValueError:
+                    last = None
+
+        earliest = datetime.now(UTC) + _OVERDUE_RETRAIN_DELAY
+        if last is None:
+            # Never retrained: do it soon, but not before the app is warm.
+            return earliest
+        return max(last + interval, earliest)
+
     async def run_retrain_once(self) -> str:
         s = self._settings
         return await self._retrain_lane(
@@ -500,6 +542,7 @@ class LoopScheduler:
             "interval",
             hours=s.loop_retrain_interval_hours,
             id="retrain",
+            next_run_time=self._next_retrain_time("h1"),
             replace_existing=True,
         )
         if s.loop_d1_enabled:
@@ -525,6 +568,7 @@ class LoopScheduler:
                 "interval",
                 hours=s.loop_d1_retrain_interval_hours,
                 id="retrain_d1",
+                next_run_time=self._next_retrain_time("d1"),
                 replace_existing=True,
             )
         self._scheduler.start()
