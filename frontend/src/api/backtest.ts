@@ -57,6 +57,9 @@ const walkForward = z.object({
   out_of_sample_avg_expectancy_r: decimalStr,
   degradation_pct: decimalStr.nullable(),
   is_overfit_signal: z.boolean(),
+  conclusive: z.boolean(),
+  traded_in_sample_windows: z.number(),
+  traded_out_of_sample_windows: z.number(),
 });
 export type WalkForward = z.infer<typeof walkForward>;
 

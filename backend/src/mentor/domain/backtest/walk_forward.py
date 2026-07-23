@@ -38,6 +38,12 @@ class WalkForwardWindow:
     test_bars: int
 
 
+# A verdict drawn from one or two traded windows is noise. Below this many
+# contributing test windows the walk-forward reports "inconclusive" rather
+# than an overfit judgement.
+_MIN_TRADED_WINDOWS = 2
+
+
 @dataclass(frozen=True, slots=True)
 class WalkForwardResult:
     windows: tuple[WalkForwardWindow, ...]
@@ -45,6 +51,19 @@ class WalkForwardResult:
     out_of_sample_avg_expectancy_r: Decimal
     degradation_pct: Decimal | None
     final_test_metrics: BacktestMetrics | None
+    # How many windows actually produced trades. A strategy that signals
+    # rarely leaves most windows empty, and averaging their zeros as though
+    # they were results is how a thin backtest starts making claims.
+    traded_in_sample_windows: int = 0
+    traded_out_of_sample_windows: int = 0
+
+    @property
+    def conclusive(self) -> bool:
+        """Enough traded windows for the comparison to mean anything."""
+        return (
+            self.traded_in_sample_windows >= _MIN_TRADED_WINDOWS
+            and self.traded_out_of_sample_windows >= _MIN_TRADED_WINDOWS
+        )
 
     @property
     def is_overfit_signal(self) -> bool:
@@ -53,8 +72,13 @@ class WalkForwardResult:
         Train expectancy clearly positive, test expectancy clearly worse
         (≥ 50% drop) → flag for review. The plan explicitly warns against
         deferring this judgement to a single number.
+
+        Requires a conclusive run: with most test windows empty, the
+        out-of-sample average used to be dragged toward zero by windows
+        that never traded, manufacturing a degradation figure — and an
+        overfit warning — out of absent data.
         """
-        if self.degradation_pct is None:
+        if self.degradation_pct is None or not self.conclusive:
             return False
         return self.in_sample_avg_expectancy_r > Decimal(
             "0.05"
@@ -126,16 +150,30 @@ def walk_forward(
                 test_bars=len(test_bars),
             )
         )
-        in_sample.append(train_m.expectancy_r)
-        out_of_sample.append(test_m.expectancy_r)
+        # Only windows that actually traded contribute. An empty window has
+        # an expectancy of zero by construction, not by measurement.
+        if train_m.trade_count > 0:
+            in_sample.append(train_m.expectancy_r)
+        if test_m.trade_count > 0:
+            out_of_sample.append(test_m.expectancy_r)
 
     if not windows:
         raise ValidationError("no walk-forward windows produced results")
 
-    avg_in = sum(in_sample, Decimal("0")) / Decimal(len(in_sample))
-    avg_out = sum(out_of_sample, Decimal("0")) / Decimal(len(out_of_sample))
+    avg_in = (
+        sum(in_sample, Decimal("0")) / Decimal(len(in_sample))
+        if in_sample
+        else Decimal("0")
+    )
+    avg_out = (
+        sum(out_of_sample, Decimal("0")) / Decimal(len(out_of_sample))
+        if out_of_sample
+        else Decimal("0")
+    )
+    # Degradation compares two averages; it is meaningless unless both sides
+    # rest on windows that traded.
     degradation: Decimal | None = None
-    if avg_in > 0:
+    if avg_in > 0 and in_sample and out_of_sample:
         degradation = ((avg_in - avg_out) / avg_in) * Decimal("100")
 
     return WalkForwardResult(
@@ -144,4 +182,6 @@ def walk_forward(
         out_of_sample_avg_expectancy_r=avg_out,
         degradation_pct=degradation,
         final_test_metrics=windows[-1].test_metrics if windows else None,
+        traded_in_sample_windows=len(in_sample),
+        traded_out_of_sample_windows=len(out_of_sample),
     )

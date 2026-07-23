@@ -120,6 +120,9 @@ class WalkForwardDTO(BaseModel):
     out_of_sample_avg_expectancy_r: Decimal
     degradation_pct: Decimal | None
     is_overfit_signal: bool
+    conclusive: bool = True
+    traded_in_sample_windows: int = 0
+    traded_out_of_sample_windows: int = 0
 
 
 class BacktestResponse(BaseModel):

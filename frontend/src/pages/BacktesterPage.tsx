@@ -600,6 +600,11 @@ function WalkForwardPanel({ wf }: { wf: NonNullable<BacktestResponse['walk_forwa
             ⚠ possible overfit
           </span>
         )}
+        {!wf.conclusive && (
+          <span className="pill border-mentor-warn/40 text-mentor-warn">
+            inconclusive
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <Metric
@@ -622,6 +627,16 @@ function WalkForwardPanel({ wf }: { wf: NonNullable<BacktestResponse['walk_forwa
           }
         />
       </div>
+      {!wf.conclusive && (
+        <p className="rounded-lg border border-mentor-warn/30 bg-mentor-warn/5 p-3 text-xs leading-relaxed text-mentor-fg">
+          Only {wf.traded_out_of_sample_windows} of {wf.windows.length} test windows
+          produced any trades. The averages above are computed from those alone —
+          windows that never traded are excluded rather than counted as zero — but
+          this few is not enough to judge overfitting either way. Lengthen the date
+          range or pick a strategy that signals more often.
+        </p>
+      )}
+
       <table className="w-full text-xs">
         <thead className="text-mentor-muted">
           <tr className="border-b border-mentor-border">

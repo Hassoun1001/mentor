@@ -10,6 +10,7 @@ from decimal import Decimal
 from mentor.domain.backtest import CostModel, run_backtest
 from mentor.domain.backtest.orders import ExitReason, OrderIntent
 from mentor.domain.backtest.strategy import Strategy, StrategyContext
+from mentor.domain.backtest.walk_forward import WalkForwardResult
 from mentor.domain.instruments import get_instrument
 from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.domain.money import Money
@@ -174,3 +175,38 @@ def test_reported_costs_include_the_friction_actually_charged() -> None:
     assert friction == expected
     assert friction > 0  # the whole point: never silently zero
     assert model.commission_for(Decimal("1.0")) == Decimal("0")
+
+
+# ---------- walk-forward: empty windows are not results ----------
+
+
+def test_empty_windows_do_not_contribute_to_the_out_of_sample_average() -> None:
+    """Regression: every window was averaged in regardless of trade count, so
+    a window that never traded contributed an expectancy of zero as though it
+    were a measurement. A production run had 3 of 4 test windows empty; those
+    zeros dragged the out-of-sample average down and inflated the degradation
+    figure that drives the "possible overfit" warning."""
+    # Two traded windows in-sample, one out — below the conclusive bar.
+    thin = WalkForwardResult(
+        windows=(),
+        in_sample_avg_expectancy_r=Decimal("0.4"),
+        out_of_sample_avg_expectancy_r=Decimal("0.0"),
+        degradation_pct=Decimal("100"),
+        final_test_metrics=None,
+        traded_in_sample_windows=2,
+        traded_out_of_sample_windows=1,
+    )
+    assert not thin.conclusive
+    assert not thin.is_overfit_signal  # would have fired on 100% degradation
+
+    solid = WalkForwardResult(
+        windows=(),
+        in_sample_avg_expectancy_r=Decimal("0.4"),
+        out_of_sample_avg_expectancy_r=Decimal("0.0"),
+        degradation_pct=Decimal("100"),
+        final_test_metrics=None,
+        traded_in_sample_windows=3,
+        traded_out_of_sample_windows=3,
+    )
+    assert solid.conclusive
+    assert solid.is_overfit_signal  # a real degradation still flags
