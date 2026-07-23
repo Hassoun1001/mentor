@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { type TradePlan, fetchTradePlan } from '../api/tradePlan';
+import { type TradeManagement, type TradePlan, fetchTradePlan } from '../api/tradePlan';
 import { Metric } from '../components/Metric';
 
 export function TradePage() {
@@ -226,6 +226,8 @@ function PlanView({ plan }: { plan: TradePlan }) {
         </div>
       )}
 
+      {plan.management && <ManagementPanel m={plan.management} />}
+
       <div className="grid gap-6 md:grid-cols-2">
         <div className="panel-pad space-y-2">
           <h2 className="text-sm font-medium uppercase tracking-wider text-mentor-muted">
@@ -237,6 +239,56 @@ function PlanView({ plan }: { plan: TradePlan }) {
       </div>
 
       <p className="text-xs text-mentor-muted">{plan.disclaimer}</p>
+    </div>
+  );
+}
+
+function ManagementPanel({ m }: { m: TradeManagement }) {
+  return (
+    <div className="panel-pad space-y-4">
+      <div>
+        <h2 className="text-sm font-medium uppercase tracking-wider text-mentor-muted">
+          After you&apos;re in — decide these now, not while money is moving
+        </h2>
+        <p className="mt-1 text-xs text-mentor-muted">
+          Derived from the same volatility forecast that set your stop, so the rules adapt to
+          today&apos;s regime instead of using round-number guesses.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Metric
+          label="Move stop to break-even at"
+          value={<Mono>{m.break_even_price}</Mono>}
+          sub={`+${Number(m.break_even_pips).toFixed(0)} pips (1R)`}
+        />
+        <Metric
+          label="Then trail by"
+          value={<Mono>{Number(m.trail_distance_pips).toFixed(0)} pips</Mono>}
+          sub="one sigma of expected move"
+        />
+        <Metric
+          label={`Bank ${Math.round(Number(m.partial_close_fraction) * 100)}% at`}
+          value={<Mono>{m.partial_close_price}</Mono>}
+          sub="let the rest run to target"
+          tone="positive"
+        />
+        <Metric
+          label="Time stop"
+          value={<Mono>{m.time_stop_bars} bars</Mono>}
+          sub="close it — forecast expired"
+          tone="danger"
+        />
+      </div>
+      <ol className="space-y-2 text-sm leading-relaxed text-mentor-fg">
+        {m.rules.map((r, i) => (
+          <li key={r} className="flex gap-3">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-mentor-accent/15 text-[11px] font-semibold text-mentor-accent">
+              {i + 1}
+            </span>
+            <span>{r}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

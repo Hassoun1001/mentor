@@ -35,6 +35,7 @@ from mentor.domain.market.bars import Timeframe
 from mentor.domain.money import Money, Percent
 from mentor.domain.risk import Direction as RiskDirection
 from mentor.domain.risk import RiskInputs, calculate_position
+from mentor.domain.risk.trade_management import build_trade_management
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import TrainingReport
 from mentor.infrastructure.repositories import (
@@ -800,6 +801,16 @@ class TradePlanSizeDTO(BaseModel):
     notes: list[str]
 
 
+class TradeManagementDTO(BaseModel):
+    break_even_price: Decimal
+    break_even_pips: Decimal
+    trail_distance_pips: Decimal
+    partial_close_price: Decimal
+    partial_close_fraction: Decimal
+    time_stop_bars: int
+    rules: list[str]
+
+
 class TradePlanResponse(BaseModel):
     stance: Literal["long", "short", "stand_aside"]
     headline: str
@@ -823,6 +834,7 @@ class TradePlanResponse(BaseModel):
     event_freeze: bool
     levels: TradePlanLevelsDTO | None  # None when standing aside
     size: TradePlanSizeDTO | None  # None when standing aside
+    management: TradeManagementDTO | None = None  # post-entry rules
     warnings: list[str]
     checklist: list[str]
     disclaimer: str
@@ -955,6 +967,16 @@ async def trade_plan(
         quote_to_account_rate=Decimal("1"),
     )
     sizing = calculate_position(inputs)
+    # Pre-commit the post-entry rules while the decision is still calm.
+    management = build_trade_management(
+        direction=RiskDirection(fc.direction.value),
+        entry=entry,
+        stop=stop,
+        pip_size=pip,
+        expected_move_pips=vol.forecast.expected_range_pips,
+        horizon_bars=fc.horizon_bars,
+        timeframe_label=f"{timeframe.value} bars",
+    )
 
     conf_pct = float(fc.confidence) * 100
     headline = (
@@ -1002,6 +1024,15 @@ async def trade_plan(
             risk_currency=sizing.money_at_risk.currency,
             pip_value=sizing.pip_value_in_account.amount,
             notes=list(sizing.notes),
+        ),
+        management=TradeManagementDTO(
+            break_even_price=management.break_even_price,
+            break_even_pips=management.break_even_pips,
+            trail_distance_pips=management.trail_distance_pips,
+            partial_close_price=management.partial_close_price,
+            partial_close_fraction=management.partial_close_fraction,
+            time_stop_bars=management.time_stop_bars,
+            rules=list(management.rules),
         ),
         warnings=warnings,
         checklist=_PLAN_CHECKLIST,

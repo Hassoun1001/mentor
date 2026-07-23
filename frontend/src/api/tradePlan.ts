@@ -29,6 +29,17 @@ const size = z.object({
 });
 export type TradePlanSize = z.infer<typeof size>;
 
+const management = z.object({
+  break_even_price: decimalStr,
+  break_even_pips: decimalStr,
+  trail_distance_pips: decimalStr,
+  partial_close_price: decimalStr,
+  partial_close_fraction: decimalStr,
+  time_stop_bars: z.number(),
+  rules: z.array(z.string()),
+});
+export type TradeManagement = z.infer<typeof management>;
+
 const tradePlan = z.object({
   stance: z.enum(['long', 'short', 'stand_aside']),
   headline: z.string(),
@@ -49,6 +60,7 @@ const tradePlan = z.object({
   event_freeze: z.boolean(),
   levels: levels.nullable(),
   size: size.nullable(),
+  management: management.nullable(),
   warnings: z.array(z.string()),
   checklist: z.array(z.string()),
   disclaimer: z.string(),
