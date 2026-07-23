@@ -47,13 +47,25 @@ export function VolatilityCard({ symbol }: { symbol: string }) {
             type="number"
             className="input"
             value={horizon}
-            min={1}
+            min={useMl ? 2 : 1}
             max={60}
             onChange={(e) => setHorizon(Number(e.target.value) || 5)}
           />
         </div>
         <label className="flex items-center gap-2 pb-2 text-xs text-mentor-muted">
-          <input type="checkbox" checked={useMl} onChange={(e) => setUseMl(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={useMl}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setUseMl(on);
+              // Realized volatility is the spread of returns *inside* the
+              // horizon, so a one-bar window has nothing to measure. Rather
+              // than let the request fail, move to the smallest horizon the
+              // ML model can actually answer.
+              if (on && horizon < 2) setHorizon(2);
+            }}
+          />
           grade ML vs EWMA
         </label>
       </div>

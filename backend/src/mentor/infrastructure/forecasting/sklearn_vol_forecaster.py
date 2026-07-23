@@ -251,6 +251,19 @@ def train_sklearn_vol_forecaster(
     is a plausible predictor of realized vol. Whether it actually helps is
     decided by the same honest MAE/QLIKE-vs-EWMA gate.
     """
+    if horizon_bars < 2:
+        # The label is the sample standard deviation of the returns inside the
+        # horizon window, and a one-bar window holds exactly one return. There
+        # is no dispersion to measure, so every label comes back None and the
+        # trainer used to fail with "only 0 usable vol samples labelled" — true,
+        # unhelpful, and impossible to act on. Say what is actually wrong.
+        raise ValidationError(
+            "the ML volatility model needs a horizon of at least 2 bars: realized "
+            "volatility is the spread of returns *within* the horizon, and one bar "
+            "gives a single return with no spread. Use the EWMA baseline for a "
+            "one-bar horizon.",
+            field="horizon_bars",
+        )
     if len(bars) < 250:
         raise ValidationError(f"need at least 250 bars to train vol; got {len(bars)}", field="bars")
     feature_names, macro_names, vectors, actuals, ewma_preds = _build_vol_samples(
