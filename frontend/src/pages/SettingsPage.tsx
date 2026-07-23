@@ -165,9 +165,18 @@ function UsersPanel({ allTabs }: { allTabs: string[] }) {
           People with access
         </h2>
         <p className="text-xs text-mentor-muted">
-          Each person gets their own login and sees only the pages you tick. Page access is
-          a courtesy fence for trusted people, not bank-grade isolation.
+          Each person gets their own login, and the pages you tick control what their
+          sidebar shows.
         </p>
+        <div className="mt-2 rounded-lg border border-mentor-warn/30 bg-mentor-warn/5 p-3 text-xs leading-relaxed text-mentor-fg">
+          <span className="font-medium text-mentor-warn">Two things to know before adding
+          anyone.</span>{' '}
+          Unticking a page hides it from the menu but does not block the underlying data —
+          the restriction is a convenience, not a lock. And everyone shares one set of data:
+          the same journal, the same lesson progress, the same everything. A second person
+          will see your trades, and marking a lesson complete changes it for you too. Add
+          people you would happily hand the whole account to.
+        </div>
       </div>
 
       {banner && (
