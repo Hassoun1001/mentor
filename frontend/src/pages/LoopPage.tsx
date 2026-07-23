@@ -15,6 +15,7 @@ import {
 } from '../api/loop';
 import { EquityCurve } from '../components/EquityCurve';
 import { Metric } from '../components/Metric';
+import { SignificanceNote } from '../components/SignificanceNote';
 
 const REFRESH_MS = 30_000;
 
@@ -296,6 +297,13 @@ function PaperPanel({
           <EquityCurve
             points={report.curve.map((p) => ({ ts: p.ts, balance: String(p.equity) }))}
             height={260}
+          />
+          <SignificanceNote
+            verdict={report.verdict}
+            significant={report.significant}
+            low={report.win_rate_low}
+            high={report.win_rate_high}
+            baseline={0.5}
           />
           <p className="text-xs text-mentor-muted">{report.note}</p>
         </>

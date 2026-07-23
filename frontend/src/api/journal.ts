@@ -86,6 +86,15 @@ const analyticsSchema = z.object({
   largest_loss_r: decimalStr,
   total_r: decimalStr,
   interpretation: z.string(),
+  win_rate_verdict: z.string(),
+  win_rate_low: z.number(),
+  win_rate_high: z.number(),
+  win_rate_significant: z.boolean(),
+  expectancy_verdict: z.string(),
+  expectancy_low: z.number(),
+  expectancy_high: z.number(),
+  expectancy_significant: z.boolean(),
+  trades_needed: z.number().nullable(),
 });
 export type Analytics = z.infer<typeof analyticsSchema>;
 

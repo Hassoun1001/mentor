@@ -75,6 +75,11 @@ const paperReport = z.object({
   avg_trade_pct: z.number(),
   curve: z.array(paperPoint),
   note: z.string(),
+  verdict: z.string(),
+  win_rate_low: z.number(),
+  win_rate_high: z.number(),
+  significant: z.boolean(),
+  trades_needed: z.number().nullable(),
 });
 export type PaperReport = z.infer<typeof paperReport>;
 

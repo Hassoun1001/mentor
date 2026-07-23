@@ -14,10 +14,11 @@ from mentor.domain.journal import (
     PreTradeChecklist,
     evaluate_pre_trade_checklist,
 )
-from mentor.domain.journal.trade import TradePlan
+from mentor.domain.journal.trade import TradePlan, TradeStatus
 from mentor.domain.money import Money, Percent
 from mentor.domain.risk import GuardrailLimits, OpenPosition, check_guardrails
 from mentor.domain.risk.position_sizing import Direction
+from mentor.domain.stats.significance import assess_expectancy, assess_proportion
 from mentor.infrastructure.repositories.trades import TradeRepository
 
 router = APIRouter(tags=["journal"])
@@ -40,6 +41,16 @@ class AnalyticsResponse(BaseModel):
     largest_loss_r: Decimal
     total_r: Decimal
     interpretation: str
+    # Is any of the above distinguishable from luck yet?
+    win_rate_verdict: str = ""
+    win_rate_low: float = 0.0
+    win_rate_high: float = 0.0
+    win_rate_significant: bool = False
+    expectancy_verdict: str = ""
+    expectancy_low: float = 0.0
+    expectancy_high: float = 0.0
+    expectancy_significant: bool = False
+    trades_needed: int | None = None
 
 
 @router.get("/journal/analytics", response_model=AnalyticsResponse)
@@ -47,19 +58,36 @@ async def journal_analytics(session: SessionDep, symbol: str | None = None) -> A
     service = TradeService(TradeRepository(session))
     a = await service.analytics(symbol=symbol)
 
+    # Judge the numbers statistically rather than against hand-picked
+    # thresholds — "20 trades" was never a real bar, and a positive
+    # expectancy over 8 trades is not evidence of anything.
+    closed = await service.list_recent(symbol=symbol, limit=1000)
+    r_values = [
+        float(t.realised_r)
+        for t in closed
+        if t.status is TradeStatus.CLOSED and t.realised_r is not None
+    ]
+    win = assess_proportion(a.wins, a.sample_size, label="closed trades")
+    exp = assess_expectancy(r_values, label="trades")
+
     if a.sample_size == 0:
         interp = "No closed trades yet — log a few and analytics will populate."
-    elif a.sample_size < 20:
+    elif not exp.significant:
         interp = (
-            f"Only {a.sample_size} closed trades — too few to draw conclusions. "
-            "Variance dominates this sample; keep journalling."
+            "Your results are not yet distinguishable from a system with no edge. "
+            "That is normal this early — it is not a reason to change anything, "
+            "and not a reason to size up either."
         )
-    elif a.expectancy_r > Decimal("0.2"):
-        interp = "Positive expectancy with a meaningful sample — keep doing what works."
-    elif a.expectancy_r > 0:
-        interp = "Marginal edge — costs and slippage can easily erase it. Watch trade count."
+    elif exp.mean > 0:
+        interp = (
+            "Positive expectancy that clears statistical noise on this sample. "
+            "Keep the process identical; the edge is in the repetition."
+        )
     else:
-        interp = "Negative expectancy — review mistake tags and tighten the entry criteria."
+        interp = (
+            "Negative expectancy beyond what variance explains. Work the loss "
+            "root-cause review before placing another trade."
+        )
 
     return AnalyticsResponse(
         sample_size=a.sample_size,
@@ -75,6 +103,15 @@ async def journal_analytics(session: SessionDep, symbol: str | None = None) -> A
         largest_loss_r=a.largest_loss_r,
         total_r=a.total_r,
         interpretation=interp,
+        win_rate_verdict=win.verdict,
+        win_rate_low=win.low,
+        win_rate_high=win.high,
+        win_rate_significant=win.significant,
+        expectancy_verdict=exp.verdict,
+        expectancy_low=exp.low,
+        expectancy_high=exp.high,
+        expectancy_significant=exp.significant,
+        trades_needed=exp.n_needed,
     )
 
 

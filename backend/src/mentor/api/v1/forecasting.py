@@ -36,6 +36,7 @@ from mentor.domain.money import Money, Percent
 from mentor.domain.risk import Direction as RiskDirection
 from mentor.domain.risk import RiskInputs, calculate_position
 from mentor.domain.risk.trade_management import build_trade_management
+from mentor.domain.stats.significance import assess_proportion
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import TrainingReport
 from mentor.infrastructure.repositories import (
@@ -769,6 +770,12 @@ class PaperReportResponse(BaseModel):
     avg_trade_pct: float
     curve: list[PaperPointDTO]
     note: str
+    # Whether this track record is distinguishable from luck yet.
+    verdict: str = ""
+    win_rate_low: float = 0.0
+    win_rate_high: float = 0.0
+    significant: bool = False
+    trades_needed: int | None = None
 
 
 @router.get("/loop/paper", response_model=PaperReportResponse)
@@ -786,6 +793,9 @@ async def loop_paper(
     if timeframe is not None:
         rows = [r for r in rows if r.timeframe == timeframe]
     report = simulate_own_signals(rows, min_confidence=min_confidence, spread=spread)
+    # An equity curve is the most persuasive and least informative chart in
+    # trading. State plainly whether this one has earned any belief.
+    v = assess_proportion(report.wins, report.trades, label="paper trades")
     return PaperReportResponse(
         trades=report.trades,
         skipped_low_confidence=report.skipped_low_confidence,
@@ -798,6 +808,11 @@ async def loop_paper(
         avg_trade_pct=report.avg_trade_pct,
         curve=[PaperPointDTO(ts=p.ts, equity=p.equity) for p in report.curve],
         note=report.note,
+        verdict=v.verdict,
+        win_rate_low=v.low,
+        win_rate_high=v.high,
+        significant=v.significant,
+        trades_needed=v.n_needed,
     )
 
 

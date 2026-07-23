@@ -16,6 +16,7 @@ import {
   planTrade,
 } from '../api/journal';
 import { ApiError } from '../api/client';
+import { SignificanceNote } from '../components/SignificanceNote';
 import { Field } from '../components/Field';
 import { Metric } from '../components/Metric';
 import { formatLots, formatMoney, formatNumber, formatPercent } from '../lib/format';
@@ -306,7 +307,68 @@ function AnalyticsPanel({ data, loading }: { data?: Analytics; loading: boolean 
         />
       </div>
       {data && (
-        <p className="mt-4 text-sm text-mentor-fg/85">{data.interpretation}</p>
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-mentor-fg/85">{data.interpretation}</p>
+          {data.sample_size > 0 && (
+            <>
+              <SignificanceNote
+                verdict={data.win_rate_verdict}
+                significant={data.win_rate_significant}
+                low={data.win_rate_low}
+                high={data.win_rate_high}
+                baseline={0.5}
+              />
+              <ExpectancyNote data={data} />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The expectancy interval, on a track centred on zero R. */
+function ExpectancyNote({ data }: { data: Analytics }) {
+  if (!data.expectancy_verdict) return null;
+  const ok = data.expectancy_significant && data.expectancy_low > 0;
+  const bad = data.expectancy_significant && data.expectancy_high < 0;
+
+  // Scale the track to whichever bound is furthest from zero, so the
+  // interval and the zero mark are both always visible.
+  const reach = Math.max(0.05, Math.abs(data.expectancy_low), Math.abs(data.expectancy_high));
+  const pos = (v: number) => ((v + reach) / (2 * reach)) * 100;
+
+  const border = ok
+    ? 'border-mentor-accent/40 bg-mentor-accent/5'
+    : bad
+      ? 'border-mentor-danger/40 bg-mentor-danger/5'
+      : 'border-mentor-warn/40 bg-mentor-warn/5';
+  const bar = ok ? 'bg-mentor-accent' : bad ? 'bg-mentor-danger' : 'bg-mentor-warn';
+
+  return (
+    <div className={`rounded-lg border p-3 ${border}`}>
+      <p className="text-sm leading-relaxed text-mentor-fg">{data.expectancy_verdict}</p>
+      <div className="relative mt-3 h-6">
+        <div className="absolute inset-x-0 top-2.5 h-1 rounded-full bg-mentor-panelLight" />
+        <div
+          className={`absolute top-2 h-2 rounded-full ${bar}`}
+          style={{
+            left: `${pos(data.expectancy_low)}%`,
+            width: `${pos(data.expectancy_high) - pos(data.expectancy_low)}%`,
+          }}
+        />
+        <div className="absolute top-0 h-6 w-px bg-mentor-fg/60" style={{ left: '50%' }} />
+      </div>
+      <div className="flex justify-between text-[10px] text-mentor-muted">
+        <span>{(-reach).toFixed(2)}R</span>
+        <span>break even (0R)</span>
+        <span>+{reach.toFixed(2)}R</span>
+      </div>
+      {data.trades_needed !== null && !data.expectancy_significant && (
+        <p className="mt-2 text-xs text-mentor-muted">
+          {data.sample_size} of roughly {data.trades_needed.toLocaleString()} trades needed
+          before this number settles.
+        </p>
       )}
     </div>
   );
