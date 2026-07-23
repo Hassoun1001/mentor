@@ -54,6 +54,10 @@ class PricesResponse(BaseModel):
     bars: list[BarDTO]
     gaps: list[GapDTO]
     last_seen_at: datetime | None
+    # Bars the market has not finished printing. Their OHLC is still moving,
+    # so a model trained on settled bars is serving from an unsettled one.
+    forming_bars: int = 0
+    future_bars: int = 0
 
 
 class CoverageRowDTO(BaseModel):
@@ -62,6 +66,12 @@ class CoverageRowDTO(BaseModel):
     first_ts: datetime | None
     last_ts: datetime | None
     sources: dict[str, int]
+    # A bar stamped after 'now' cannot be right under any labelling
+    # convention. Production carried a daily bar dated tomorrow — Yahoo
+    # names the in-progress FX session by its close date — and the health
+    # page had no way to show it.
+    future_bars: int = 0
+    newest_is_forming: bool = False
 
 
 class CoverageResponse(BaseModel):
@@ -73,6 +83,7 @@ class CoverageResponse(BaseModel):
 async def coverage(symbol: str, session: SessionDep) -> CoverageResponse:
     """How much price data exists, over what span, and from which sources."""
     rows = await PriceBarRepository(session).coverage(symbol=symbol)
+    now = datetime.now(UTC)
     return CoverageResponse(
         symbol=symbol.upper(),
         coverage=[
@@ -82,6 +93,13 @@ async def coverage(symbol: str, session: SessionDep) -> CoverageResponse:
                 first_ts=r.first_ts,
                 last_ts=r.last_ts,
                 sources=r.sources,
+                future_bars=1 if (r.last_ts is not None and r.last_ts > now) else 0,
+                newest_is_forming=(
+                    r.last_ts is not None
+                    and r.last_ts <= now
+                    and r.last_ts.timestamp() + Timeframe(r.timeframe).seconds
+                    > now.timestamp()
+                ),
             )
             for r in rows
         ],
@@ -248,4 +266,6 @@ async def get_prices(
             for g in report.gaps
         ],
         last_seen_at=report.last_seen_at,
+        forming_bars=report.forming_bars,
+        future_bars=report.future_bars,
     )

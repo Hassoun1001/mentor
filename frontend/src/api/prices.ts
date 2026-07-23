@@ -57,6 +57,8 @@ const coverageRow = z.object({
   first_ts: z.string().nullable(),
   last_ts: z.string().nullable(),
   sources: z.record(z.string(), z.number()),
+  future_bars: z.number(),
+  newest_is_forming: z.boolean(),
 });
 export type CoverageRow = z.infer<typeof coverageRow>;
 

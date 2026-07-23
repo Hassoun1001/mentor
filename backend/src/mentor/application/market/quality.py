@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from mentor.domain.market.bars import Timeframe
 from mentor.infrastructure.models import PriceBar as PriceBarORM
@@ -34,6 +34,20 @@ class DataQualityReport:
     gaps: tuple[GapWindow, ...]
     duplicate_count: int  # should always be 0 thanks to PK
     last_seen_at: datetime | None
+    # Bars whose period has not elapsed yet. Their OHLC is still moving, so
+    # treating one as a completed bar means training on settled data and
+    # predicting from an unsettled one. Production held a daily bar stamped
+    # *tomorrow* — Yahoo labels the in-progress FX session by its close date
+    # — and nothing noticed, because this scanner only looked for gaps and
+    # duplicates.
+    forming_bars: int = 0
+    # Bars whose period has not even started. No labelling convention makes
+    # this correct; it is bad data.
+    future_bars: int = 0
+
+    @property
+    def has_unsettled_data(self) -> bool:
+        return self.forming_bars > 0 or self.future_bars > 0
 
 
 def scan_quality(
@@ -48,6 +62,15 @@ def scan_quality(
             duplicate_count=0,
             last_seen_at=None,
         )
+
+    now = datetime.now(UTC)
+    forming = 0
+    future = 0
+    for bar in bars:
+        if bar.ts > now:
+            future += 1
+        elif bar.ts.timestamp() + timeframe.seconds > now.timestamp():
+            forming += 1
 
     expected_step_seconds = timeframe.seconds
     gaps: list[GapWindow] = []
@@ -77,6 +100,8 @@ def scan_quality(
         symbol=symbol,
         timeframe=timeframe,
         bars_scanned=len(bars),
+        forming_bars=forming,
+        future_bars=future,
         gaps=tuple(gaps),
         duplicate_count=duplicates,
         last_seen_at=previous_ts,

@@ -126,6 +126,28 @@ function CrossSourcePanel({
   );
 }
 
+/**
+ * A bar the market has not finished printing is the newest bar, so it is
+ * what every forecast reads as "now" — while its OHLC is still moving.
+ * Production carried a daily bar stamped tomorrow and nothing surfaced it.
+ */
+function UnsettledNote({ row }: { row: CoverageRow }) {
+  if (row.future_bars === 0 && !row.newest_is_forming) return null;
+  const future = row.future_bars > 0;
+  return (
+    <p
+      className={`mt-1 text-xs ${future ? 'text-mentor-danger' : 'text-mentor-muted'}`}
+    >
+      {future
+        ? 'The newest bar is stamped in the future — the data source labels the ' +
+          'in-progress session by its close date. It is still moving, and it is ' +
+          'what forecasts read as the current price.'
+        : 'The newest bar is still forming — its period has not elapsed, so its ' +
+          'close will change.'}
+    </p>
+  );
+}
+
 function CoveragePanel({
   rows,
   loading,
@@ -177,7 +199,19 @@ function CoveragePanel({
                 <td className="py-2 text-xs text-mentor-muted">
                   {r.first_ts ? new Date(r.first_ts).toLocaleDateString() : '—'}
                   {' → '}
-                  {r.last_ts ? new Date(r.last_ts).toLocaleDateString() : '—'}
+                  {r.last_ts ? new Date(r.last_ts).toLocaleString() : '—'}
+                  {(r.future_bars > 0 || r.newest_is_forming) && (
+                    <span
+                      className={`ml-2 rounded-full border px-1.5 py-0.5 text-[10px] ${
+                        r.future_bars > 0
+                          ? 'border-mentor-danger/40 text-mentor-danger'
+                          : 'border-mentor-warn/40 text-mentor-warn'
+                      }`}
+                    >
+                      {r.future_bars > 0 ? 'future-dated' : 'still forming'}
+                    </span>
+                  )}
+                  <UnsettledNote row={r} />
                 </td>
                 <td className="py-2 text-xs">
                   {Object.entries(r.sources).map(([src, n]) => (
