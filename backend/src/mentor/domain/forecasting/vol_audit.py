@@ -45,6 +45,21 @@ from mentor.domain.stats.significance import wilson_interval
 # Share of a normal distribution within +/-1 standard deviation.
 NORMAL_ONE_SIGMA = 0.6827
 
+# A sigma is not an average move, and conflating the two makes a correctly
+# calibrated forecast look broken. For a normal variable with standard
+# deviation sigma, the mean absolute value is sqrt(2/pi)*sigma ~ 0.798*sigma
+# and the median is ~0.674*sigma. So a *perfect* sigma forecast will sit
+# about 25% above the typical realised move by construction.
+#
+# This matters twice over. Scoring |realised| against sigma directly
+# manufactures a 25% error out of nothing, and it hands an unearned win to
+# any benchmark that predicts the average move instead — which is exactly
+# what a trailing mean of past moves does. Both are corrected here:
+# accuracy is scored against the sigma's *implied* mean absolute move, and
+# the bias ratio is measured against the median that calibration predicts.
+MEAN_ABS_OVER_SIGMA = 0.7978845608028654  # sqrt(2/pi)
+MEDIAN_ABS_OVER_SIGMA = 0.6744897501960817
+
 
 @dataclass(frozen=True, slots=True)
 class VolSample:
@@ -83,7 +98,7 @@ class VolAuditResult:
     n: int
     one_sigma: RateCheck
     band: RateCheck | None  # None when no bands were supplied
-    median_ratio: float  # realised / predicted; 1.0 = unbiased
+    median_ratio: float  # realised vs calibrated expectation; 1.0 = unbiased
     mae_pips: float
     benchmark_mae_pips: dict[str, float]
     beats_benchmarks: bool
@@ -191,16 +206,26 @@ def audit_vol_forecasts(
         )
 
     # Median rather than mean: one crisis bar would otherwise dominate, and
-    # the question is whether the typical forecast is biased.
-    ratios = sorted(s.realised_move_pips / s.predicted_sigma_pips for s in usable)
+    # the question is whether the typical forecast is biased. Each ratio is
+    # divided by MEDIAN_ABS_OVER_SIGMA so that 1.0 means "exactly what a
+    # calibrated sigma predicts" rather than "the move equalled the sigma",
+    # which no calibrated forecast would ever achieve.
+    ratios = sorted(
+        s.realised_move_pips / (s.predicted_sigma_pips * MEDIAN_ABS_OVER_SIGMA)
+        for s in usable
+    )
     mid = len(ratios) // 2
     median_ratio = (
         ratios[mid] if len(ratios) % 2 else (ratios[mid - 1] + ratios[mid]) / 2
     )
 
-    mae = sum(abs(s.realised_move_pips - s.predicted_sigma_pips) for s in usable) / len(
-        usable
-    )
+    # The benchmarks predict a typical move, so the model must be scored on
+    # the same quantity: its sigma converted to an implied mean absolute
+    # move. Scoring sigma directly would concede ~25% to every rival.
+    mae = sum(
+        abs(s.realised_move_pips - s.predicted_sigma_pips * MEAN_ABS_OVER_SIGMA)
+        for s in usable
+    ) / len(usable)
 
     bench_mae: dict[str, float] = {}
     for name, preds in (benchmarks or {}).items():
@@ -264,8 +289,9 @@ def _overall_verdict(
     if drift > 0.25:
         direction = "larger" if median_ratio > 1 else "smaller"
         parts.append(
-            f"Typical realised moves are {median_ratio:.2f}x the forecast — "
-            f"systematically {direction}, not random error."
+            f"Typical realised moves are {median_ratio:.2f}x what a calibrated "
+            f"forecast of this size predicts — systematically {direction}, not "
+            f"random error."
         )
 
     if bench_mae:

@@ -6,6 +6,8 @@ import pytest
 
 from mentor.domain.errors import ValidationError
 from mentor.domain.forecasting.vol_audit import (
+    MEAN_ABS_OVER_SIGMA,
+    MEDIAN_ABS_OVER_SIGMA,
     NORMAL_ONE_SIGMA,
     VolSample,
     audit_vol_forecasts,
@@ -101,23 +103,57 @@ def test_no_band_means_no_band_check() -> None:
 # ---------- bias and benchmarks ----------
 
 
+def test_a_calibrated_forecast_scores_a_ratio_of_one() -> None:
+    """The property that matters: a sigma is not an average move.
+
+    For a normal variable the median absolute value is ~0.674 sigma, so a
+    perfectly calibrated forecast must score 1.0 — not 0.674. Measuring the
+    raw realised/sigma ratio would brand every correct forecast as
+    over-predicting by 33%, which is exactly the mistake this guards.
+    """
+    sigma = 20.0
+    calibrated_median = sigma * MEDIAN_ABS_OVER_SIGMA
+    r = audit_vol_forecasts(_samples(sigma, [calibrated_median] * 200))
+    assert r.median_ratio == pytest.approx(1.0)
+    assert "systematically" not in r.verdict
+
+
 def test_a_systematic_scale_error_shows_in_the_median_ratio() -> None:
-    # Every move is twice the forecast.
-    r = audit_vol_forecasts(_samples(20.0, [40.0] * 200))
+    # Moves are twice what a calibrated forecast of this size predicts.
+    sigma = 20.0
+    r = audit_vol_forecasts(_samples(sigma, [sigma * MEDIAN_ABS_OVER_SIGMA * 2] * 200))
     assert r.median_ratio == pytest.approx(2.0)
     assert "2.00x" in r.verdict
 
 
+def test_accuracy_is_scored_on_the_implied_mean_move_not_the_sigma() -> None:
+    """A benchmark predicting the typical move must not get a free 25%.
+
+    The rival here predicts the realised move exactly. The model's sigma
+    implies exactly that same mean absolute move, so the two must tie —
+    scoring sigma directly would hand the rival an unearned win.
+    """
+    sigma = 25.0
+    implied = sigma * MEAN_ABS_OVER_SIGMA
+    r = audit_vol_forecasts(
+        _samples(sigma, [implied] * 100), benchmarks={"typical_move": [implied] * 100}
+    )
+    assert r.mae_pips == pytest.approx(0.0, abs=1e-9)
+    assert r.beats_benchmarks
+
+
 def test_losing_to_a_naive_benchmark_is_stated_plainly() -> None:
-    samples = _samples(20.0, [30.0] * 100)  # MAE 10
-    r = audit_vol_forecasts(samples, benchmarks={"yesterday": [30.0] * 100})  # MAE 0
+    # The rival nails every move; the model's implied mean move is far off.
+    samples = _samples(20.0, [60.0] * 100)
+    r = audit_vol_forecasts(samples, benchmarks={"yesterday": [60.0] * 100})
     assert not r.beats_benchmarks
     assert "not earning its keep" in r.verdict
 
 
 def test_beating_the_benchmarks_is_stated_too() -> None:
-    samples = _samples(30.0, [30.0] * 100)  # MAE 0
-    r = audit_vol_forecasts(samples, benchmarks={"yesterday": [10.0] * 100})
+    sigma = 30.0
+    samples = _samples(sigma, [sigma * MEAN_ABS_OVER_SIGMA] * 100)  # MAE 0
+    r = audit_vol_forecasts(samples, benchmarks={"yesterday": [5.0] * 100})
     assert r.beats_benchmarks
     assert "beats every naive benchmark" in r.verdict
 
