@@ -110,20 +110,46 @@ export function PricesPage() {
           </p>
         )}
 
-        {(prices.data?.gaps ?? []).length > 0 && (
-          <div className="rounded-lg border border-mentor-warn/30 bg-mentor-warn/5 p-3 text-sm">
-            <div className="font-medium uppercase tracking-wider text-xs text-mentor-warn mb-2">
-              {prices.data!.gaps.length} gap{prices.data!.gaps.length === 1 ? '' : 's'} detected
+        {(prices.data?.gaps ?? []).length > 0 && (() => {
+          const all = prices.data!.gaps;
+          const unexplained = all.filter((g) => !g.weekend_closure);
+          const weekends = all.length - unexplained.length;
+          const clean = unexplained.length === 0;
+          return (
+            <div
+              className={`rounded-lg border p-3 text-sm ${
+                clean
+                  ? 'border-mentor-border bg-mentor-panelLight/40'
+                  : 'border-mentor-warn/30 bg-mentor-warn/5'
+              }`}
+            >
+              <div
+                className={`mb-2 text-xs font-medium uppercase tracking-wider ${
+                  clean ? 'text-mentor-muted' : 'text-mentor-warn'
+                }`}
+              >
+                {clean
+                  ? `No unexplained gaps — ${weekends} weekend closure${weekends === 1 ? '' : 's'}`
+                  : `${unexplained.length} unexplained gap${unexplained.length === 1 ? '' : 's'}`}
+              </div>
+              <p className="mb-2 text-xs text-mentor-muted">
+                FX stops printing from Friday evening to Sunday night, so a hole there is
+                the market being shut, not data going missing.
+                {weekends > 0 && !clean && ` ${weekends} of these are weekends and are excluded.`}
+              </p>
+              {!clean && (
+                <ul className="space-y-1 font-mono text-xs text-mentor-fg/90">
+                  {unexplained.slice(0, 8).map((g) => (
+                    <li key={g.expected_after}>
+                      {new Date(g.expected_after).toLocaleString()} →{' '}
+                      {new Date(g.next_seen).toLocaleString()} ({g.missing_bars} missing)
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            <ul className="space-y-1 text-mentor-fg/90 text-xs font-mono">
-              {prices.data!.gaps.slice(0, 8).map((g) => (
-                <li key={g.expected_after}>
-                  {new Date(g.expected_after).toLocaleString()} → {new Date(g.next_seen).toLocaleString()} ({g.missing_bars} missing)
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </section>
   );

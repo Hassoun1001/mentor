@@ -43,6 +43,10 @@ class BarDTO(BaseModel):
 
 
 class GapDTO(BaseModel):
+    # Set when a closed market explains the hole. Weekends accounted for 57
+    # of 59 daily "gaps" in production; reporting them undifferentiated made
+    # a healthy feed look broken.
+    weekend_closure: bool = False
     expected_after: datetime
     next_seen: datetime
     missing_bars: int
@@ -58,6 +62,8 @@ class PricesResponse(BaseModel):
     # so a model trained on settled bars is serving from an unsettled one.
     forming_bars: int = 0
     future_bars: int = 0
+    # Gaps a closed market does not explain — the only ones worth alarm.
+    unexplained_gap_count: int = 0
 
 
 class CoverageRowDTO(BaseModel):
@@ -261,6 +267,7 @@ async def get_prices(
             GapDTO(
                 expected_after=g.expected_after,
                 next_seen=g.next_seen,
+                weekend_closure=g.weekend_closure,
                 missing_bars=g.missing_bars,
             )
             for g in report.gaps
@@ -268,4 +275,5 @@ async def get_prices(
         last_seen_at=report.last_seen_at,
         forming_bars=report.forming_bars,
         future_bars=report.future_bars,
+        unexplained_gap_count=len(report.unexplained_gaps),
     )

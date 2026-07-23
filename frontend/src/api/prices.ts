@@ -22,6 +22,7 @@ const gapSchema = z.object({
   expected_after: z.string(),
   next_seen: z.string(),
   missing_bars: z.number(),
+  weekend_closure: z.boolean(),
 });
 export type Gap = z.infer<typeof gapSchema>;
 
@@ -30,6 +31,7 @@ const pricesSchema = z.object({
   timeframe: timeframeEnum,
   bars: z.array(barSchema),
   gaps: z.array(gapSchema),
+  unexplained_gap_count: z.number(),
   last_seen_at: z.string().nullable(),
 });
 export type PricesResponse = z.infer<typeof pricesSchema>;
