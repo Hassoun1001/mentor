@@ -215,8 +215,25 @@ class LoopScheduler:
         s = self._settings
         try:
             async with self._sessions() as session:
+                repo = NewsToneRepository(session)
+                # GDELT publishes one point per day and rate-limits hard. The
+                # startup kick means every deploy would otherwise re-fetch a
+                # fortnight — eight deploys in an afternoon earned a 429, which
+                # is exactly what happened. Skip when the stored series is
+                # already current; the data cannot have changed.
+                existing = await repo.series(query_key=s.news_query_key)
+                if existing:
+                    newest = max(row.day for row in existing)
+                    if newest.date() >= (datetime.now(UTC) - timedelta(days=1)).date():
+                        self._health.beat(
+                            "news_tone",
+                            ok=True,
+                            note=f"already current to {newest.date()} — skipped",
+                        )
+                        return 0
+
                 service = ToneIngestService(
-                    repo=NewsToneRepository(session),
+                    repo=repo,
                     query=s.news_query,
                     query_key=s.news_query_key,
                 )
