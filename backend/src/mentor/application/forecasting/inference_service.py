@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+from mentor.application.forecasting.htf_context import load_htf_series
 from mentor.application.forecasting.news_context import load_news_series
 from mentor.application.macro.context import load_macro_series
 from mentor.domain.errors import ValidationError
@@ -94,8 +95,9 @@ class ForecastService:
         forecaster = self._resolve_forecaster(model_name, horizon_bars, regime_aware=regime_aware)
         news = await self._news_for(forecaster, bars[-1].ts)
         macro = await self._macro_for(forecaster, bars[-1].ts)
+        htf = await self._htf_for(forecaster, symbol, bars[-1].ts)
         forecast = forecaster.forecast(
-            bars=bars, symbol=symbol, timeframe=timeframe, news=news, macro=macro
+            bars=bars, symbol=symbol, timeframe=timeframe, news=news, macro=macro, htf=htf
         )
 
         prediction_id = uuid.uuid4()
@@ -124,6 +126,18 @@ class ForecastService:
         if not getattr(core, "uses_macro", False) or self._macro is None:
             return None
         series = await load_macro_series(self._macro)
+        return series.features_asof(asof)
+
+    async def _htf_for(
+        self, forecaster: Forecaster, symbol: str, asof: datetime
+    ) -> dict[str, float] | None:
+        """Build higher-timeframe (daily) context for the as-of bar, but only
+        when the model actually consumes it. Without this a promoted +htf
+        champion would silently receive zeros for the whole daily picture."""
+        core = getattr(forecaster, "base", forecaster)  # unwrap regime adjuster
+        if not getattr(core, "uses_htf", False):
+            return None
+        series = await load_htf_series(self._prices, symbol=symbol)
         return series.features_asof(asof)
 
     def _resolve_forecaster(

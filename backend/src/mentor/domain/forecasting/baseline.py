@@ -56,6 +56,7 @@ class BaselineForecaster(Forecaster):
         timeframe: Timeframe,
         news: Mapping[str, float] | None = None,  # rule model ignores news
         macro: Mapping[str, float] | None = None,  # ...and macro drivers
+        htf: Mapping[str, float] | None = None,  # ...and higher-timeframe context
     ) -> Forecast:
         if len(bars) < _TREND_PERIOD + 5:
             raise ValidationError(f"need at least {_TREND_PERIOD + 5} bars for baseline forecaster")

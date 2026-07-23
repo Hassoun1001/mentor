@@ -160,6 +160,7 @@ class RegimeAdjustedForecaster(Forecaster):
         timeframe: Timeframe,
         news: Mapping[str, float] | None = None,
         macro: Mapping[str, float] | None = None,
+        htf: Mapping[str, float] | None = None,
     ) -> Forecast:
         row = build_feature_row(bars)
         base = self.base.forecast(

@@ -37,6 +37,7 @@ from mentor.domain.forecasting.forecast import (
     direction_from_probability,
 )
 from mentor.domain.forecasting.forecaster import Forecaster
+from mentor.domain.forecasting.htf_features import HTF_FEATURE_NAMES
 from mentor.domain.forecasting.labels import build_labels
 from mentor.domain.forecasting.macro_features import MACRO_FEATURE_NAMES
 from mentor.domain.forecasting.news_features import NEWS_FEATURE_NAMES
@@ -84,6 +85,7 @@ class SklearnForecaster(Forecaster):
     _feature_names: tuple[str, ...] = FEATURE_NAMES
     _news_feature_names: tuple[str, ...] = ()
     _macro_feature_names: tuple[str, ...] = ()
+    _htf_feature_names: tuple[str, ...] = ()
     _calibrator: IsotonicRegression | None = None
 
     @property
@@ -98,6 +100,14 @@ class SklearnForecaster(Forecaster):
     @property
     def macro_feature_names(self) -> tuple[str, ...]:
         return getattr(self, "_macro_feature_names", None) or ()
+
+    @property
+    def htf_feature_names(self) -> tuple[str, ...]:
+        return getattr(self, "_htf_feature_names", None) or ()
+
+    @property
+    def uses_htf(self) -> bool:
+        return bool(self.htf_feature_names)
 
     @property
     def uses_news(self) -> bool:
@@ -116,6 +126,7 @@ class SklearnForecaster(Forecaster):
     def name(self) -> str:
         suffix = ",news" if self.uses_news else ""
         suffix += ",macro" if self.uses_macro else ""
+        suffix += ",htf" if self.uses_htf else ""
         return f"sklearn_hgb(h={self._horizon_bars}{suffix})"
 
     @property
@@ -138,6 +149,7 @@ class SklearnForecaster(Forecaster):
         timeframe: Timeframe,
         news: Mapping[str, float] | None = None,
         macro: Mapping[str, float] | None = None,
+        htf: Mapping[str, float] | None = None,
     ) -> Forecast:
         row = build_feature_row(bars)
         if row is None:
@@ -150,6 +162,8 @@ class SklearnForecaster(Forecaster):
             combined[nf] = float((news or {}).get(nf, 0.0))
         for mf in self.macro_feature_names:
             combined[mf] = float((macro or {}).get(mf, 0.0))
+        for hf in self.htf_feature_names:
+            combined[hf] = float((htf or {}).get(hf, 0.0))
 
         x = np.array([[combined.get(name, 0.0) for name in self.feature_names]])
         proba = self._classifier.predict_proba(x)[0]
@@ -191,6 +205,8 @@ class SklearnForecaster(Forecaster):
             features_snapshot[nf] = Decimal(str(round(combined.get(nf, 0.0), 6)))
         for mf in self.macro_feature_names:
             features_snapshot[mf] = Decimal(str(round(combined.get(mf, 0.0), 6)))
+        for hf in self.htf_feature_names:
+            features_snapshot[hf] = Decimal(str(round(combined.get(hf, 0.0), 6)))
 
         return Forecast(
             symbol=symbol.upper(),
@@ -215,7 +231,11 @@ def _assemble_samples(
     news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
     technical_features: tuple[str, ...] = FEATURE_NAMES,
-) -> tuple[list[tuple[list[float], int]], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+) -> tuple[
+    list[tuple[list[float], int]], tuple[str, ...], tuple[str, ...], tuple[str, ...],
+    tuple[str, ...],
+]:
     """Build labelled feature vectors (technical + optional news + macro).
 
     ``technical_features`` lets a candidate train on a *subset* of the
@@ -232,7 +252,8 @@ def _assemble_samples(
 
     news_names: tuple[str, ...] = NEWS_FEATURE_NAMES if news_by_ts is not None else ()
     macro_names: tuple[str, ...] = MACRO_FEATURE_NAMES if macro_by_ts is not None else ()
-    feature_names: tuple[str, ...] = technical_features + news_names + macro_names
+    htf_names: tuple[str, ...] = HTF_FEATURE_NAMES if htf_by_ts is not None else ()
+    feature_names: tuple[str, ...] = technical_features + news_names + macro_names + htf_names
 
     samples: list[tuple[list[float], int]] = []
     for row in rows:
@@ -245,8 +266,11 @@ def _assemble_samples(
         if macro_by_ts is not None:
             macro_row = macro_by_ts.get(row.ts, {})
             vector.extend(float(macro_row.get(name, 0.0)) for name in macro_names)
+        if htf_by_ts is not None:
+            htf_row = htf_by_ts.get(row.ts, {})
+            vector.extend(float(htf_row.get(name, 0.0)) for name in htf_names)
         samples.append((vector, label_by_ts[row.ts]))
-    return samples, feature_names, news_names, macro_names
+    return samples, feature_names, news_names, macro_names, htf_names
 
 
 def evaluate_forecaster_on_tail(
@@ -257,6 +281,7 @@ def evaluate_forecaster_on_tail(
     test_fraction: float = 0.2,
     news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
 ) -> float | None:
     """Grade an already-trained forecaster on the trailing test slice of `bars`.
 
@@ -288,6 +313,8 @@ def evaluate_forecaster_on_tail(
             combined.update(news_by_ts.get(row.ts, {}))
         if macro_by_ts is not None:
             combined.update(macro_by_ts.get(row.ts, {}))
+        if htf_by_ts is not None:
+            combined.update(htf_by_ts.get(row.ts, {}))
         vector = [combined.get(name, 0.0) for name in forecaster.feature_names]
         samples.append((vector, label_by_ts[row.ts]))
 
@@ -355,6 +382,7 @@ def train_sklearn_forecaster(
     news_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     technical_features: tuple[str, ...] = FEATURE_NAMES,
+    htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
 ) -> SklearnForecaster:
     """Train on `bars`, holding out a *trailing* fraction as test.
 
@@ -373,13 +401,14 @@ def train_sklearn_forecaster(
     if len(rows) < 100:
         raise ValidationError(f"only {len(rows)} feature rows — not enough to train")
 
-    samples, feature_names, news_names, macro_names = _assemble_samples(
+    samples, feature_names, news_names, macro_names, htf_names = _assemble_samples(
         rows,
         bars=bars,
         horizon_bars=horizon_bars,
         news_by_ts=news_by_ts,
         macro_by_ts=macro_by_ts,
         technical_features=technical_features,
+        htf_by_ts=htf_by_ts,
     )
     if len(samples) < 100:
         raise ValidationError(f"only {len(samples)} usable samples after labelling")
@@ -478,5 +507,6 @@ def train_sklearn_forecaster(
         _feature_names=feature_names,
         _news_feature_names=news_names,
         _macro_feature_names=macro_names,
+        _htf_feature_names=htf_names,
         _calibrator=calibrator,
     )

@@ -46,6 +46,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from mentor.application.forecasting.htf_context import (
+    HTF_TIMEFRAME,
+    build_htf_by_ts,
+    load_htf_series,
+)
 from mentor.application.forecasting.news_context import build_news_by_ts, load_news_series
 from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.macro.context import build_macro_by_ts, load_macro_series
@@ -311,8 +316,9 @@ class PromotionService:
     # ---- exogenous context (best effort — empty stores just narrow the family) ----
 
     async def _exogenous_context(
-        self, bars: list[PriceBar]
+        self, bars: list[PriceBar], symbol: str = "EURUSD"
     ) -> tuple[
+        Mapping[datetime, Mapping[str, float]] | None,
         Mapping[datetime, Mapping[str, float]] | None,
         Mapping[datetime, Mapping[str, float]] | None,
     ]:
@@ -327,7 +333,14 @@ class PromotionService:
             macro_series = await load_macro_series(self._macro)
             if not macro_series.empty:
                 macro_by_ts = build_macro_by_ts(macro_series, timestamps)
-        return news_by_ts, macro_by_ts
+        # Higher-timeframe (daily) context — only meaningful for an intraday
+        # lane; a daily model looking "up" at itself would be circular.
+        htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None
+        if self._prices is not None and bars and bars[0].timeframe is not HTF_TIMEFRAME:
+            htf_series = await load_htf_series(self._prices, symbol=symbol)
+            if not htf_series.empty:
+                htf_by_ts = build_htf_by_ts(htf_series, timestamps)
+        return news_by_ts, macro_by_ts, htf_by_ts
 
     # ---- candidate configurations -----------------------------------------
 
@@ -335,6 +348,7 @@ class PromotionService:
         self,
         news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
         macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+        htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     ) -> list[tuple[str, dict[str, Any]]]:
         configs: list[tuple[str, dict[str, Any]]] = [("technical", {})]
         if macro_by_ts is not None:
@@ -361,6 +375,15 @@ class PromotionService:
             if macro_by_ts is not None:
                 pr_kwargs["macro_by_ts"] = macro_by_ts
             configs.append(("pruned" + ("+macro" if macro_by_ts is not None else ""), pr_kwargs))
+        # Multi-timeframe: give the intraday model the daily picture. Added as
+        # its own candidates so the gate measures whether it actually helps
+        # rather than assuming it does.
+        if htf_by_ts is not None:
+            configs.append(("technical+htf", {"htf_by_ts": htf_by_ts}))
+            if macro_by_ts is not None:
+                configs.append(
+                    ("technical+macro+htf", {"macro_by_ts": macro_by_ts, "htf_by_ts": htf_by_ts})
+                )
         return configs
 
     @staticmethod
@@ -406,6 +429,7 @@ class PromotionService:
         horizon_bars: int,
         news_by_ts: Mapping[datetime, Mapping[str, float]] | None,
         macro_by_ts: Mapping[datetime, Mapping[str, float]] | None,
+        htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     ) -> float | None:
         """Champion Brier on the same fresh tail the challengers used."""
         name = str(champion.get("model_name") or "")
@@ -512,8 +536,8 @@ class PromotionService:
         if len(bars) < 300:
             raise ValidationError(f"need at least 300 bars to retrain; have {len(bars)}")
 
-        news_by_ts, macro_by_ts = await self._exogenous_context(bars)
-        configs = self._candidate_configs(news_by_ts, macro_by_ts)
+        news_by_ts, macro_by_ts, htf_by_ts = await self._exogenous_context(bars, symbol)
+        configs = self._candidate_configs(news_by_ts, macro_by_ts, htf_by_ts)
 
         # Walk-forward selection over pre-tail folds, then one final training
         # of the winner on the full series. All CPU-heavy work runs in worker

@@ -95,9 +95,15 @@ async def test_first_retrain_installs_champion_with_family_audit(tmp_path: Path)
     )
     assert result.promoted is True
     assert result.champion_name is None
-    # No news/macro repos → the family is one of the technical-side configs,
-    # chosen by walk-forward selection across pre-tail folds.
-    assert result.challenger_family in {"technical", "regularized", "pruned"}
+    # No news/macro repos → the family is one of the technical-side configs
+    # (optionally with higher-timeframe context), chosen by walk-forward
+    # selection across pre-tail folds.
+    assert result.challenger_family in {
+        "technical",
+        "regularized",
+        "pruned",
+        "technical+htf",
+    }
     # The audit carries every fold score plus the winner's final tail Brier.
     assert len(result.candidate_briers) >= 2
     assert any(k.endswith("(final)") for k in result.candidate_briers)
