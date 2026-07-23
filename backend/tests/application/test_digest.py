@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from mentor.application.health import Level, build_digest
+from mentor.config import Settings
 
 NOW = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
 
@@ -100,3 +103,29 @@ def test_a_sufficient_sample_reports_the_verdict_unqualified() -> None:
     d = _digest(independent_windows=40, windows_needed=30)
     assert d.evidence == "40 windows, 58% correct — the edge is real."
     assert "more week" not in d.evidence
+
+
+# ---------- alert configuration ----------
+
+
+def test_both_telegram_settings_read_unprefixed_env_vars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: the token carried an explicit TELEGRAM_BOT_TOKEN alias but
+    the chat id did not, so the MENTOR_ prefix applied to it alone. Setting
+    the obvious pair left the chat id empty — and because both-unset disables
+    alerting silently, that produced no alerts and no error.
+
+    monkeypatch rather than os.environ: the first version of this test set the
+    variables directly and leaked MENTOR_DB_PASSWORD into the rest of the
+    session, breaking an unrelated security test that asserts production
+    defaults are flagged when unset.
+    """
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "987654")
+    monkeypatch.setenv("MENTOR_DB_PASSWORD", "x")
+    monkeypatch.setenv("MENTOR_JWT_SECRET", "y" * 32)
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert settings.telegram_bot_token.get_secret_value() == "123:abc"
+    assert settings.telegram_chat_id == "987654"

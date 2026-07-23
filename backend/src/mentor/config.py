@@ -120,7 +120,11 @@ class Settings(BaseSettings):
     telegram_bot_token: SecretStr = Field(
         default=SecretStr(""), validation_alias="TELEGRAM_BOT_TOKEN"
     )
-    telegram_chat_id: str = ""
+    # Explicit alias to match its sibling above. Without it the prefix
+    # applies and this alone would need MENTOR_TELEGRAM_CHAT_ID while the
+    # token needs TELEGRAM_BOT_TOKEN — set the obvious pair and the chat id
+    # silently stays empty, which disables alerts with no error at all.
+    telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
 
     # --- news sentiment (GDELT, free, no key) ---
     news_query_key: str = "eurusd"
