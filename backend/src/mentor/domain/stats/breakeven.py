@@ -18,10 +18,15 @@ Setting that to zero gives the hurdle::
 
     p* = (m + c) / 2m = 1/2 + c / 2m
 
-Which is 50% only when trading is free. On the measured EUR/USD bar
-distribution it is **52.36%** for the 24-hour lane and **50.73%** for the
-5-day lane — the hurdle shrinks as the horizon grows, because a fixed
-cost is a smaller share of a bigger move.
+Which is 50% only when trading is free. On production's EUR/USD history
+it is **51.67%** for the 24-hour lane and **50.71%** for the 5-day lane
+— the hurdle shrinks as the horizon grows, because a fixed cost is a
+smaller share of a bigger move.
+
+Those figures move with the data and are not constants. The same code
+against a 90-day sample returned 52.36%, because that window was quieter
+than the 1.4 years production now holds. Recompute; never quote these
+from memory.
 
 Two honest caveats, both deliberate:
 

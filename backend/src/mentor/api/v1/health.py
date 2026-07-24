@@ -130,7 +130,7 @@ async def digest(
         if (p_up >= 0.5 and outcome == 1) or (p_up < 0.5 and outcome == 0)
     )
     # Graded against what a call must clear to pay for itself, not against a
-    # coin flip. On the 24-bar lane that is 52.36%, so a 51% record is "still
+    # coin flip. On the 24-bar lane that is ~51.7%, so a 51% record is "still
     # losing money", not "slightly ahead".
     basis = await lane_breakeven(session, settings=settings)
     verdict = assess_proportion(

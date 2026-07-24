@@ -3,8 +3,13 @@
 Brier measures whether the stated probabilities match reality. It knows
 nothing about the spread, so it cannot distinguish "right 51% of the
 time" from "profitable" — and on the 24-bar EUR/USD lane those are
-opposite verdicts, because a call has to clear 52.36% before it covers
-its own friction. The gate used to promote on Brier alone.
+opposite verdicts, because a call has to clear roughly 52% before it
+covers its own friction. The gate used to promote on Brier alone.
+
+The hurdles below are fixed fixtures, not live figures: the real ones
+are measured per retrain and drift with the data (production reads
+51.67% for the 1h lane on 519 windows). Pinning them here keeps these
+tests about the *gate logic* rather than about the current market.
 """
 
 from __future__ import annotations

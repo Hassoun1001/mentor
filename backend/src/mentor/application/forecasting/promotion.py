@@ -19,9 +19,10 @@ The gate's honesty machinery, in order of adoption:
 - **Breakeven floor.** Brier says the probabilities are honest; it cannot
   say whether acting on them pays, because it knows nothing about the
   spread. So the challenger's hit rate on the hours it acts must also
-  clear the lane's measured breakeven — 52.36% on the 24-bar lane,
-  50.73% on the 5-day one. Being better than a coin is not the same as
-  being worth trading.
+  clear the lane's measured breakeven — currently ~51.7% on the 24-bar
+  lane and ~50.7% on the 5-day one, both measured per retrain rather
+  than fixed. Being better than a coin is not the same as being worth
+  trading.
 - **Demotion with hysteresis.** An incumbent whose *fresh* re-grade fails
   the floor on several consecutive retrains loses the crown — the
   transparent baseline rule predicts until someone genuinely earns it.

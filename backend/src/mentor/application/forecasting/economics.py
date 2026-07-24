@@ -9,15 +9,17 @@ different parts of the app.
 
 The two lanes land in very different places, which is the point:
 
-- **1h / 24-bar horizon** — 0.218% typical move, hurdle **52.36%**
-- **1d / 5-bar horizon** — 0.727% typical move, hurdle **50.73%**
+- **1h / 24-bar horizon** — hurdle **51.67%** (+1.67pp), 519 windows
+- **1d / 5-bar horizon** — hurdle **50.71%** (+0.71pp), 521 windows
 
 A fixed cost is a smaller share of a bigger move, so the longer lane is
-more than three times easier to clear (2.36pp of hurdle against 0.73pp).
-Grading both against 50% hid that entirely.
+well over twice as easy to clear. Grading both against 50% hid that
+entirely.
 
-Both figures are measured, not assumed — recompute them rather than
-trusting these comments if the cost model or the horizons change.
+Measured on production history as of 2026-07-24, and they will drift as
+bars accumulate — the same code against a 90-day sample gave 52.36% for
+the 1h lane. Recompute rather than trusting this comment, especially if
+the cost model or the horizons change.
 """
 
 from __future__ import annotations
