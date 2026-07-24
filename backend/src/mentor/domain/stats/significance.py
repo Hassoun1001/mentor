@@ -67,7 +67,7 @@ class ProportionVerdict:
     observed: float
     low: float  # Wilson lower bound
     high: float  # Wilson upper bound
-    baseline: float  # what "no edge" looks like (0.5 for direction)
+    baseline: float  # what "no edge" looks like — see `breakeven` for why it isn't 0.5
     significant: bool  # interval excludes the baseline entirely
     n_needed: int | None  # sample size to resolve this effect, None if unknowable
     verdict: str
@@ -126,8 +126,18 @@ def assess_proportion(
     *,
     baseline: float = 0.5,
     label: str = "calls",
+    baseline_label: str = "a coin flip",
 ) -> ProportionVerdict:
-    """Judge a success rate honestly, including when the honest answer is 'we cannot tell yet'."""
+    """Judge a success rate honestly, including when the honest answer is 'we cannot tell yet'.
+
+    ``baseline`` is what "no edge" means for this question. It defaults to
+    0.5, which is correct for a pure guessing test — but a *tradeable*
+    call has to clear the spread as well, so callers grading real signals
+    should pass the measured hurdle from
+    :func:`mentor.domain.stats.breakeven.estimate_breakeven` and a
+    ``baseline_label`` that says what the number is. Leaving it at 0.5
+    there would call a 51% model an edge and lose money on it.
+    """
     if n < 0:
         raise ValidationError("n must be >= 0", field="n")
     if not 0 < baseline < 1:
@@ -171,9 +181,13 @@ def assess_proportion(
             ),
         )
 
-    pct = f"{observed * 100:.0f}%"
-    band = f"[{low * 100:.0f}%, {high * 100:.0f}%]"
-    base_pct = f"{baseline * 100:.0f}%"
+    # One decimal on the observed rate, two on the baseline. A spread-adjusted
+    # hurdle lands on values like 51.97%, and rounding either side to whole
+    # points would print "52% correct, clears 52% entirely" — which is both
+    # unreadable and, at the margin, untrue.
+    pct = f"{observed * 100:.1f}%"
+    band = f"[{low * 100:.1f}%, {high * 100:.1f}%]"
+    base_pct = f"{baseline * 100:.2f}%".replace(".00%", "%")
 
     if not significant:
         shortfall = (
@@ -183,12 +197,13 @@ def assess_proportion(
         )
         verdict = (
             f"{n:,} {label}, {pct} correct. The 95% interval {band} contains "
-            f"{base_pct}, so this is not yet distinguishable from a coin flip.{shortfall}"
+            f"{base_pct}, so this is not yet distinguishable from "
+            f"{baseline_label}.{shortfall}"
         )
     elif observed < baseline:
         verdict = (
             f"{n:,} {label}, {pct} correct. The 95% interval {band} sits entirely "
-            f"below {base_pct} — this is significantly *worse* than a coin flip, "
+            f"below {base_pct} — this is significantly *worse* than {baseline_label}, "
             f"which is a real finding and not a run of bad luck."
         )
     else:

@@ -16,6 +16,12 @@ The gate's honesty machinery, in order of adoption:
 - **Coin-flip floor.** Nothing installs or promotes without beating the
   0.25 Brier of always answering "50%" (by the margin). Beating a bad
   incumbent is not the same as being good.
+- **Breakeven floor.** Brier says the probabilities are honest; it cannot
+  say whether acting on them pays, because it knows nothing about the
+  spread. So the challenger's hit rate on the hours it acts must also
+  clear the lane's measured breakeven — 52.36% on the 24-bar lane,
+  50.73% on the 5-day one. Being better than a coin is not the same as
+  being worth trading.
 - **Demotion with hysteresis.** An incumbent whose *fresh* re-grade fails
   the floor on several consecutive retrains loses the crown — the
   transparent baseline rule predicts until someone genuinely earns it.
@@ -40,12 +46,13 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from mentor.application.forecasting.economics import round_trip_cost_price
 from mentor.application.forecasting.htf_context import (
     HTF_TIMEFRAME,
     build_htf_by_ts,
@@ -57,9 +64,11 @@ from mentor.application.macro.context import build_macro_by_ts, load_macro_serie
 from mentor.domain.errors import ValidationError
 from mentor.domain.forecasting.features import FEATURE_NAMES
 from mentor.domain.market.bars import PriceBar, Timeframe
+from mentor.domain.stats.breakeven import BreakevenBasis, estimate_breakeven
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import (
     SklearnForecaster,
+    TrainingReport,
     evaluate_policy_on_tail,
     train_sklearn_forecaster,
 )
@@ -126,6 +135,60 @@ class PromotionResult:
     champion_brier_fresh: float | None = None
     # The incumbent lost the crown after repeated floor failures.
     demoted: bool = False
+    # The economic floor: what a call had to clear to pay for itself on this
+    # lane, and what the challenger actually managed. Recorded on every
+    # decision so the audit trail shows the bar, not just the verdict.
+    breakeven: float = 0.5
+    challenger_accuracy: float = 0.0
+
+
+def clears_floors(
+    report: TrainingReport,
+    *,
+    brier: float,
+    economics: BreakevenBasis,
+) -> tuple[bool, str]:
+    """The absolute floors a challenger must clear, and which one stopped it.
+
+    Three separate questions, deliberately not merged:
+
+    1. **Calibrated?** Brier on the hours it acts must beat the 0.25 of
+       always answering "50%", by the promotion margin.
+    2. **Willing to speak?** A model that abstains its way down to a
+       handful of lucky hours can post a beautiful covered Brier.
+    3. **Worth trading?** Its hit rate must clear the lane's measured
+       breakeven. This is the one that was missing: Brier knows nothing
+       about the spread, so a model could be honestly calibrated, clear
+       0.248, be right 51% of the time, and lose money on every call.
+
+    Returns the verdict and a sentence naming the binding floor — "failed
+    the gate" with three gates behind it tells nobody what to fix.
+    """
+    enough_coverage = not report.abstains or report.coverage >= _MIN_COVERAGE
+
+    # An unmeasurable hurdle (too few non-overlapping windows) falls back to
+    # the other two floors. That is the status quo rather than a loosening:
+    # blocking every promotion on a number we cannot compute would freeze the
+    # loop, not protect it.
+    accuracy = report.effective_accuracy
+    pays_for_itself = not economics.measured or accuracy >= economics.breakeven
+
+    passed = brier <= _BASELINE_FLOOR and enough_coverage and pays_for_itself
+
+    if not pays_for_itself:
+        detail = (
+            f" Its hit rate on the hours it acts ({accuracy * 100:.1f}%) is below the "
+            f"{economics.breakeven * 100:.2f}% needed to cover the spread — acting on "
+            f"it would lose money even where it is right more often than not."
+        )
+    elif not enough_coverage:
+        detail = (
+            f" It abstains on all but {report.coverage * 100:.0f}% of hours, below the "
+            f"{_MIN_COVERAGE * 100:.0f}% a champion must be willing to speak on."
+        )
+    else:
+        detail = ""
+    return passed, detail
 
 
 def _to_domain(rows) -> list[PriceBar]:  # type: ignore[no-untyped-def]
@@ -498,6 +561,7 @@ class PromotionService:
         family: str,
         candidate_briers: dict[str, float],
         beats_floor: bool,
+        floor_detail: str = "",
     ) -> PromotionResult:
         """No incumbent: install the challenger only if it clears the floor."""
         if beats_floor:
@@ -509,10 +573,13 @@ class PromotionService:
             )
         else:
             log.info("promotion.floor_blocked", name=challenger_name, brier=challenger_brier)
+            blocked_by = floor_detail or (
+                f" Its Brier {challenger_brier:.4f} does not beat the coin-flip floor "
+                f"{_BASELINE_FLOOR:.3f}."
+            )
             reason = (
-                f"Challenger ({family}) Brier {challenger_brier:.4f} does not beat the "
-                f"coin-flip floor {_BASELINE_FLOOR:.3f} — no champion installed; the "
-                f"transparent baseline rule keeps predicting."
+                f"Challenger ({family}) does not clear the promotion floors — no champion "
+                f"installed; the transparent baseline rule keeps predicting.{blocked_by}"
             )
         return PromotionResult(
             challenger_name=challenger_name,
@@ -583,12 +650,15 @@ class PromotionService:
             challenger, name=challenger_name, symbol=symbol, timeframe=timeframe.value
         )
 
-        # Absolute floor first: nobody ships without beating the coin flip —
-        # measured on the hours it would actually act on. A model that
-        # abstains its way below the coverage floor fails regardless of score.
         r = challenger.report
-        enough_coverage = not r.abstains or r.coverage >= _MIN_COVERAGE
-        beats_floor = challenger_brier <= _BASELINE_FLOOR and enough_coverage
+        economics = estimate_breakeven(
+            [float(b.close) for b in bars],
+            horizon_bars=horizon_bars,
+            cost_per_trade_price=round_trip_cost_price(symbol),
+        )
+        beats_floor, floor_detail = clears_floors(
+            r, brier=challenger_brier, economics=economics
+        )
 
         champion = self.current_champion()
         if champion is None:
@@ -598,6 +668,12 @@ class PromotionService:
                 family=family,
                 candidate_briers=candidate_briers,
                 beats_floor=beats_floor,
+                floor_detail=floor_detail,
+            )
+            first = replace(
+                first,
+                breakeven=economics.breakeven,
+                challenger_accuracy=r.effective_accuracy,
             )
             self._log_decision(first)
             await self._log_lesson(first, challenger, selection)
@@ -612,14 +688,19 @@ class PromotionService:
             news_by_ts=news_by_ts,
             macro_by_ts=macro_by_ts,
         )
-        decision = self._decide_vs_incumbent(
-            champion=champion,
-            champion_fresh=champion_fresh,
-            challenger_name=challenger_name,
-            challenger_brier=challenger_brier,
-            family=family,
-            candidate_briers=candidate_briers,
-            beats_floor=beats_floor,
+        decision = replace(
+            self._decide_vs_incumbent(
+                champion=champion,
+                champion_fresh=champion_fresh,
+                challenger_name=challenger_name,
+                challenger_brier=challenger_brier,
+                family=family,
+                candidate_briers=candidate_briers,
+                beats_floor=beats_floor,
+                floor_detail=floor_detail,
+            ),
+            breakeven=economics.breakeven,
+            challenger_accuracy=r.effective_accuracy,
         )
         self._log_decision(decision)
         await self._log_lesson(decision, challenger, selection)
@@ -635,6 +716,7 @@ class PromotionService:
         family: str,
         candidate_briers: dict[str, float],
         beats_floor: bool,
+        floor_detail: str = "",
     ) -> PromotionResult:
         """Gate the challenger against the incumbent; handle demotion."""
         raw_stored = champion.get("test_brier")
@@ -655,11 +737,17 @@ class PromotionService:
         else:
             promoted = False
             if improvement >= _PROMOTION_MARGIN:
+                # Name the floor that actually blocked it. "Failed the gate" with
+                # three gates behind it tells the reader nothing about what to fix.
+                blocked_by = floor_detail or (
+                    f" Its Brier {challenger_brier:.4f} does not clear the coin-flip "
+                    f"floor {_BASELINE_FLOOR:.3f}."
+                )
                 reason = (
                     f"Challenger ({family}) Brier {challenger_brier:.4f} beat the champion "
-                    f"{champion_brier:.4f} ({basis}) but does not clear the coin-flip floor "
-                    f"{_BASELINE_FLOOR:.3f} — not promoted. Beating a bad incumbent is not "
-                    f"the same as being good."
+                    f"{champion_brier:.4f} ({basis}) but does not clear the promotion "
+                    f"floors — not promoted. Beating a bad incumbent is not the same as "
+                    f"being good.{blocked_by}"
                 )
             else:
                 reason = (

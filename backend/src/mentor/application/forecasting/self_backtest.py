@@ -45,21 +45,31 @@ class PaperReport:
 
 
 _NOTE = (
-    "Hypothetical: entries/exits at bar closes, fixed spread, no slippage. "
-    "Short histories are luck; judge over 100+ trades."
+    "Hypothetical: entries/exits at bar closes, charged the same round-trip "
+    "friction the backtester applies. Short histories are luck; judge over "
+    "100+ trades."
 )
+
+# Round-trip friction in price units: 0.8 pip spread + two 0.2 pip slippage
+# legs, matching `CostModel`. Hardcoded here rather than imported so the
+# domain simulator stays free of application wiring — the endpoint passes
+# the live figure, and this only applies to direct callers.
+_DEFAULT_ROUND_TRIP = 0.00012
 
 
 def simulate_own_signals(
     rows: Sequence[PredictionORM],
     *,
     min_confidence: float = 0.0,
-    spread: float = 0.0001,
+    spread: float = _DEFAULT_ROUND_TRIP,
 ) -> PaperReport:
     """Follow every resolved directional prediction as one paper trade.
 
-    `spread` is in price units (0.0001 = 1 pip on EURUSD) and is charged
-    once per trade against the entry price.
+    `spread` is round-trip friction in price units (0.00012 = 1.2 pips on
+    EUR/USD) charged once per trade against the entry price. It must match
+    the cost the breakeven hurdle is computed from: an equity curve priced
+    at one cost and graded against a hurdle priced at another is two
+    different questions wearing the same answer.
     """
     resolved = sorted(
         (r for r in rows if r.realised_close is not None),

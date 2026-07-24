@@ -18,6 +18,11 @@ from mentor.application.forecasting import (
     TrainingService,
     resolve_pending_predictions,
 )
+from mentor.application.forecasting.economics import (
+    BREAKEVEN_LABEL,
+    lane_breakeven,
+    round_trip_cost_price,
+)
 from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.replay import ReplayService
@@ -884,13 +889,21 @@ class PaperReportResponse(BaseModel):
     # reopen price. The verdict is computed on the non-overlapping subset,
     # and both counts are reported so the gap is visible.
     independent_trades: int = 0
+    # The rate a call must clear to pay for itself, measured from this lane's
+    # own move distribution against the friction the backtester charges. The
+    # verdict above is graded on this, not on 50% — a 51% model beats a coin
+    # and still loses money.
+    breakeven: float = 0.5
+    breakeven_measured: bool = False
+    breakeven_note: str = ""
 
 
 @router.get("/loop/paper", response_model=PaperReportResponse)
 async def loop_paper(
     session: SessionDep,
+    settings: SettingsDep,
     min_confidence: Annotated[float, Query(ge=0.0, le=1.0)] = 0.0,
-    spread: Annotated[float, Query(ge=0.0, le=0.01)] = 0.0001,
+    spread: Annotated[float | None, Query(ge=0.0, le=0.01)] = None,
     timeframe: Annotated[str | None, Query(pattern="^(1m|5m|1h|1d)$")] = None,
 ) -> PaperReportResponse:
     """Paper-trade the system's own resolved predictions: what following
@@ -900,7 +913,10 @@ async def loop_paper(
     rows = await PredictionRepository(session).list_resolved(limit=5000)
     if timeframe is not None:
         rows = [r for r in rows if r.timeframe == timeframe]
-    report = simulate_own_signals(rows, min_confidence=min_confidence, spread=spread)
+    # Default to the same round-trip friction the breakeven hurdle is built
+    # from, so the curve and the verdict beneath it price a trade identically.
+    friction = spread if spread is not None else round_trip_cost_price(settings.loop_symbol)
+    report = simulate_own_signals(rows, min_confidence=min_confidence, spread=friction)
 
     # An equity curve is the most persuasive and least informative chart in
     # trading, and counting these signals as independent trades makes it
@@ -922,7 +938,14 @@ async def loop_paper(
         for p_up, outcome in independent
         if (p_up >= 0.5 and outcome == 1) or (p_up < 0.5 and outcome == 0)
     )
-    v = assess_proportion(hits, len(independent), label="independent windows")
+    basis = await lane_breakeven(session, settings=settings, timeframe=timeframe)
+    v = assess_proportion(
+        hits,
+        len(independent),
+        baseline=basis.breakeven,
+        label="independent windows",
+        baseline_label=BREAKEVEN_LABEL if basis.measured else "a coin flip",
+    )
     return PaperReportResponse(
         trades=report.trades,
         skipped_low_confidence=report.skipped_low_confidence,
@@ -941,6 +964,9 @@ async def loop_paper(
         significant=v.significant,
         trades_needed=v.n_needed,
         independent_trades=len(independent),
+        breakeven=basis.breakeven,
+        breakeven_measured=basis.measured,
+        breakeven_note=basis.note,
     )
 
 

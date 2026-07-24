@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from mentor import __version__
 from mentor.api.deps import SessionDep, SettingsDep
+from mentor.application.forecasting.economics import BREAKEVEN_LABEL, lane_breakeven
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.health import build_digest
 from mentor.application.scheduler.drift import select_independent
@@ -128,7 +129,17 @@ async def digest(
         for p_up, outcome in independent
         if (p_up >= 0.5 and outcome == 1) or (p_up < 0.5 and outcome == 0)
     )
-    verdict = assess_proportion(hits, len(independent), label="independent windows")
+    # Graded against what a call must clear to pay for itself, not against a
+    # coin flip. On the 24-bar lane that is 52.36%, so a 51% record is "still
+    # losing money", not "slightly ahead".
+    basis = await lane_breakeven(session, settings=settings)
+    verdict = assess_proportion(
+        hits,
+        len(independent),
+        baseline=basis.breakeven,
+        label="independent windows",
+        baseline_label=BREAKEVEN_LABEL if basis.measured else "a coin flip",
+    )
 
     promo = PromotionService(model_store_dir=settings.model_store_dir)
     last_retrain: datetime | None = None

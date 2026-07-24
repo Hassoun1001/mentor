@@ -310,8 +310,12 @@ function PaperPanel({
             significant={report.significant}
             low={report.win_rate_low}
             high={report.win_rate_high}
-            baseline={0.5}
+            baseline={report.breakeven}
+            baselineLabel={report.breakeven_measured ? 'breakeven' : 'coin flip'}
           />
+          {report.breakeven_note && (
+            <p className="text-xs text-mentor-muted">{report.breakeven_note}</p>
+          )}
           <p className="text-xs text-mentor-muted">{report.note}</p>
         </>
       )}

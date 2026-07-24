@@ -91,6 +91,16 @@ class TrainingReport:
         """
         return self.test_brier_covered if self.abstains else self.test_brier
 
+    @property
+    def effective_accuracy(self) -> float:
+        """Hit rate on the hours the model actually acts on.
+
+        Brier says the probabilities are honest; this says how often the
+        call was right. Only the second one can be compared against what a
+        trade costs, which is why the promotion gate needs both.
+        """
+        return self.test_accuracy_covered if self.abstains else self.test_accuracy
+
 
 @dataclass(slots=True)
 class SklearnForecaster(Forecaster):

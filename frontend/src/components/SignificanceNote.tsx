@@ -17,12 +17,20 @@ export function SignificanceNote({
   low,
   high,
   baseline,
+  baselineLabel = 'coin flip',
 }: {
   verdict: string;
   significant: boolean;
   low: number;
   high: number;
   baseline: number;
+  /**
+   * What the mark on the track represents. It is not always a coin flip:
+   * grading a tradeable signal uses the spread-adjusted breakeven, which
+   * sits above 50% and is the difference between "better than chance" and
+   * "worth doing".
+   */
+  baselineLabel?: string;
 }) {
   if (!verdict) return null;
 
@@ -56,7 +64,7 @@ export function SignificanceNote({
           style={{ left: `${low * 100}%`, width: `${span * 100}%` }}
           title={`95% interval: ${(low * 100).toFixed(0)}%-${(high * 100).toFixed(0)}%`}
         />
-        {/* the coin-flip mark */}
+        {/* the baseline mark — a coin flip, or the breakeven above it */}
         <div
           className="absolute top-0 h-6 w-px bg-mentor-fg/60"
           style={{ left: `${baseline * 100}%` }}
@@ -70,7 +78,10 @@ export function SignificanceNote({
       </div>
       <div className="flex justify-between text-[10px] text-mentor-muted">
         <span>0%</span>
-        <span>coin flip ({Math.round(baseline * 100)}%)</span>
+        <span>
+          {baselineLabel} (
+          {(baseline * 100).toFixed(2).replace(/\.00$/, '')}%)
+        </span>
         <span>100%</span>
       </div>
     </div>
