@@ -145,3 +145,88 @@ def test_a_real_gain_still_earns_silence() -> None:
     policy = select_margin(probs, outcomes)
     assert policy.abstains
     assert policy.brier_gain >= 0.002
+
+
+# ---------- the economic criterion (breakeven supplied) ----------
+
+
+def test_it_abstains_onto_the_profitable_subset() -> None:
+    """With a breakeven, abstention skips hours the edge can't pay for. The
+    20 confident calls are right 90% of the time (clears a 52% hurdle); the
+    80 unopinionated calls are a losing coin flip, dragging the whole set to
+    50% — below the hurdle. The rule keeps the former and drops the rest."""
+    probs = [0.8] * 20 + [0.52] * 80
+    outcomes = [1] * 18 + [0] * 2 + [1] * 32 + [0] * 48  # 90% then 40%
+    assert grade_policy(0.0, probs, outcomes).accuracy_covered < 0.52  # whole set fails
+    policy = select_margin(probs, outcomes, breakeven=0.52)
+    assert policy.abstains
+    assert policy.coverage == pytest.approx(0.2)  # the 20 confident calls
+    assert policy.accuracy_covered >= 0.52
+
+
+def test_it_speaks_on_everything_when_the_whole_population_pays() -> None:
+    """If the full set already clears breakeven, full coverage wins and the
+    model abstains on nothing — margin 0 is a candidate, not just a
+    fallback."""
+    probs = [0.8] * 100
+    outcomes = [1] * 70 + [0] * 30  # 70% overall, well above the hurdle
+    policy = select_margin(probs, outcomes, breakeven=0.52)
+    assert policy.margin == 0.0
+    assert policy.coverage == 1.0
+
+
+def test_it_prefers_the_loosest_profitable_margin() -> None:
+    """Once a subset pays, more opportunities beats fewer. The mild group
+    still clears 52%, so the loosest profitable margin keeps confident+mild
+    (coverage 0.5) rather than only the surest calls (0.2). The 50 losing
+    coin-flips drag the whole set to 48%, so speaking on everything fails."""
+    probs = [0.9] * 20 + [0.65] * 30 + [0.52] * 50
+    outcomes = [1] * 20 + ([1] * 18 + [0] * 12) + ([1] * 10 + [0] * 40)
+    assert grade_policy(0.0, probs, outcomes).accuracy_covered < 0.52  # whole set fails
+    policy = select_margin(probs, outcomes, breakeven=0.52)
+    assert policy.coverage == pytest.approx(0.5)  # confident + mild, not just confident
+    assert policy.accuracy_covered >= 0.52
+
+
+def test_no_profitable_subset_means_speak_and_let_the_gate_refuse() -> None:
+    """The honest failure mode. Nothing clears the hurdle, so rather than
+    abstaining down to a hand-picked profitable-looking sliver, the model
+    speaks on everything — and the promotion gate refuses it on accuracy."""
+    probs = [0.7] * 50 + [0.55] * 50
+    outcomes = [i % 2 for i in range(100)]  # ~50% everywhere, no real edge
+    policy = select_margin(probs, outcomes, breakeven=0.52)
+    assert policy.margin == 0.0
+    assert policy.coverage == 1.0
+
+
+def test_the_economic_rule_can_keep_hours_brier_would_have_dropped() -> None:
+    """Why optimising profit rather than Brier matters. On `_confident_edge`
+    the whole set is 66% correct — comfortably profitable at a 52% hurdle —
+    so the economic rule speaks on everything. The Brier-minimiser instead
+    abstains onto the confident block, dropping 60 hours that were paying.
+    Different objectives, different answers; only one of them is about
+    money."""
+    probs, outcomes = _confident_edge()
+    econ = select_margin(probs, outcomes, breakeven=0.52)
+    brier = select_margin(probs, outcomes)  # legacy objective
+    assert econ.coverage > brier.coverage
+    assert econ.accuracy_covered >= 0.52
+    assert brier.margin > econ.margin
+
+
+def test_the_coverage_floor_still_binds_under_the_economic_rule() -> None:
+    """A profitable but tiny sliver must not win — the same discipline the
+    Brier path enforces, because a handful of lucky confident calls clears
+    any hurdle."""
+    probs = [0.99, 0.99] + [0.5] * 98
+    outcomes = [1, 1] + [i % 2 for i in range(98)]
+    policy = select_margin(probs, outcomes, breakeven=0.52)
+    # Two perfect calls is 2% coverage; below the 15% floor, so refused.
+    assert policy.margin == 0.0
+
+
+def test_an_out_of_range_breakeven_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        select_margin([0.6, 0.4], [1, 0], breakeven=1.0)
+    with pytest.raises(ValidationError):
+        select_margin([0.6, 0.4], [1, 0], breakeven=0.0)

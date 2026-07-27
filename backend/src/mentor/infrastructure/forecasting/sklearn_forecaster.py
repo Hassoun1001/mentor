@@ -501,6 +501,7 @@ def train_sklearn_forecaster(
     macro_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
     technical_features: tuple[str, ...] = FEATURE_NAMES,
     htf_by_ts: Mapping[datetime, Mapping[str, float]] | None = None,
+    breakeven: float | None = None,
 ) -> SklearnForecaster:
     """Train on `bars`, holding out a *trailing* fraction as test.
 
@@ -602,9 +603,13 @@ def train_sklearn_forecaster(
 
     # Selective prediction. The margin is *chosen* on the calibration slice
     # and *graded* on test, which it never saw — so the covered score below
-    # is a claim about future hours, not a description of past ones.
+    # is a claim about future hours, not a description of past ones. When a
+    # breakeven is supplied the margin is chosen to skip hours the edge can't
+    # pay for, rather than merely to improve Brier (see select_margin).
     policy = select_margin(
-        _shipped_probs(clf, calibrator, calib_x), [int(v) for v in calib_y]
+        _shipped_probs(clf, calibrator, calib_x),
+        [int(v) for v in calib_y],
+        breakeven=breakeven,
     )
     graded = grade_policy(
         policy.margin, _shipped_probs(clf, calibrator, test_x), [int(v) for v in test_y]

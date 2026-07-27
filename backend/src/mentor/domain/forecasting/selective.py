@@ -142,30 +142,57 @@ def select_margin(
     outcomes: Sequence[int],
     *,
     min_coverage: float = MIN_COVERAGE,
+    breakeven: float | None = None,
 ) -> SelectivePolicy:
     """Choose the abstention margin on this slice.
 
-    Minimises Brier over the hours the policy would act on, subject to two
-    constraints: the coverage floor, and a **minimum improvement** over
-    simply speaking every hour. Ties break toward the smaller margin —
-    coverage is worth something, and a rule that trades more often on the
-    same edge is the better rule.
+    Two selection criteria, because "when should the model stay quiet?" has
+    a calibration answer and an economic one, and they are not the same
+    question.
 
-    The minimum-gain rule is what stops this from being a noise machine.
-    Measured on live EUR/USD data, an unconstrained search picked a margin
-    that discarded three-quarters of all hours to buy a Brier improvement
-    of ~0.0001 on the selection slice — an improvement that promptly
-    reversed on the test window. A policy has to earn its silence.
+    **Economic (``breakeven`` supplied).** Abstention exists to skip hours
+    the edge cannot pay for. So the rule is: among margins that keep
+    coverage above the floor *and* whose covered hits clear the
+    spread-adjusted breakeven, act on as many hours as possible — the
+    loosest profitable margin, because once a subset pays, more
+    opportunities is more money. If no confident subset clears breakeven,
+    return the never-abstain policy: speaking on everything and letting the
+    promotion gate refuse it is honest, whereas abstaining down to a
+    hand-picked profitable-looking sliver is how you manufacture an edge
+    that isn't there.
 
-    Returns the never-abstain policy when nothing clears both bars.
+    This is the same correction the promotion gate got — grade against what
+    a trade costs, not against a coin flip — pushed one layer earlier, into
+    *which hours the model speaks on at all*. Minimising Brier can leave a
+    genuinely profitable pocket of hours unselected, because Brier and
+    profitability do not perfectly agree; optimising the metric that
+    actually pays fixes that.
+
+    **Calibration (``breakeven`` is None — legacy, or hurdle unmeasurable).**
+    Minimises Brier over the covered hours, subject to the coverage floor
+    and a **minimum improvement** over speaking every hour. That min-gain
+    rule is what stops the search being a noise machine: on live EUR/USD
+    data an unconstrained search once discarded three-quarters of all hours
+    to buy a ~0.0001 Brier improvement that reversed on the test window.
+
+    Either way the margin is chosen here (on the calibration slice) and
+    graded elsewhere (on test), so the covered score is a claim about
+    future hours, not a description of past ones.
+
+    Returns the never-abstain policy when nothing qualifies.
     """
     _validate(probs, outcomes)
     if not 0 < min_coverage <= 1:
         raise ValidationError("min_coverage must be in (0, 1]", field="min_coverage")
+    if breakeven is not None and not 0 < breakeven < 1:
+        raise ValidationError("breakeven must be in (0, 1)", field="breakeven")
 
     speak_always = grade_policy(0.0, probs, outcomes)
-    required = speak_always.brier_all - _MIN_GAIN
 
+    if breakeven is not None:
+        return _select_economic(probs, outcomes, min_coverage, breakeven, speak_always)
+
+    required = speak_always.brier_all - _MIN_GAIN
     best: SelectivePolicy | None = None
     for margin in _MARGIN_GRID:
         if margin == 0.0:
@@ -176,5 +203,37 @@ def select_margin(
         if policy.brier_covered > required:
             continue  # not a big enough win to justify going quiet
         if best is None or policy.brier_covered < best.brier_covered - 1e-9:
+            best = policy
+    return best if best is not None else speak_always
+
+
+def _select_economic(
+    probs: Sequence[float],
+    outcomes: Sequence[int],
+    min_coverage: float,
+    breakeven: float,
+    speak_always: SelectivePolicy,
+) -> SelectivePolicy:
+    """Loosest margin whose covered hits clear breakeven; else never-abstain.
+
+    Margin 0.0 is a candidate too: if the whole population already pays,
+    full coverage wins and the model abstains on nothing.
+    """
+    best: SelectivePolicy | None = None
+    for margin in _MARGIN_GRID:
+        policy = grade_policy(margin, probs, outcomes)
+        if policy.coverage < min_coverage:
+            continue
+        if policy.accuracy_covered < breakeven:
+            continue  # this subset does not pay for its own spread
+        # More coverage beats less (more chances at a positive edge); a
+        # tie on coverage breaks toward the better-calibrated subset.
+        better_coverage = policy.coverage > best.coverage + 1e-9 if best else True
+        tie_break = (
+            best is not None
+            and abs(policy.coverage - best.coverage) <= 1e-9
+            and policy.brier_covered < best.brier_covered - 1e-9
+        )
+        if best is None or better_coverage or tie_break:
             best = policy
     return best if best is not None else speak_always

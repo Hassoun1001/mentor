@@ -634,10 +634,23 @@ class PromotionService:
         winner_kwargs = dict(configs)[family]
         log.info("promotion.selection", folds=selection, winner=family)
 
+        # Measure the lane's breakeven once, up front, and use the same number
+        # for both jobs it does: choosing where the model abstains (skip hours
+        # the edge can't pay for) and gating whether it ships. One hurdle, so
+        # the policy the challenger trains under is the policy it is judged
+        # against — not two different definitions of "worth trading".
+        economics = estimate_breakeven(
+            [float(b.close) for b in bars],
+            horizon_bars=horizon_bars,
+            cost_per_trade_price=round_trip_cost_price(symbol),
+        )
+        breakeven = economics.breakeven if economics.measured else None
+
         challenger = await asyncio.to_thread(
             train_sklearn_forecaster,
             bars=bars,
             horizon_bars=horizon_bars,
+            breakeven=breakeven,
             **winner_kwargs,
         )
         challenger_brier = challenger.report.effective_brier
@@ -652,11 +665,6 @@ class PromotionService:
         )
 
         r = challenger.report
-        economics = estimate_breakeven(
-            [float(b.close) for b in bars],
-            horizon_bars=horizon_bars,
-            cost_per_trade_price=round_trip_cost_price(symbol),
-        )
         beats_floor, floor_detail = clears_floors(
             r, brier=challenger_brier, economics=economics
         )
