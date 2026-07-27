@@ -66,6 +66,14 @@ services:
       MENTOR_CORS_ORIGINS: "https://${MENTOR_DOMAIN:?set MENTOR_DOMAIN in .env}"
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY:-}
+      # Economic calendar for the event-freeze guard. Without it the freeze
+      # can never fire — the config reads FINNHUB_KEY, so the container must
+      # forward it too, or a value in .env would silently never arrive.
+      FINNHUB_KEY: ${FINNHUB_KEY:-}
+      # Headlines for the news panel (model sentiment comes from GDELT and
+      # needs no key; this is only the displayed articles). Same passthrough
+      # gap as FINNHUB_KEY — documented in .env.example but never forwarded.
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-}
       MENTOR_LLM_MODEL: ${MENTOR_LLM_MODEL:-claude-opus-4-8}
       # Always-on learning: ingest fresh bars, predict, resolve, retrain.
       MENTOR_LOOP_ENABLED: ${MENTOR_LOOP_ENABLED:-true}
