@@ -283,28 +283,21 @@ function PaperPanel({
       )}
       {report && report.trades > 0 && (
         <>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-            <Metric label="Trades" value={String(report.trades)} />
-            <Metric label="Win rate" value={`${(report.win_rate * 100).toFixed(0)}%`} />
+          {/* The honest headline. Overlapping signals count one directional
+              stance many times, so a single wrong lean into a trend looks
+              like a collapse. These are the non-overlapping windows — the
+              number that regresses to the truth. */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <Metric label="Independent windows" value={String(report.independent_trades)} />
             <Metric
-              label="Total return"
-              value={`${report.total_return_pct >= 0 ? '+' : ''}${report.total_return_pct.toFixed(2)}%`}
-              tone={report.total_return_pct >= 0 ? 'positive' : 'danger'}
+              label="Win rate (independent)"
+              value={`${(report.independent_win_rate * 100).toFixed(0)}%`}
             />
-            <Metric label="Max drawdown" value={`-${report.max_drawdown_pct.toFixed(2)}%`} />
-            <Metric label="Avg trade" value={`${report.avg_trade_pct.toFixed(3)}%`} />
+            <Metric
+              label={report.breakeven_measured ? 'Breakeven to profit' : 'Coin flip'}
+              value={`${(report.breakeven * 100).toFixed(report.breakeven_measured ? 1 : 0)}%`}
+            />
           </div>
-          <EquityCurve
-            points={report.curve.map((p) => ({ ts: p.ts, balance: String(p.equity) }))}
-            height={260}
-          />
-          <p className="text-xs text-mentor-muted">
-            {report.trades} signals, but consecutive hourly calls overlap by most of
-            their 24-hour window and a whole weekend can resolve against one reopen
-            price. The verdict below counts only the{' '}
-            <b>{report.independent_trades}</b> non-overlapping windows — the rest are
-            the same market moment counted repeatedly.
-          </p>
           <SignificanceNote
             verdict={report.verdict}
             significant={report.significant}
@@ -316,7 +309,46 @@ function PaperPanel({
           {report.breakeven_note && (
             <p className="text-xs text-mentor-muted">{report.breakeven_note}</p>
           )}
-          <p className="text-xs text-mentor-muted">{report.note}</p>
+
+          {/* The raw, overlap-inflated view — kept for diagnosis but folded
+              away, because leading with it is what turns one wrong stance into
+              a false "the win rate is collapsing" alarm during any trend. */}
+          <details className="rounded-lg border border-mentor-border bg-mentor-panel/40">
+            <summary className="cursor-pointer px-3 py-2 text-xs text-mentor-muted">
+              Raw signal count &amp; equity curve ({report.trades} overlapping signals —
+              not a track record)
+            </summary>
+            <div className="space-y-4 px-3 pb-3 pt-1">
+              <p className="text-xs text-mentor-muted">
+                Consecutive hourly calls overlap by most of their 24-hour window,
+                and a whole weekend can resolve against one reopen price, so these{' '}
+                {report.trades} signals collapse to just{' '}
+                <b>{report.independent_trades}</b> independent observations. A single
+                stance on the wrong side of a trend is counted here dozens of times —
+                which is why this win rate swings hard while the headline above stays
+                steady.
+              </p>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                <Metric label="Signals" value={String(report.trades)} />
+                <Metric
+                  label="Raw win rate"
+                  value={`${(report.win_rate * 100).toFixed(0)}%`}
+                />
+                <Metric
+                  label="Total return"
+                  value={`${report.total_return_pct >= 0 ? '+' : ''}${report.total_return_pct.toFixed(2)}%`}
+                  tone={report.total_return_pct >= 0 ? 'positive' : 'danger'}
+                />
+                <Metric label="Max drawdown" value={`-${report.max_drawdown_pct.toFixed(2)}%`} />
+                <Metric label="Avg trade" value={`${report.avg_trade_pct.toFixed(3)}%`} />
+              </div>
+              <EquityCurve
+                points={report.curve.map((p) => ({ ts: p.ts, balance: String(p.equity) }))}
+                height={260}
+              />
+              <p className="text-xs text-mentor-muted">{report.note}</p>
+            </div>
+          </details>
         </>
       )}
     </div>

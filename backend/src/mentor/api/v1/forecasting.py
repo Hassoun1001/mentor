@@ -889,6 +889,11 @@ class PaperReportResponse(BaseModel):
     # reopen price. The verdict is computed on the non-overlapping subset,
     # and both counts are reported so the gap is visible.
     independent_trades: int = 0
+    # The win rate on the non-overlapping subset — the honest headline. The
+    # raw `win_rate` above counts one directional stance many times, so a
+    # single wrong lean into a trend reads as a catastrophic streak; this is
+    # the number that regresses to the truth.
+    independent_win_rate: float = 0.0
     # The rate a call must clear to pay for itself, measured from this lane's
     # own move distribution against the friction the backtester charges. The
     # verdict above is graded on this, not on 50% — a 51% model beats a coin
@@ -964,6 +969,7 @@ async def loop_paper(
         significant=v.significant,
         trades_needed=v.n_needed,
         independent_trades=len(independent),
+        independent_win_rate=(hits / len(independent)) if independent else 0.0,
         breakeven=basis.breakeven,
         breakeven_measured=basis.measured,
         breakeven_note=basis.note,

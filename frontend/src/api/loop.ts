@@ -81,6 +81,7 @@ const paperReport = z.object({
   significant: z.boolean(),
   trades_needed: z.number().nullable(),
   independent_trades: z.number(),
+  independent_win_rate: z.number(),
   // The rate a call must clear to pay for itself on this lane. The verdict
   // above is graded against this, not 50% — a 51% model beats a coin and
   // still loses money.
