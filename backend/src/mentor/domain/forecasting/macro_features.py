@@ -33,12 +33,22 @@ from typing import Final
 # The FRED series ids we ingest and consume.
 FRED_SERIES_IDS: Final[tuple[str, ...]] = ("DGS2", "DGS10", "T10Y2Y", "VIXCLS", "DTWEXBGS")
 
+# CFTC Commitments-of-Traders series, cached in the same macro store but fed
+# by the CFTC adapter rather than FRED. Publication-dated, so the shared
+# `day <= cutoff` lookup is already no-lookahead. This is the domain's source
+# of truth for the id — the adapter imports it, not the reverse.
+COT_EUR_SERIES_ID: Final = "COT_EUR_NET_PCT_OI"
+
 MACRO_FEATURE_NAMES: Final[tuple[str, ...]] = (
     "us2y_chg_5",
     "us_2s10s",
     "dxy_ret_5",
     "vix_level",
     "vix_chg_5",
+    # Large-speculator net positioning (CFTC COT): the crowding level, and
+    # its week-over-week shift. Orthogonal to price — a positioning fact.
+    "cot_net_pct_oi",
+    "cot_net_chg",
 )
 
 _LOOKBACK = 5  # trading-day lookback for change/return features
@@ -114,6 +124,15 @@ class MacroSeries:
         if vix is not None:
             out["vix_level"] = _clip(vix[0] / 100.0, 5.0)
             out["vix_chg_5"] = _clip((vix[0] - vix[1]) / 100.0, 5.0)
+
+        # COT is weekly, so "lag 1 observation" is the prior week — the right
+        # notion of a positioning *shift*, not a fixed day-count like the
+        # daily series above. Value is already a fraction of open interest, so
+        # a wide clip only guards against dirty data, not normal range.
+        cot = self._latest_and_lag(COT_EUR_SERIES_ID, cutoff, 1)
+        if cot is not None:
+            out["cot_net_pct_oi"] = _clip(cot[0], 1.0)
+            out["cot_net_chg"] = _clip(cot[0] - cot[1], 1.0)
 
         return out
 

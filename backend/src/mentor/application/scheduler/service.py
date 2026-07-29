@@ -40,6 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from mentor.application.forecasting.inference_service import ForecastService
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
+from mentor.application.macro.cot_ingest import CotIngestService
 from mentor.application.market import IngestionService
 from mentor.application.market.quality import scan_quality
 from mentor.application.news.tone_ingest import ToneIngestService
@@ -64,6 +65,9 @@ log = get_logger("mentor.scheduler")
 # current without hammering a free service. The lookback re-fetches a
 # fortnight each time so revised days and any missed window self-heal.
 _TONE_REFRESH_HOURS = 6
+# COT is weekly; a daily poll catches the Friday report within a day without
+# hammering CFTC, and is idempotent so re-runs are free.
+_COT_REFRESH_HOURS = 24
 _TONE_REFRESH_DAYS = 14
 
 # APScheduler interval jobs first fire one whole interval AFTER registration,
@@ -249,6 +253,28 @@ class LoopScheduler:
         except (DomainError, OSError) as exc:
             log.warning("loop.news_tone_failed", error=str(exc))
             self._health.event("news_tone_error", f"news sentiment refresh failed: {exc}")
+            return 0
+
+    async def run_cot_once(self) -> int:
+        """Refresh CFTC Commitments-of-Traders positioning (weekly, free).
+
+        Feeds the model's COT features. Like news tone, a failure here is a
+        degraded feature, not an outage — a stale positioning read is far
+        better than a downed loop. The full history is ~1,500 weekly rows and
+        idempotent on (series_id, day), so refreshing whole is simplest.
+        """
+        try:
+            async with self._sessions() as session:
+                service = CotIngestService(repo=MacroSeriesRepository(session))
+                result = await service.backfill()
+                await session.commit()
+            self._health.beat(
+                "cot", ok=True, note=f"{result.observations_fetched} weeks cached"
+            )
+            return result.rows_written
+        except (DomainError, OSError) as exc:
+            log.warning("loop.cot_failed", error=str(exc))
+            self._health.event("cot_error", f"COT positioning refresh failed: {exc}")
             return 0
 
     async def _quality_check(self, tf: Timeframe) -> tuple[bool, str]:
@@ -526,6 +552,17 @@ class LoopScheduler:
             "interval",
             hours=_TONE_REFRESH_HOURS,
             id="news_tone",
+            next_run_time=_soon(),
+            max_instances=1,
+            coalesce=True,
+        )
+        # COT publishes once a week (Friday); a daily check is ample and
+        # cheaply idempotent, catching the new report within a day of release.
+        self._scheduler.add_job(
+            self.run_cot_once,
+            "interval",
+            hours=_COT_REFRESH_HOURS,
+            id="cot",
             next_run_time=_soon(),
             max_instances=1,
             coalesce=True,
