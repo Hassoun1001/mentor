@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from mentor.api.deps import SessionDep, SettingsDep
 from mentor.application.calendar import CalendarService
 from mentor.domain.calendar.event import ImpactLevel
+from mentor.domain.errors import DomainError
 from mentor.infrastructure.adapters.calendar import FinnhubCalendarAdapter
 from mentor.infrastructure.repositories import EconomicEventRepository
 
@@ -44,6 +45,11 @@ async def ingest(body: IngestRequest, session: SessionDep, settings: SettingsDep
     until = now + timedelta(hours=body.hours_ahead)
     try:
         result = await service.ingest(since=since, until=until)
+    except DomainError as exc:
+        # A configured-but-unauthorised key (free tier can't read the paid
+        # calendar) must read as a plain explanation, not a 500 that looks
+        # like the app broke.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         await adapter.aclose()
     return IngestResponse(fetched=result.fetched, upserted=result.upserted)

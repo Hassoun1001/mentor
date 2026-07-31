@@ -63,6 +63,18 @@ class FinnhubCalendarAdapter(EconomicCalendarAdapter):
             f"{self._BASE_URL}{path}",
             params={**params, "token": self._api_key},
         )
+        # 401/403 are plan/permission problems, not transient — retrying four
+        # times cannot heal them, and the honest message matters: Finnhub gates
+        # the economic-calendar endpoint behind a paid plan, so a valid free-tier
+        # key still gets 403 here. Raise a clear, non-retryable error (FinnhubError
+        # is not in the retry set) instead of a bare HTTPStatusError.
+        if response.status_code in (401, 403):
+            raise FinnhubError(
+                f"Finnhub returned {response.status_code} for {path}. The economic "
+                "calendar is a paid Finnhub feature — a free-tier key authenticates "
+                "but cannot read this endpoint. The event-freeze guard stays inactive "
+                "until a plan that includes the calendar is used."
+            )
         response.raise_for_status()
         body = response.json()
         if not isinstance(body, dict):
