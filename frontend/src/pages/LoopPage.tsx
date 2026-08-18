@@ -19,6 +19,11 @@ import { SignificanceNote } from '../components/SignificanceNote';
 
 const REFRESH_MS = 30_000;
 
+// Matches the backend's _MIN_SAMPLE_FOR_VERDICT: below this many independent
+// windows a win rate is noise, so we show progress toward it rather than a
+// percentage that a trend can swing wildly.
+const MIN_WINDOWS_FOR_VERDICT = 30;
+
 export function LoopPage() {
   const [minConfidence, setMinConfidence] = useState(0);
 
@@ -248,6 +253,7 @@ function PaperPanel({
   minConfidence: number;
   onMinConfidence: (v: number) => void;
 }) {
+  const enoughWindows = (report?.independent_trades ?? 0) >= MIN_WINDOWS_FOR_VERDICT;
   return (
     <div className="panel-pad space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -288,10 +294,27 @@ function PaperPanel({
               like a collapse. These are the non-overlapping windows — the
               number that regresses to the truth. */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            <Metric label="Independent windows" value={String(report.independent_trades)} />
+            <Metric
+              label="Independent windows"
+              value={
+                enoughWindows
+                  ? String(report.independent_trades)
+                  : `${report.independent_trades} / ${MIN_WINDOWS_FOR_VERDICT}`
+              }
+              sub={enoughWindows ? undefined : 'toward a first verdict'}
+            />
+            {/* Below the verdict floor a win rate is noise — a handful of
+                windows in a trend swing wildly and mean nothing. Show that
+                it's gathering rather than a damning number, so a 1-of-4
+                sample never reads as "25%". */}
             <Metric
               label="Win rate (independent)"
-              value={`${(report.independent_win_rate * 100).toFixed(0)}%`}
+              value={enoughWindows ? `${(report.independent_win_rate * 100).toFixed(0)}%` : '—'}
+              sub={
+                enoughWindows
+                  ? undefined
+                  : `${report.independent_trades} window(s) so far — too few to judge`
+              }
             />
             <Metric
               label={report.breakeven_measured ? 'Breakeven to profit' : 'Coin flip'}
