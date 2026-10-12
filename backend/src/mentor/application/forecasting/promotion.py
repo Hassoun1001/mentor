@@ -177,10 +177,21 @@ def clears_floors(
     passed = brier <= _BASELINE_FLOOR and enough_coverage and pays_for_itself
 
     if not pays_for_itself:
+        # Two different failures, and the message should not blur them: a
+        # model above 50% that the spread still eats, versus one that is
+        # simply wrong more often than right. The July retrains were the
+        # second kind (46.8% / 48.2%) and were told they were the first.
+        consequence = (
+            "it is right more often than not, but not often enough to pay for "
+            "the spread"
+            if accuracy >= 0.5
+            else "it is wrong more often than it is right, so acting on it "
+            "would lose money before costs are even counted"
+        )
         detail = (
             f" Its hit rate on the hours it acts ({accuracy * 100:.1f}%) is below the "
-            f"{economics.breakeven * 100:.2f}% needed to cover the spread — acting on "
-            f"it would lose money even where it is right more often than not."
+            f"{economics.breakeven * 100:.2f}% needed to cover the spread — "
+            f"{consequence}."
         )
     elif not enough_coverage:
         detail = (
@@ -261,15 +272,28 @@ class PromotionService:
         return data
 
     def _write_champion(
-        self, *, name: str, brier: float, family: str, floor_failures: int = 0
+        self,
+        *,
+        name: str,
+        brier: float,
+        family: str,
+        floor_failures: int = 0,
+        promoted_at: str | None = None,
     ) -> None:
+        """Write the champion pointer.
+
+        ``promoted_at`` is passed through when re-writing an existing champion
+        (the floor-streak update does this on every retrain it survives).
+        Stamping "now" there made the promotion date drift forward each week —
+        production showed a model promoted Oct 6 as "promoted Oct 11".
+        """
         self._champion_path.write_text(
             json.dumps(
                 {
                     "model_name": name,
                     "test_brier": brier,
                     "feature_family": family,
-                    "promoted_at": datetime.now(UTC).isoformat(),
+                    "promoted_at": promoted_at or datetime.now(UTC).isoformat(),
                     "floor_failures": floor_failures,
                 },
                 indent=2,
@@ -300,6 +324,11 @@ class PromotionService:
             "champion_brier": result.champion_brier,
             "champion_brier_fresh": result.champion_brier_fresh,
             "candidates": result.candidate_briers,
+            # The economic floor, recorded on every decision. Without these the
+            # log could say a model was promoted but not prove it cleared the
+            # spread-adjusted hurdle — which is the floor that actually matters.
+            "breakeven": result.breakeven,
+            "challenger_accuracy": result.challenger_accuracy,
             "reason": result.reason,
         }
         with self._promotions_path.open("a", encoding="utf-8") as fh:
@@ -541,11 +570,13 @@ class PromotionService:
             return streak, False
         streak = streak + 1 if champion_fresh > _BASELINE_FLOOR else 0
         raw_brier = champion.get("test_brier")
+        raw_promoted = champion.get("promoted_at")
         self._write_champion(
             name=str(champion.get("model_name")),
             brier=float(raw_brier) if isinstance(raw_brier, (int, float)) else 0.0,
             family=str(champion.get("feature_family") or "unknown"),
             floor_failures=streak,
+            promoted_at=raw_promoted if isinstance(raw_promoted, str) else None,
         )
         return streak, streak >= _DEMOTION_AFTER
 

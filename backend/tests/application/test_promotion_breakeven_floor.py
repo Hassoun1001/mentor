@@ -14,10 +14,16 @@ tests about the *gate logic* rather than about the current market.
 
 from __future__ import annotations
 
+import json
 import random
+from pathlib import Path
 
 from mentor.application.forecasting.economics import horizon_for, round_trip_cost_price
-from mentor.application.forecasting.promotion import clears_floors
+from mentor.application.forecasting.promotion import (
+    PromotionResult,
+    PromotionService,
+    clears_floors,
+)
 from mentor.config import Settings
 from mentor.domain.stats.breakeven import BreakevenBasis, estimate_breakeven
 from mentor.infrastructure.forecasting.sklearn_forecaster import TrainingReport
@@ -70,7 +76,18 @@ def test_beating_a_coin_flip_is_not_enough_to_ship() -> None:
     assert not passed
     assert "51.0%" in detail
     assert "52.36%" in detail
-    assert "lose money" in detail
+    assert "not often enough to pay for the spread" in detail
+
+
+def test_a_below_coin_flip_model_is_not_described_as_mostly_right() -> None:
+    """Regression: the July retrains scored 46.8% and 48.2% and were told they
+    were 'right more often than not' — the opposite of the truth."""
+    passed, detail = clears_floors(
+        _report(accuracy=0.468), brier=_GOOD_BRIER, economics=_basis(0.5071)
+    )
+    assert not passed
+    assert "wrong more often than it is right" in detail
+    assert "right more often than not" not in detail
 
 
 def test_clearing_the_breakeven_ships() -> None:
@@ -176,3 +193,45 @@ def test_the_configured_lanes_produce_the_hurdles_the_docs_claim() -> None:
     assert h1.measured and d1.measured
     assert h1.breakeven > d1.breakeven > 0.5
     assert h1.hurdle_pp > 0.0
+
+
+# ---------- the audit trail ----------
+
+
+def test_the_log_records_the_economic_floor(tmp_path: Path) -> None:
+    """Regression: breakeven and accuracy lived on the decision object but
+    were never written to promotions.jsonl, so the log could say a model was
+    promoted without proving it cleared the hurdle that matters."""
+    promo = PromotionService(model_store_dir=tmp_path)
+    promo._log_decision(
+        PromotionResult(
+            challenger_name="c",
+            challenger_brier=0.2455,
+            champion_name=None,
+            champion_brier=None,
+            promoted=True,
+            reason="r",
+            breakeven=0.5178,
+            challenger_accuracy=0.583,
+        )
+    )
+    entry = json.loads((tmp_path / "promotions.jsonl").read_text().splitlines()[-1])
+    assert entry["breakeven"] == 0.5178
+    assert entry["challenger_accuracy"] == 0.583
+
+
+def test_surviving_a_retrain_does_not_move_the_promotion_date(tmp_path: Path) -> None:
+    """Regression: every retrain the champion survived re-wrote its pointer
+    with promoted_at = now, so a model promoted Oct 6 read 'promoted Oct 11'."""
+    promo = PromotionService(model_store_dir=tmp_path)
+    original = "2026-10-06T11:52:33+00:00"
+    promo._write_champion(name="m", brier=0.2455, family="f", promoted_at=original)
+
+    champion = promo.current_champion()
+    assert champion is not None
+    promo._update_floor_streak(champion, champion_fresh=0.240)  # passes the floor
+
+    after = promo.current_champion()
+    assert after is not None
+    assert after["promoted_at"] == original
+    assert after["floor_failures"] == 0
