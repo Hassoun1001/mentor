@@ -11,6 +11,18 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-13 — Report unreachable from the agent sandbox; no change
+- **Report:** could not be fetched. `/api/v1/health/report` and `/digest` both
+  failed with `CONNECT tunnel failed, response 403`: the agent environment's
+  egress proxy denies `trade-mentor.duckdns.org` by network policy. This says
+  nothing about the server's own health; the deploy state is unknown to me.
+- **Decision:** no code change, as required when the report cannot be read.
+  Today is a fix day (Tue) and there is no other evidence to act on.
+- **Change:** this log entry only.
+- **Watch next:** the owner needs to allow `trade-mentor.duckdns.org` in the
+  agent environment's network policy (or switch it to a policy that permits
+  it); until then every run is blind and will change nothing.
+
 ## 2026-10-13 — Autonomy set up (human)
 - **Report:** status OK. H1 champion `auto_eurusd_1h_20261006_115233` live since
   2026-10-06 (58.3% test accuracy vs ~51.8% breakeven); 78 independent H1
