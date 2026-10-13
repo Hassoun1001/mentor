@@ -53,6 +53,14 @@ _WARNING_RECURS = 10
 # Matches the promotion gate's demotion streak; reported, never enforced here.
 _DEMOTION_AFTER = 3
 
+# The server's deploy script records each outcome here (inside the models
+# volume, so the app can read it). It is the only way the maintenance agent
+# learns that its push was refused or rolled back, and why.
+_DEPLOY_STATUS_FILE = "deploy_status.json"
+_BAD_DEPLOYS = frozenset(
+    {"refused_protected", "refused_history", "refused_backup", "rolled_back", "rollback_failed"}
+)
+
 _REPORTS_DIR = "reports"
 _KEEP_REPORTS = 26  # half a year of weekly reports
 _HISTORY_IN_REPORT = 8
@@ -130,6 +138,7 @@ class SelfReport:
     issues: tuple[Issue, ...]
     notes: tuple[str, ...]
     history: tuple[dict[str, object], ...]
+    deploy: dict[str, object] | None
 
     def to_dict(self) -> dict[str, object]:
         out = asdict(self)
@@ -335,6 +344,27 @@ def _recurring_issues(tally: dict[str, object]) -> tuple[list[dict[str, object]]
     return recurring, issues
 
 
+def _deploy_issues(deploy: dict[str, object] | None) -> list[Issue]:
+    """The latest deploy outcome, if the server refused or rolled it back."""
+    events = (deploy or {}).get("events")
+    if not isinstance(events, list) or not events or not isinstance(events[0], dict):
+        return []
+    latest = events[0]
+    outcome = str(latest.get("outcome"))
+    if outcome not in _BAD_DEPLOYS:
+        return []
+    sha = str(latest.get("sha") or "")[:7]
+    why = str(latest.get("detail") or "").strip().splitlines()
+    return [
+        Issue(
+            f"deploy.{outcome}",
+            "fail" if outcome == "rollback_failed" else "warn",
+            f"The last push ({sha}) was {outcome.replace('_', ' ')}"
+            + (f": {why[0]}" if why else "."),
+        )
+    ]
+
+
 def assemble_report(
     *,
     now: datetime,
@@ -343,8 +373,9 @@ def assemble_report(
     heartbeats: Sequence[dict[str, object]],
     tally: dict[str, object],
     history: Sequence[dict[str, object]] = (),
+    deploy: dict[str, object] | None = None,
 ) -> SelfReport:
-    issues: list[Issue] = [*_digest_issues(digest)]
+    issues: list[Issue] = [*_digest_issues(digest), *_deploy_issues(deploy)]
     notes: list[str] = []
 
     failing_jobs = tuple(
@@ -393,6 +424,7 @@ def assemble_report(
         issues=tuple(issues),
         notes=tuple(notes),
         history=tuple(history),
+        deploy=deploy,
     )
 
 
@@ -468,6 +500,16 @@ def _resolving_between(
 ) -> list[PredictionORM]:
     """Calls whose outcome fell due in [start, end) — what this week graded."""
     return [r for r in rows if start <= r.horizon_at < end]
+
+
+def read_deploy_status(model_store_dir: str | Path) -> dict[str, object] | None:
+    """What the server's deploy script last recorded; None if nothing yet."""
+    path = Path(model_store_dir) / _DEPLOY_STATUS_FILE
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def _lane_dir(model_store_dir: str, lane: str) -> str:
@@ -571,4 +613,5 @@ async def collect_self_report(
         heartbeats=heartbeats,
         tally=log_tally().snapshot(),
         history=ReportStore(settings.model_store_dir).history(),
+        deploy=read_deploy_status(settings.model_store_dir),
     )

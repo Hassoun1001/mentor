@@ -18,6 +18,7 @@ from mentor.application.health.self_report import (
     ReportStore,
     SelfReport,
     assemble_report,
+    read_deploy_status,
 )
 from mentor.logging import LogTally, TallyingFilter, _tally_event
 
@@ -246,3 +247,45 @@ def test_stdlib_warnings_are_keyed_by_template_not_by_argument(fresh_tally: LogT
     assert fresh_tally.snapshot()["events"] == [
         {"level": "warning", "event": "apscheduler: job %s missed by %ss", "count": 2}
     ]
+
+
+# ---------- what the server did with the last push ----------
+
+
+def _deploy(outcome: str, detail: str = "") -> dict[str, object]:
+    return {
+        "running_sha": "aaaaaaa",
+        "events": [
+            {"at": NOW.isoformat(), "outcome": outcome, "sha": "bbbbbbbcc", "detail": detail}
+        ],
+    }
+
+
+def test_a_refused_push_is_reported_with_the_reason() -> None:
+    r = _report(deploy=_deploy("refused_protected", "protected constant: -_Z = 1.96\nmore"))
+    issue = next(i for i in r.issues if i.code == "deploy.refused_protected")
+    assert issue.severity == "warn"
+    assert "bbbbbbb" in issue.detail
+    assert "protected constant" in issue.detail
+
+
+def test_a_failed_rollback_is_a_failure() -> None:
+    r = _report(deploy=_deploy("rollback_failed", "not answering"))
+    assert r.status == "fail"
+    assert "deploy.rollback_failed" in _codes(r)
+
+
+def test_a_successful_deploy_raises_nothing_but_is_carried() -> None:
+    r = _report(deploy=_deploy("deployed", "• fix x"))
+    assert r.issues == ()
+    assert r.deploy is not None
+    assert r.to_dict()["deploy"] == r.deploy
+
+
+def test_deploy_status_is_read_from_the_models_volume(tmp_path: Path) -> None:
+    assert read_deploy_status(tmp_path) is None
+    (tmp_path / "deploy_status.json").write_text(json.dumps(_deploy("deployed")), encoding="utf-8")
+    status = read_deploy_status(tmp_path)
+    assert status is not None and status["running_sha"] == "aaaaaaa"
+    (tmp_path / "deploy_status.json").write_text("{torn", encoding="utf-8")
+    assert read_deploy_status(tmp_path) is None

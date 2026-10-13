@@ -60,6 +60,40 @@ notify() {
     --data-urlencode "chat_id=${chat}" --data-urlencode "text=$1" || true
 }
 
+MODELS_VOLUME=/var/lib/docker/volumes/mentor_mentor_models/_data
+
+record() {
+  # $1 outcome, $2 commit, $3 detail. Written into the models volume, which
+  # the app serves in /api/v1/health/report: the maintenance agent can only
+  # learn that its push was refused or rolled back — and why — from here.
+  [[ -d "$MODELS_VOLUME" ]] || return 0
+  python3 - "$MODELS_VOLUME/deploy_status.json" "$1" "$2" "${3:-}" "$(git rev-parse HEAD)" \
+    <<'PY' || true
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+path, outcome, sha, detail, running = sys.argv[1:6]
+try:
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+except (OSError, ValueError):
+    data = {}
+events = data.get("events") if isinstance(data.get("events"), list) else []
+events.insert(0, {
+    "at": datetime.now(timezone.utc).isoformat(),
+    "outcome": outcome,
+    "sha": sha,
+    "detail": detail[:2000],
+})
+tmp = path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as fh:
+    json.dump({"running_sha": running, "events": events[:20]}, fh, indent=1)
+os.replace(tmp, path)
+PY
+}
+
 app_answers() {
   # $@: API paths that must answer 200 from inside the container. Content is
   # not judged — a stale weekend feed is not a broken build — only that the
@@ -91,6 +125,7 @@ watchdog() {
     "${COMPOSE[@]}" restart app >>"$LOG" 2>&1 || true
     rm -f "$STATE/strikes"
     log "watchdog: restarted app"
+    record restarted "$(git rev-parse HEAD)" "not answering for about $(( n * 10 )) minutes"
     notify "🔁 Mentor stopped answering for about $(( n * 10 )) minutes, so it was restarted automatically."
   fi
 }
@@ -152,6 +187,7 @@ fi
 if ! git merge-base --is-ancestor "$local_sha" "$remote_sha"; then
   log "refusing non-fast-forward ${local_sha:0:7} -> ${remote_sha:0:7}"
   echo "$remote_sha" >"$STATE/bad"
+  record refused_history "$remote_sha" "not a fast-forward of the running commit"
   notify "🛑 Mentor did not deploy ${remote_sha:0:7}: history was rewritten on GitHub (not a fast-forward). A human needs to look."
   watchdog
   exit 0
@@ -162,6 +198,7 @@ violations=$(protected_violations "$local_sha" "$remote_sha")
 if [[ -n "$violations" && $ALLOW_PROTECTED -eq 0 ]]; then
   log "refusing ${remote_sha:0:7}: $(tr '\n' ';' <<<"$violations")"
   echo "$remote_sha" >"$STATE/bad"
+  record refused_protected "$remote_sha" "$violations"
   notify "🛑 Mentor refused to deploy ${remote_sha:0:7} — it changes things only a human may change:
 $(head -n 6 <<<"$violations")
 Still running ${local_sha:0:7}."
@@ -174,6 +211,7 @@ git merge -q --ff-only "$remote_sha"
 
 if ! grep -qvE '(\.md$|^ops/autonomy/)' <<<"$changed"; then
   log "docs-only update to ${remote_sha:0:7}; no rebuild"
+  record deployed_docs "$remote_sha" ""
   exit 0
 fi
 
@@ -183,6 +221,7 @@ if grep -q '^backend/alembic/versions/' <<<"$changed"; then
     git reset -q --hard "$local_sha"
     echo "$remote_sha" >"$STATE/bad"
     log "backup failed; not deploying ${remote_sha:0:7}"
+    record refused_backup "$remote_sha" "schema change, and the pre-deploy database backup failed"
     notify "🛑 Mentor did not deploy ${remote_sha:0:7}: it changes the database and the safety backup failed."
     exit 1
   fi
@@ -193,19 +232,26 @@ log "deploying ${local_sha:0:7} -> ${remote_sha:0:7}"
 if deploy_tree && healthy_after_deploy "$started"; then
   rm -f "$STATE/bad" "$STATE/strikes"
   log "deployed ${remote_sha:0:7}"
+  record deployed "$remote_sha" "$subjects"
   notify "🚀 Mentor updated itself to ${remote_sha:0:7}:
 $subjects"
   exit 0
 fi
 
 log "${remote_sha:0:7} unhealthy; rolling back to ${local_sha:0:7}"
+# Capture why before the rollback replaces the failed container and its logs.
+traceback=$("${COMPOSE[@]}" logs --since "$started" app 2>&1 | grep -A 12 'Traceback' | head -n 40 || true)
 git reset -q --hard "$local_sha"
 deploy_tree || true
 echo "$remote_sha" >"$STATE/bad"
 if app_answers /api/v1/health /api/v1/health/report; then
+  record rolled_back "$remote_sha" "failed its post-deploy health check
+$traceback"
   notify "↩️ Mentor tried ${remote_sha:0:7}, it failed its health check, and it rolled itself back to ${local_sha:0:7}. Nothing is broken; the change waits for a fix:
 $subjects"
 else
+  record rollback_failed "$remote_sha" "the previous commit is not answering either
+$traceback"
   notify "🚨 Mentor rolled back ${remote_sha:0:7} but ${local_sha:0:7} is not answering either. This needs a human."
 fi
 exit 1

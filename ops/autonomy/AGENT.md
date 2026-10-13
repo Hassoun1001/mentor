@@ -33,7 +33,10 @@ fixes what is broken, and makes small, evidence-backed improvements.
   health checks, each lane's live record against its own breakeven, retrain
   decisions, live calibration, failing jobs, recurring warnings, and a list of
   `issues`, each with a stable `code`. Earlier weekly headlines are in
-  `history`.
+  `history`. `deploy` is what the server did with recent pushes —
+  `deployed`, `refused_protected`, `rolled_back`, … with the commit and the
+  reason (including any traceback) — and `deploy.running_sha` is what is
+  actually live.
 - `https://trade-mentor.duckdns.org/api/v1/health/digest` — the short form.
 - `ops/autonomy/LOG.md` — what earlier runs saw, decided and changed.
 - The repository.
