@@ -70,8 +70,9 @@ def _feed_check(newest_bar: datetime | None, interval_minutes: int, now: datetim
             detail="No bars stored at all — nothing can run.",
         )
     age = (now - newest_bar).total_seconds() / 60
-    # One interval late is the current bar not having closed. Beyond three,
-    # ingestion has stopped.
+    # ``newest_bar`` is when the newest stored bar's data ends (its close).
+    # Up to one interval is the wait for the next bar to settle and be
+    # fetched. Beyond three, ingestion has stopped.
     if age > interval_minutes * 3:
         return Check(
             key="feed",

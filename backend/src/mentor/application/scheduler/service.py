@@ -30,6 +30,7 @@ useful for testing without waiting for the next tick.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -92,6 +93,22 @@ _STARTUP_DELAY_SECONDS = 45
 
 def _soon(seconds: int = _STARTUP_DELAY_SECONDS) -> datetime:
     return datetime.now(UTC) + timedelta(seconds=seconds)
+
+
+# Only settled bars are stored (domain/market/settlement.py), so a bar
+# reaches the database at the first ingest after it closes. Interval jobs
+# keep the minute the process happened to boot at — 41 minutes past, say —
+# which would leave each hour's bar unstored for 41 minutes. Ingestion is
+# instead pinned to just after each boundary; the grace lets the provider
+# finish the bar before it is asked for it.
+_SETTLE_GRACE = timedelta(minutes=2)
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+
+
+def _next_boundary(now: datetime, period: timedelta, grace: timedelta = _SETTLE_GRACE) -> datetime:
+    """The first instant after ``now`` that is ``grace`` past a ``period`` boundary (UTC)."""
+    elapsed = (now - grace - _EPOCH) // period
+    return _EPOCH + (elapsed + 1) * period + grace
 
 
 # An overdue retrain still waits this long after boot: it costs about an
@@ -195,10 +212,16 @@ class LoopScheduler:
                     end=end,
                 )
                 await session.commit()
-            log.info("loop.ingested", job=job, persisted=result.persisted)
-            self._health.beat(
-                job, ok=True, note=f"{result.persisted} new bars ({result.fetched} fetched)"
+            log.info(
+                "loop.ingested",
+                job=job,
+                persisted=result.persisted,
+                corrected=result.corrected,
             )
+            note = f"{result.persisted} new bars ({result.fetched} fetched)"
+            if result.corrected:
+                note += f", {result.corrected} early-captured bar(s) corrected"
+            self._health.beat(job, ok=True, note=note)
             self._ingest_failures = 0
             return result.persisted
         except DomainError as exc:
@@ -676,13 +699,10 @@ class LoopScheduler:
             coalesce=True,
             misfire_grace_time=6 * 3600,
         )
-        self._scheduler.add_job(
+        self._add_ingest_jobs(
             self.run_ingest_once,
-            "interval",
-            minutes=s.loop_ingest_interval_minutes,
-            id="ingest",
-            next_run_time=_soon(),
-            replace_existing=True,
+            job="ingest",
+            period=timedelta(minutes=s.loop_ingest_interval_minutes),
         )
         self._scheduler.add_job(
             self.run_predict_once,
@@ -710,13 +730,10 @@ class LoopScheduler:
         )
         if s.loop_d1_enabled:
             # The D1 flagship lane: same machinery, ten years of daily data.
-            self._scheduler.add_job(
+            self._add_ingest_jobs(
                 self.run_ingest_d1_once,
-                "interval",
-                hours=s.loop_d1_ingest_interval_hours,
-                id="ingest_d1",
-                next_run_time=_soon(),
-                replace_existing=True,
+                job="ingest_d1",
+                period=timedelta(hours=s.loop_d1_ingest_interval_hours),
             )
             self._scheduler.add_job(
                 self.run_predict_d1_once,
@@ -768,6 +785,28 @@ class LoopScheduler:
             predict_min=s.loop_predict_interval_minutes,
             resolve_min=s.loop_resolve_interval_minutes,
             retrain_hr=s.loop_retrain_interval_hours,
+        )
+
+    def _add_ingest_jobs(
+        self, func: Callable[[], Awaitable[int]], *, job: str, period: timedelta
+    ) -> None:
+        """A recurring ingest pinned to bar boundaries, plus the startup kick."""
+        self._scheduler.add_job(
+            func,
+            "interval",
+            seconds=period.total_seconds(),
+            id=job,
+            start_date=_next_boundary(datetime.now(UTC), period),
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+        self._scheduler.add_job(
+            func,
+            "date",
+            run_date=_soon(),
+            id=f"{job}_startup",
+            replace_existing=True,
         )
 
     def shutdown(self) -> None:

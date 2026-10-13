@@ -71,6 +71,9 @@ async def _run(args: argparse.Namespace) -> None:
             timeframe=result.timeframe.value,
             fetched=result.fetched,
             persisted=result.persisted,
+            corrected=result.corrected,
+            skipped_forming=result.skipped_forming,
+            skipped_misaligned=result.skipped_misaligned,
         )
     finally:
         await close_sources(to_close)

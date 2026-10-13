@@ -124,6 +124,9 @@ class IngestPricesResponse(BaseModel):
     source: str
     fetched: int
     persisted: int
+    # Provisional rows (stored before their period closed) replaced by the
+    # settled bar this fetch returned.
+    corrected: int = 0
 
 
 @router.post("/{symbol}/ingest", response_model=IngestPricesResponse)
@@ -164,6 +167,7 @@ async def ingest_prices(
         source=getattr(adapter, "last_source", None) or adapter.name,
         fetched=result.fetched,
         persisted=result.persisted,
+        corrected=result.corrected,
     )
 
 

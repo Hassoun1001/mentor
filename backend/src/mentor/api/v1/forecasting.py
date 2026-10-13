@@ -46,6 +46,7 @@ from mentor.domain.forecasting.volatility import (
 )
 from mentor.domain.instruments import get_instrument
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.market.settlement import closes_at
 from mentor.domain.money import Money, Percent
 from mentor.domain.risk import Direction as RiskDirection
 from mentor.domain.risk import RiskInputs, calculate_position
@@ -1450,9 +1451,11 @@ async def trade_plan(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     guidance = build_sizing_guidance(vol.forecast)
 
-    age_minutes = int((datetime.now(UTC) - fc.asof).total_seconds() // 60)
-    # One bar late is normal (the current bar has not closed). Beyond two,
-    # the feed has actually stopped and the levels below are not tradeable.
+    # Age of the newest price — the close of the bar the forecast was made
+    # from. One interval is the wait for the next bar to settle and be
+    # fetched. Beyond two, the feed has actually stopped and the levels
+    # below are not tradeable.
+    age_minutes = int((datetime.now(UTC) - closes_at(fc.asof, timeframe)).total_seconds() // 60)
     stale_after = settings.loop_ingest_interval_minutes * 2
     data_stale = age_minutes > stale_after
 

@@ -120,3 +120,26 @@ def test_overlapping_trades_are_counted_once() -> None:
     c = _trade(t0 + timedelta(days=5), t0 + timedelta(days=6), 1.0)
     kept = independent_trades([a, b, c])
     assert len(kept) == 2 and kept[-1] == c
+
+
+def test_when_every_set_lost_in_development_the_held_out_period_is_never_traded() -> None:
+    """Why ``session_breakout_h1`` had 0 held-out trades in production (2026-10-13).
+
+    Production's hourly history starts in July 2024; Yahoo's free hourly
+    feed now reaches back only to October 2024. On production's longer
+    history all eight parameter sets averaged slightly below 0R before the
+    held-out date, so none could be chosen and the held-out period was
+    never traded (by design). On the shorter public history one set
+    averaged +0.01R, was chosen, and traded 108 held-out trades. Same bars
+    over the same dates, same answer. The zero is the gate standing aside,
+    not missing data, and the verdict has to say so.
+    """
+    ruinous = Friction(per_side=0.002, min_stop=FRICTION.min_stop)  # 20 pips a side
+    ev = collect_evidence(marker_candidate(), EDGE, ruinous)
+    assert ev.insufficient is None
+    assert all(t.n_trades > 0 and t.mean_r < 0 for t in ev.trials)
+    assert ev.final_params is None and ev.holdout_trades == ()
+    v = grade(ev, n_trials=2, dispersion=1.0)
+    assert not v.passed
+    assert "No parameter set earned a place on the development data." in v.reasons
+    assert v.holdout.n == 0

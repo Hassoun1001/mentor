@@ -82,6 +82,50 @@ class PriceBar(Base):
     )
 
 
+class PriceBarRevisionORM(Base):
+    """Every change ever made to a stored bar, with the values it replaced.
+
+    Stored bars are corrected in exactly two ways: ingestion replacing a
+    bar captured before its period closed, and the operator's repair
+    command (which can also remove a row no settled bar matches). Both
+    write here first, so any change can be audited and reverted — see
+    ``domain/market/settlement.py``. A revert stamps ``reverted_at``; the
+    row itself is never deleted.
+    """
+
+    __tablename__ = "price_bar_revisions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    symbol: Mapped[str] = mapped_column(String(16), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    old_open: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    old_high: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    old_low: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    old_close: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    old_volume: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
+    old_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    old_ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Null on a removal.
+    new_open: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    new_high: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    new_low: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    new_close: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    new_volume: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
+    new_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    revised_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("action IN ('corrected','removed')", name="ck_price_bar_revisions_action"),
+        Index("ix_price_bar_revisions_batch", "batch_id"),
+        Index("ix_price_bar_revisions_bar", "symbol", "timeframe", "ts"),
+    )
+
+
 # --- trade journal ----------------------------------------------------------
 
 

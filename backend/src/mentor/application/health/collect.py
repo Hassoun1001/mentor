@@ -16,6 +16,7 @@ from mentor.application.health.digest import Digest, build_digest
 from mentor.config import Settings
 from mentor.domain.forecasting.forecast import Direction
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.market.settlement import closes_at
 from mentor.domain.stats.independence import select_independent
 from mentor.domain.stats.significance import assess_proportion
 from mentor.infrastructure.repositories import PredictionRepository, PriceBarRepository
@@ -85,7 +86,9 @@ async def collect_digest(
 
     return build_digest(
         window_days=7,
-        newest_bar=newest.ts if newest is not None else None,
+        # Age is measured from when the newest bar's data ends. Only settled
+        # bars are stored, so its start is always at least a period old.
+        newest_bar=closes_at(newest.ts, timeframe) if newest is not None else None,
         ingest_interval_minutes=settings.loop_ingest_interval_minutes,
         pending_predictions=len(pending),
         overdue_predictions=overdue,

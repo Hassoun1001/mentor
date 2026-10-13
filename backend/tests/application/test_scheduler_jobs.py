@@ -8,9 +8,10 @@ we only inspect the registered APScheduler jobs.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, time, timedelta
 from unittest.mock import MagicMock
 
-from mentor.application.scheduler.service import LoopScheduler
+from mentor.application.scheduler.service import LoopScheduler, _next_boundary
 from mentor.config import Settings
 
 
@@ -51,3 +52,38 @@ def test_disabled_loop_registers_no_jobs() -> None:
     scheduler.start()
     assert scheduler.status()["jobs"] == []
     assert scheduler.running is False
+
+
+def test_next_boundary_is_just_after_the_next_bar_closes() -> None:
+    hour = timedelta(hours=1)
+    at = datetime(2026, 10, 13, 17, 41, tzinfo=UTC)
+    assert _next_boundary(at, hour) == datetime(2026, 10, 13, 18, 2, tzinfo=UTC)
+    # Exactly on the run time: the next one, never the same instant twice.
+    on = datetime(2026, 10, 13, 18, 2, tzinfo=UTC)
+    assert _next_boundary(on, hour) == datetime(2026, 10, 13, 19, 2, tzinfo=UTC)
+    # In the grace minutes the bar that just closed is still ahead.
+    early = datetime(2026, 10, 13, 18, 0, 30, tzinfo=UTC)
+    assert _next_boundary(early, hour) == datetime(2026, 10, 13, 18, 2, tzinfo=UTC)
+    # Daily: two minutes past UTC midnight.
+    assert _next_boundary(at, timedelta(days=1)) == datetime(2026, 10, 14, 0, 2, tzinfo=UTC)
+
+
+async def test_ingest_runs_just_after_bar_boundaries_plus_once_at_startup() -> None:
+    """Only settled bars are stored, so ingest must not keep the boot minute.
+
+    An interval started at boot (17:41, say) would leave each hour's bar
+    unstored for 41 minutes after it closed.
+    """
+    scheduler = _scheduler(enabled=True)
+    try:
+        scheduler.start()
+        ingest = scheduler._scheduler.get_job("ingest")
+        assert ingest is not None
+        first = ingest.next_run_time.astimezone(UTC)
+        assert first.minute in (2, 32) and first.second == 0  # 30-minute cadence
+        assert scheduler._scheduler.get_job("ingest_startup") is not None
+        d1 = scheduler._scheduler.get_job("ingest_d1")
+        assert d1 is not None
+        assert d1.next_run_time.astimezone(UTC).time() == time(0, 2)
+    finally:
+        scheduler.shutdown()
