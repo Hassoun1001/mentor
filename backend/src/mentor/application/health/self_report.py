@@ -21,6 +21,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePath
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mentor.application.forecasting.economics import lane_breakeven
@@ -31,12 +32,14 @@ from mentor.application.forecasting.live_calibration import (
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.health.collect import collect_digest, last_decision_at
 from mentor.application.health.digest import Digest, Level
+from mentor.application.strategy_lab.summary import CandidateView, LabView, collect_lab_view
 from mentor.config import Settings
 from mentor.domain.forecasting.forecast import Direction
 from mentor.domain.stats.independence import select_independent
 from mentor.domain.stats.significance import MIN_SAMPLE_FOR_VERDICT, assess_proportion
 from mentor.infrastructure.models import PredictionORM
 from mentor.infrastructure.repositories import PredictionRepository
+from mentor.infrastructure.repositories.strategy_lab import StrategyLabRepository
 from mentor.logging import log_tally
 
 _WEEK = timedelta(days=7)
@@ -60,6 +63,11 @@ _DEPLOY_STATUS_FILE = "deploy_status.json"
 _BAD_DEPLOYS = frozenset(
     {"refused_protected", "refused_history", "refused_backup", "rolled_back", "rollback_failed"}
 )
+
+# A paper-trading strategy whose newest processed bar is older than this has
+# stopped trading: longer than a weekend for hourly bars, longer than a
+# weekend plus a late daily bar for daily ones.
+_PAPER_STALL_AFTER = {"1h": timedelta(hours=72), "1d": timedelta(days=6)}
 
 _REPORTS_DIR = "reports"
 _KEEP_REPORTS = 26  # half a year of weekly reports
@@ -139,6 +147,7 @@ class SelfReport:
     notes: tuple[str, ...]
     history: tuple[dict[str, object], ...]
     deploy: dict[str, object] | None
+    strategies: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         out = asdict(self)
@@ -169,6 +178,17 @@ class SelfReport:
                 f"  {lane.retrains_week} retrain(s), {lane.promotions_week} promotion(s), "
                 f"{lane.demotions_week} demotion(s)"
             )
+        lab = self.strategies
+        if lab is not None:
+            counts = lab.get("counts")
+            c = counts if isinstance(counts, dict) else {}
+            lines += [
+                "",
+                f"Strategy lab — {c.get('evaluated', 0)} idea(s) tested "
+                f"({lab.get('trials_ever', 0)} parameter sets tried), "
+                f"{c.get('passed_backtest', 0)} passed history, "
+                f"{c.get('paper', 0)} paper trading, {c.get('recommended', 0)} recommended.",
+            ]
         if self.issues:
             lines += ["", "Issues:"]
             lines += [f" {'❌' if i.severity == 'fail' else '⚠️'} {i.detail}" for i in self.issues]
@@ -365,6 +385,92 @@ def _deploy_issues(deploy: dict[str, object] | None) -> list[Issue]:
     ]
 
 
+def _strategy_section(
+    lab: LabView | None, lab_error: str | None, *, now: datetime
+) -> tuple[dict[str, object] | None, list[Issue], list[str]]:
+    """The lab's standing, its problems, and this week's news. Public: aggregates only."""
+    if lab is None:
+        if lab_error is None:
+            return None, [], []
+        return None, [Issue("strategies.unavailable", "warn", f"Strategy lab: {lab_error}")], []
+
+    issues: list[Issue] = []
+    notes: list[str] = []
+    if lab.waiting:
+        issues.append(
+            Issue(
+                "strategies.waiting",
+                "warn",
+                f"Strategy lab: {len(lab.waiting)} candidate(s) not evaluated yet "
+                f"({', '.join(lab.waiting)}).",
+            )
+        )
+    if lab.changed:
+        issues.append(
+            Issue(
+                "strategies.definition_changed",
+                "warn",
+                f"Strategy lab: {', '.join(lab.changed)} changed after evaluation and will not "
+                "be re-tested — give a revised idea a new key.",
+            )
+        )
+    for c in lab.candidates:
+        if c.paper is None or c.status not in ("paper", "recommended", "demoted"):
+            continue
+        last = c.paper.last_bar_ts
+        limit = _PAPER_STALL_AFTER.get(c.timeframe, timedelta(days=6))
+        if last is not None and now - datetime.fromisoformat(last) > limit:
+            issues.append(
+                Issue(
+                    f"strategy.{c.key}.paper_stalled",
+                    "warn",
+                    f"Strategy lab: {c.title} has not processed a bar since {last[:16]}.",
+                )
+            )
+    for e in lab.events_week:
+        kind, key = e["kind"], e["key"]
+        if kind in ("demoted", "retired"):
+            issues.append(Issue(f"strategy.{key}.{kind}", "warn", f"Strategy lab: {e['detail']}"))
+        elif kind == "promoted":
+            notes.append(f"Strategy lab: {key} is now recommended — {e['detail']}")
+        elif kind == "paper":
+            notes.append(f"Strategy lab: {key} passed the history test and is paper trading.")
+        elif kind == "rejected":
+            notes.append(f"Strategy lab: {key} was tested and rejected.")
+
+    section: dict[str, object] = {
+        "trials_ever": lab.trials_ever,
+        "bar_now": lab.bar_now,
+        "counts": lab.to_dict()["counts"],
+        "waiting": list(lab.waiting),
+        "changed": list(lab.changed),
+        "candidates": [_public_candidate(c) for c in lab.candidates],
+    }
+    return section, issues, notes
+
+
+def _public_candidate(c: CandidateView) -> dict[str, object]:
+    def field(group: str, name: str) -> object:
+        raw = c.evidence.get(group)
+        return raw.get(name) if isinstance(raw, dict) else None
+
+    return {
+        "key": c.key,
+        "title": c.title,
+        "timeframe": c.timeframe,
+        "status": c.status,
+        "oos_trades": field("out_of_sample", "n"),
+        "oos_mean_r": field("out_of_sample", "mean_r"),
+        "score": c.evidence.get("score"),
+        "bar_at_evaluation": c.evidence.get("bar"),
+        "holdout_trades": field("holdout", "n"),
+        "holdout_mean_r": field("holdout", "mean_r"),
+        "clears_todays_bar": c.clears_todays_bar,
+        "paper_trades": c.paper.trades if c.paper else None,
+        "paper_mean_r": c.paper.mean_r if c.paper else None,
+    }
+
+
 def assemble_report(
     *,
     now: datetime,
@@ -374,6 +480,8 @@ def assemble_report(
     tally: dict[str, object],
     history: Sequence[dict[str, object]] = (),
     deploy: dict[str, object] | None = None,
+    lab: LabView | None = None,
+    lab_error: str | None = None,
 ) -> SelfReport:
     issues: list[Issue] = [*_digest_issues(digest), *_deploy_issues(deploy)]
     notes: list[str] = []
@@ -392,6 +500,10 @@ def assemble_report(
 
     recurring, log_issues = _recurring_issues(tally)
     issues += log_issues
+
+    strategies, lab_issues, lab_notes = _strategy_section(lab, lab_error, now=now)
+    issues += lab_issues
+    notes += lab_notes
 
     if any(i.severity == "fail" for i in issues):
         status = Level.FAIL.value
@@ -425,6 +537,7 @@ def assemble_report(
         notes=tuple(notes),
         history=tuple(history),
         deploy=deploy,
+        strategies=strategies,
     )
 
 
@@ -606,6 +719,17 @@ async def collect_self_report(
     raw_beats = status.get("heartbeats")
     beats = raw_beats if isinstance(raw_beats, list) else []
     heartbeats = [b for b in beats if isinstance(b, dict)]
+
+    # Last, inside a savepoint: a lab failure must not take the report down
+    # or poison the session for anything read after it.
+    lab: LabView | None = None
+    lab_error: str | None = None
+    try:
+        async with session.begin_nested():
+            lab = await collect_lab_view(StrategyLabRepository(session), now=now)
+    except SQLAlchemyError as exc:
+        lab_error = f"could not be read ({type(exc).__name__})"
+
     return assemble_report(
         now=now,
         digest=digest,
@@ -614,4 +738,6 @@ async def collect_self_report(
         tally=log_tally().snapshot(),
         history=ReportStore(settings.model_store_dir).history(),
         deploy=read_deploy_status(settings.model_store_dir),
+        lab=lab,
+        lab_error=lab_error,
     )

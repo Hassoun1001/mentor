@@ -49,6 +49,9 @@ from mentor.application.news.tone_ingest import ToneIngestService
 from mentor.application.scheduler.drift import assess_drift, select_independent
 from mentor.application.scheduler.health import LoopHealth
 from mentor.application.scheduler.quality_gate import assess_quality
+from mentor.application.strategy_lab.evaluation import StrategyLabEvaluator
+from mentor.application.strategy_lab.paper import PaperTrader
+from mentor.application.strategy_lab.store import sql_bar_loader
 from mentor.config import Settings
 from mentor.domain.errors import DomainError
 from mentor.domain.market.bars import Timeframe
@@ -59,6 +62,7 @@ from mentor.infrastructure.repositories.macro_series import MacroSeriesRepositor
 from mentor.infrastructure.repositories.news_tone import NewsToneRepository
 from mentor.infrastructure.repositories.predictions import PredictionRepository
 from mentor.infrastructure.repositories.price_bars import PriceBarRepository
+from mentor.infrastructure.repositories.strategy_lab import StrategyLabRepository
 from mentor.logging import get_logger
 
 log = get_logger("mentor.scheduler")
@@ -94,6 +98,13 @@ def _soon(seconds: int = _STARTUP_DELAY_SECONDS) -> datetime:
 # hour of CPU, and a container that crash-loops must not spend every restart
 # retraining instead of serving.
 _OVERDUE_RETRAIN_DELAY = timedelta(minutes=10)
+
+# The strategy lab's first evaluation after a boot waits this long: it is a
+# few seconds of CPU per candidate, and the deploy health check should see
+# the app settle before any of it runs. Later evaluations are weekly.
+_LAB_EVALUATION_DELAY = timedelta(minutes=10)
+# Paper trading kicks after the first ingest tick has had time to land.
+_PAPER_DELAY_SECONDS = _STARTUP_DELAY_SECONDS + 60
 
 # How much history to (idempotently) pull each ingest tick, per timeframe.
 _INGEST_DAYS: dict[Timeframe, int] = {
@@ -301,6 +312,65 @@ class LoopScheduler:
         self._health.beat("weekly_report", ok=True, note=report.headline)
         await self._notifier.send(report.telegram_text(report_url=report_url(self._settings)))
         return report.headline
+
+    async def run_strategy_lab_once(self) -> str:
+        """Evaluate any registered strategy candidate that has not been judged yet.
+
+        Each candidate is judged once against history and the whole trial
+        ledger (see ``application/strategy_lab/evaluation.py``). The owner
+        hears about new verdicts; a week with nothing new is silent.
+        """
+        s = self._settings
+        try:
+            async with self._sessions() as session:
+                evaluator = StrategyLabEvaluator(
+                    store=StrategyLabRepository(session),
+                    load_bars=sql_bar_loader(session, s.loop_symbol),
+                    symbol=s.loop_symbol,
+                )
+                outcome = await evaluator.evaluate_pending(now=datetime.now(UTC))
+                await session.commit()
+        except (DomainError, OSError, SQLAlchemyError, ValueError) as exc:
+            log.warning("loop.strategy_lab_failed", error=str(exc))
+            self._health.beat("strategy_lab", ok=False, note=str(exc))
+            return f"failed: {exc}"
+        self._health.beat("strategy_lab", ok=True, note=outcome.summary)
+        if outcome.evaluated:
+            passed = [k for k, ok in outcome.evaluated if ok]
+            await self._alert(
+                f"🧪 Strategy lab tested {len(outcome.evaluated)} new idea(s) on history: "
+                + (
+                    f"{len(passed)} passed and start paper trading ({', '.join(passed)})."
+                    if passed
+                    else "none passed. That is the common, honest outcome."
+                )
+            )
+        return outcome.summary
+
+    async def run_paper_once(self) -> int:
+        """Advance every paper-trading strategy over the newest settled bars."""
+        s = self._settings
+        try:
+            async with self._sessions() as session:
+                trader = PaperTrader(
+                    store=StrategyLabRepository(session),
+                    load_bars=sql_bar_loader(session, s.loop_symbol),
+                    symbol=s.loop_symbol,
+                )
+                updates = await trader.advance(now=datetime.now(UTC))
+                await session.commit()
+        except (DomainError, OSError, SQLAlchemyError, ValueError) as exc:
+            log.warning("loop.paper_failed", error=str(exc))
+            self._health.beat("strategy_paper", ok=False, note=str(exc))
+            return 0
+        bars = sum(u.bars for u in updates)
+        self._health.beat(
+            "strategy_paper", ok=True, note=f"{len(updates)} strategy(ies), {bars} new bar(s)"
+        )
+        for update in updates:
+            if update.alert is not None:
+                await self._alert(update.alert)
+        return bars
 
     async def _quality_check(self, tf: Timeframe) -> tuple[bool, str]:
         """Scan the recent bar window; False means 'do not predict on this'."""
@@ -663,6 +733,33 @@ class LoopScheduler:
                 id="retrain_d1",
                 next_run_time=self._next_retrain_time("d1"),
                 replace_existing=True,
+            )
+        if s.strategy_lab_enabled:
+            # Weekly on Sunday morning, while the FX market is shut; plus one
+            # run shortly after each boot so a newly added candidate is judged
+            # without waiting a week. Nothing to evaluate costs one query.
+            self._scheduler.add_job(
+                self.run_strategy_lab_once,
+                "cron",
+                day_of_week="sun",
+                hour=2,
+                minute=0,
+                id="strategy_lab",
+                next_run_time=datetime.now(UTC) + _LAB_EVALUATION_DELAY,
+                replace_existing=True,
+                coalesce=True,
+                max_instances=1,
+                misfire_grace_time=6 * 3600,
+            )
+            self._scheduler.add_job(
+                self.run_paper_once,
+                "interval",
+                minutes=s.strategy_lab_paper_interval_minutes,
+                id="strategy_paper",
+                next_run_time=_soon(_PAPER_DELAY_SECONDS),
+                replace_existing=True,
+                coalesce=True,
+                max_instances=1,
             )
         self._scheduler.start()
         log.info(

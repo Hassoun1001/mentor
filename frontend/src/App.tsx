@@ -17,6 +17,7 @@ import { LoopPage } from './pages/LoopPage';
 import { PricesPage } from './pages/PricesPage';
 import { RiskCalculatorPage } from './pages/RiskCalculatorPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { StrategyLabPage } from './pages/StrategyLabPage';
 import { SystemPredictionsPage } from './pages/SystemPredictionsPage';
 import { TipsPage } from './pages/TipsPage';
 import { TradePage } from './pages/TradePage';
@@ -34,6 +35,7 @@ export type Page =
   | 'prices'
   | 'data'
   | 'backtest'
+  | 'lab'
   | 'settings';
 
 export function App() {
@@ -89,6 +91,7 @@ export function App() {
         {page === 'prices' && <PricesPage />}
         {page === 'data' && <DataHealthPage />}
         {page === 'backtest' && <BacktesterPage />}
+        {page === 'lab' && <StrategyLabPage />}
         {page === 'settings' && <SettingsPage />}
       </ErrorBoundary>
     </AppShell>

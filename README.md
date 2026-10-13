@@ -67,6 +67,20 @@ external sources → ingestion → storage → intelligence → API → web app
 The web app is the only place values become user-facing; nothing fetched from
 the internet is ever interpreted as a command.
 
+### Strategy lab
+
+Complete trading plans (entry, stop, target, time stop, risk-engine sizing,
+and a plain-language reason) are tested **once** on history: walk-forward
+parameter choice, a held-out period touched once, full costs, and a
+deflated-Sharpe bar that rises with every parameter set ever tried (the
+`strategy_trials` ledger is append-only). Survivors paper-trade the live
+market through the same simulator code and are promoted to "recommended"
+only on a live record that clears the corrected bar; they are demoted when it
+degrades. Nothing is ever sent to a broker. Code in
+`backend/src/mentor/domain/strategy_lab/` and
+`backend/src/mentor/application/strategy_lab/`; manual runs with
+`python -m mentor.cli.strategy_lab evaluate|paper|status`.
+
 ## Disclaimer
 
 A personal, educational tool — **not** licensed financial advice. Paper-trade

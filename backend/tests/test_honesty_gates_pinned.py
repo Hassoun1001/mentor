@@ -14,7 +14,7 @@ before it is ever pushed.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from mentor.application.forecasting import promotion
@@ -23,6 +23,7 @@ from mentor.domain.backtest.costs import CostModel
 from mentor.domain.forecasting import live_recalibration, selective
 from mentor.domain.risk import position_sizing
 from mentor.domain.stats import breakeven, significance
+from mentor.domain.strategy_lab import deflation, gate, live
 from mentor.infrastructure.adapters.macro import cftc_cot
 
 
@@ -63,3 +64,14 @@ def test_point_in_time_lag() -> None:
 def test_risk_guards() -> None:
     assert Decimal("3") == position_sizing._MIN_SENSIBLE_STOP_PIPS
     assert Decimal("100") == position_sizing._EXTREME_LEVERAGE
+
+
+def test_strategy_lab_gate() -> None:
+    assert gate._WALK_FORWARD_FOLDS == 4
+    assert gate._MIN_SELECTION_TRADES == 10
+    assert gate._HOLDOUT_MIN_TRADES == 10
+    assert datetime(2024, 1, 1, tzinfo=UTC) == gate._HOLDOUT_START_D1
+    assert datetime(2026, 4, 1, tzinfo=UTC) == gate._HOLDOUT_START_H1
+    assert deflation._MIN_SHARPE_DENOMINATOR == 1.0
+    assert deflation._Z is significance._Z
+    assert live._LIVE_CHECKPOINT == significance.MIN_SAMPLE_FOR_VERDICT == 30

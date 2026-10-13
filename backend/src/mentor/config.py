@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     loop_d1_predict_interval_hours: int = 24
     loop_d1_ingest_interval_hours: int = 24
     loop_d1_retrain_interval_hours: int = 168  # weekly
+    # --- strategy lab: plans tested once on history, paper-traded if they pass ---
+    # Runs inside the loop scheduler (so it also needs loop_enabled). It never
+    # places a trade: paper positions live in the database and nowhere else.
+    strategy_lab_enabled: bool = True
+    strategy_lab_paper_interval_minutes: int = 60
 
     # Alert when a live prediction's confidence (|p_up - 0.5| * 2) reaches
     # this level — 0.30 ≈ P(up) ≥ 65% or ≤ 35%. Requires Telegram config.

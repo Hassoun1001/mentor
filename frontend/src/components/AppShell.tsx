@@ -35,6 +35,7 @@ const NAV: NavGroup[] = [
       { id: 'system', label: 'Predictions', hint: 'The audit log' },
       { id: 'loop', label: 'Loop', hint: 'The learning engine' },
       { id: 'backtest', label: 'Backtester', hint: 'Test strategies' },
+      { id: 'lab', label: 'Strategy Lab', hint: 'Plans tested honestly' },
     ],
   },
   {
@@ -362,6 +363,13 @@ function NavIcon({ id }: { id: Page }) {
         <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
         <path d="M3 3v5h5" />
         <path d="M12 8v4l3 2" />
+      </>
+    ),
+    lab: (
+      <>
+        <path d="M9 3h6" />
+        <path d="M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" />
+        <path d="M7.5 15h9" />
       </>
     ),
     settings: (

@@ -54,6 +54,7 @@ ALL_TABS: Final[tuple[str, ...]] = (
     "prices",
     "data",
     "backtest",
+    "lab",
 )
 
 # Simple in-memory login throttle — enough to blunt brute-force on a

@@ -17,6 +17,7 @@ from mentor.api.v1 import (
     prices,
     risk,
     risk_simulator,
+    strategy_lab,
     tips,
     trades,
 )
@@ -38,3 +39,4 @@ api_v1.include_router(macro.router)
 api_v1.include_router(alerts.router)
 api_v1.include_router(calendar.router)
 api_v1.include_router(tips.router)
+api_v1.include_router(strategy_lab.router)

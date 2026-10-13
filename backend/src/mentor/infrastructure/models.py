@@ -15,11 +15,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
@@ -408,3 +410,128 @@ class UserORM(Base, _TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     is_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
     allowed_tabs: Mapped[str] = mapped_column(Text, nullable=False, default="*")
+
+
+# --- strategy lab -----------------------------------------------------------
+
+
+class StrategyTrialORM(Base):
+    """The trial ledger: every parameter set the strategy lab ever evaluated.
+
+    Append-only — the repository has no update or delete for it. The
+    multiple-testing bar rises with the number of rows here, so a failed
+    trial that could be forgotten would be a way to lower the bar.
+    """
+
+    __tablename__ = "strategy_trials"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    config_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    candidate_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    family: Mapped[str] = mapped_column(String(48), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    params_json: Mapped[str] = mapped_column(Text, nullable=False)
+    n_trades: Mapped[int] = mapped_column(nullable=False)
+    mean_r: Mapped[float] = mapped_column(Float, nullable=False)
+    sd_r: Mapped[float] = mapped_column(Float, nullable=False)
+    t_stat: Mapped[float] = mapped_column(Float, nullable=False)
+    dev_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dev_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (Index("ix_strategy_trials_candidate", "candidate_key"),)
+
+
+class StrategyCandidateORM(Base, _TimestampMixin):
+    """One tested idea and where it stands: rejected, paper, recommended, …"""
+
+    __tablename__ = "strategy_candidates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    family: Mapped[str] = mapped_column(String(48), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    hypothesis: Mapped[str] = mapped_column(Text, nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    status_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    n_trials_at_evaluation: Mapped[int] = mapped_column(nullable=False)
+    # The chosen parameter set and its plain-language plan; null when rejected
+    # before any set qualified.
+    plan_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The gate's evidence, aggregates only (no trade list).
+    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
+    paper_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Newest settled bar the paper trader has processed.
+    last_bar_ts: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    live_looks: Mapped[int] = mapped_column(nullable=False, default=0)
+    promoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    demoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('rejected','paper','recommended','demoted','retired')",
+            name="ck_strategy_candidates_status",
+        ),
+    )
+
+
+class PaperPositionORM(Base, _TimestampMixin):
+    """A paper trade: what a plan would have done in the live market. Never sent anywhere."""
+
+    __tablename__ = "paper_positions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("strategy_candidates.id"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    signal_ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    stop_price: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    target_price: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    suggested_lots: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    entry_ts: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    entry_price: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    bars_held: Mapped[int] = mapped_column(nullable=False, default=0)
+    exit_ts: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    exit_price: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    exit_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    realised_r: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending','open','closed','cancelled')", name="ck_paper_positions_status"
+        ),
+        CheckConstraint("direction IN ('long','short')", name="ck_paper_positions_direction"),
+        # One signal is recorded once, however often the paper job re-runs.
+        UniqueConstraint("candidate_id", "signal_ts", name="uq_paper_positions_signal"),
+        Index("ix_paper_positions_candidate_status", "candidate_id", "status"),
+    )
+
+
+class StrategyEventORM(Base):
+    """The lab's history: evaluations, promotions, demotions, retirements."""
+
+    __tablename__ = "strategy_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('rejected','paper','promoted','demoted','retired')",
+            name="ck_strategy_events_kind",
+        ),
+        Index("ix_strategy_events_at", at.desc()),
+    )
