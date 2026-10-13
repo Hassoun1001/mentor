@@ -35,11 +35,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from mentor.application.forecasting.inference_service import ForecastService
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
+from mentor.application.health.self_report import ReportStore, collect_self_report, report_url
 from mentor.application.macro.cot_ingest import CotIngestService
 from mentor.application.market import IngestionService
 from mentor.application.market.quality import scan_quality
@@ -276,6 +278,29 @@ class LoopScheduler:
             log.warning("loop.cot_failed", error=str(exc))
             self._health.event("cot_error", f"COT positioning refresh failed: {exc}")
             return 0
+
+    async def run_report_once(self) -> str:
+        """Write the weekly self-report and send its summary to Telegram.
+
+        The report is the system's own account of itself — health, each
+        lane's live record against its breakeven, retrain decisions, live
+        calibration, failing jobs, recurring warnings — written to disk so
+        the trend survives restarts, and served at /health/report for the
+        maintenance agent. Failing to report is logged, never fatal.
+        """
+        try:
+            async with self._sessions() as session:
+                report = await collect_self_report(
+                    session, self._settings, loop_status=self.status()
+                )
+            ReportStore(self._settings.model_store_dir).write(report)
+        except (DomainError, OSError, SQLAlchemyError) as exc:
+            log.warning("loop.report_failed", error=str(exc))
+            self._health.beat("weekly_report", ok=False, note=str(exc))
+            return f"failed: {exc}"
+        self._health.beat("weekly_report", ok=True, note=report.headline)
+        await self._notifier.send(report.telegram_text(report_url=report_url(self._settings)))
+        return report.headline
 
     async def _quality_check(self, tf: Timeframe) -> tuple[bool, str]:
         """Scan the recent bar window; False means 'do not predict on this'."""
@@ -566,6 +591,20 @@ class LoopScheduler:
             next_run_time=_soon(),
             max_instances=1,
             coalesce=True,
+        )
+        # Weekly self-report: Saturday 06:00 UTC, while the FX market is shut.
+        # Not kicked on startup — every deploy would otherwise text the owner.
+        # The grace window lets a restart near 06:00 still deliver it late.
+        self._scheduler.add_job(
+            self.run_report_once,
+            "cron",
+            day_of_week="sat",
+            hour=6,
+            minute=0,
+            id="weekly_report",
+            replace_existing=True,
+            coalesce=True,
+            misfire_grace_time=6 * 3600,
         )
         self._scheduler.add_job(
             self.run_ingest_once,

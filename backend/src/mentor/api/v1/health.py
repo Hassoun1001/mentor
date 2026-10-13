@@ -9,14 +9,8 @@ from pydantic import BaseModel
 
 from mentor import __version__
 from mentor.api.deps import SessionDep, SettingsDep
-from mentor.application.forecasting.economics import BREAKEVEN_LABEL, lane_breakeven
-from mentor.application.forecasting.promotion import PromotionService
-from mentor.application.health import build_digest
-from mentor.application.scheduler.drift import select_independent
-from mentor.domain.forecasting.forecast import Direction
-from mentor.domain.market.bars import Timeframe
-from mentor.domain.stats.significance import assess_proportion
-from mentor.infrastructure.repositories import PredictionRepository, PriceBarRepository
+from mentor.application.health.collect import collect_digest
+from mentor.application.health.self_report import collect_self_report
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -104,72 +98,8 @@ async def digest(
     starts looking like progress.
     """
     now = datetime.now(UTC)
-    timeframe = Timeframe(settings.loop_timeframe)
-
-    prices = PriceBarRepository(session)
-    newest = await prices.latest(symbol=settings.loop_symbol, timeframe=timeframe)
-
-    predictions = PredictionRepository(session)
-    recent = await predictions.list_recent(limit=2000)
-    pending = [r for r in recent if r.realised_outcome is None]
-    overdue = sum(1 for r in pending if r.horizon_at < now)
-
-    # Same independence discipline the Loop page uses: overlapping signals
-    # are one observation, not many.
-    resolved = await predictions.list_resolved(limit=5000)
-    independent = select_independent(
-        [
-            (r.asof, r.horizon_at, float(r.p_up), int(r.realised_outcome))
-            for r in resolved
-            if r.realised_outcome is not None and r.direction != Direction.NEUTRAL.value
-        ]
-    )
-    hits = sum(
-        1
-        for p_up, outcome in independent
-        if (p_up >= 0.5 and outcome == 1) or (p_up < 0.5 and outcome == 0)
-    )
-    # Graded against what a call must clear to pay for itself, not against a
-    # coin flip. On the 24-bar lane that is ~51.7%, so a 51% record is "still
-    # losing money", not "slightly ahead".
-    basis = await lane_breakeven(session, settings=settings)
-    verdict = assess_proportion(
-        hits,
-        len(independent),
-        baseline=basis.breakeven,
-        label="independent windows",
-        baseline_label=BREAKEVEN_LABEL if basis.measured else "a coin flip",
-    )
-
-    promo = PromotionService(model_store_dir=settings.model_store_dir)
-    last_retrain: datetime | None = None
-    history = promo.promotion_history(limit=1)
-    if history:
-        raw = history[0].get("at")
-        if isinstance(raw, str):
-            try:
-                last_retrain = datetime.fromisoformat(raw)
-            except ValueError:
-                last_retrain = None
-
-    scheduler = getattr(request.app.state, "scheduler", None)
-    alerts_enabled = bool(getattr(scheduler, "alerts_enabled", False)) if scheduler else False
-    if scheduler is not None and hasattr(scheduler, "status"):
-        alerts_enabled = bool(scheduler.status().get("alerts_enabled", False))
-
-    d = build_digest(
-        window_days=7,
-        newest_bar=newest.ts if newest is not None else None,
-        ingest_interval_minutes=settings.loop_ingest_interval_minutes,
-        pending_predictions=len(pending),
-        overdue_predictions=overdue,
-        last_retrain=last_retrain,
-        retrain_interval_hours=settings.loop_retrain_interval_hours,
-        alerts_enabled=alerts_enabled,
-        independent_windows=len(independent),
-        windows_needed=verdict.n_needed or 30,
-        paper_verdict=verdict.verdict,
-        now=now,
+    d = await collect_digest(
+        session, settings, alerts_enabled=_alerts_enabled(request), now=now
     )
 
     return DigestResponse(
@@ -183,3 +113,34 @@ async def digest(
             for c in d.checks
         ],
     )
+
+
+def _loop_status(request: Request) -> dict[str, object] | None:
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if scheduler is None or not hasattr(scheduler, "status"):
+        return None
+    status = scheduler.status()
+    return status if isinstance(status, dict) else None
+
+
+def _alerts_enabled(request: Request) -> bool:
+    status = _loop_status(request)
+    return bool(status.get("alerts_enabled", False)) if status else False
+
+
+# ---------- the self-report: what the system knows about itself ----------
+
+
+@router.get("/report")
+async def report(
+    request: Request, session: SessionDep, settings: SettingsDep
+) -> dict[str, object]:
+    """Everything the system can tell about its own state, machine-readable.
+
+    Computed live on request; the weekly job additionally writes it to disk
+    and sends the summary to Telegram. Aggregates only — no credentials, no
+    raw predictions — because like the digest it is served without auth, so
+    a maintenance agent can read it without holding a secret.
+    """
+    r = await collect_self_report(session, settings, loop_status=_loop_status(request))
+    return r.to_dict()

@@ -9,6 +9,9 @@ from __future__ import annotations
 import logging
 import re
 import sys
+import threading
+from collections import Counter
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -63,6 +66,77 @@ class RedactingFilter(logging.Filter):
         return True
 
 
+# ---- recurring-warning tally ------------------------------------------------
+
+_TALLIED_LEVELS = frozenset({"warning", "error", "critical", "exception"})
+_EVENT_KEY_MAX = 120
+
+
+class LogTally:
+    """Count warning-and-above log events by name since the process started.
+
+    A degradation that recurs — GDELT rate limiting twice a day, the feed
+    falling back to its second source — is invisible in a log nobody
+    scrolls back through. The weekly self-report reads this so it shows up
+    as a number instead. Process-lifetime by design: a restart resets it,
+    and the snapshot says from when it counts.
+    """
+
+    def __init__(self) -> None:
+        self._counts: Counter[tuple[str, str]] = Counter()
+        self._since = datetime.now(UTC)
+        self._lock = threading.Lock()
+
+    def record(self, level: str, event: str) -> None:
+        with self._lock:
+            self._counts[(level, event[:_EVENT_KEY_MAX])] += 1
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            items = sorted(self._counts.items(), key=lambda kv: (-kv[1], kv[0]))
+            return {
+                "since": self._since.isoformat(),
+                "events": [
+                    {"level": level, "event": event, "count": count}
+                    for (level, event), count in items
+                ],
+            }
+
+    def reset(self) -> None:
+        with self._lock:
+            self._counts.clear()
+            self._since = datetime.now(UTC)
+
+
+_TALLY = LogTally()
+
+
+def log_tally() -> LogTally:
+    """The process-wide tally of recurring warnings and errors."""
+    return _TALLY
+
+
+def _tally_event(_: object, __: str, event_dict: EventDict) -> EventDict:
+    level = str(event_dict.get("level", "")).lower()
+    if level in _TALLIED_LEVELS:
+        _TALLY.record(level, str(event_dict.get("event", "")))
+    return event_dict
+
+
+class TallyingFilter(logging.Filter):
+    """Count stdlib warnings (apscheduler misfires and the like) by template.
+
+    Keyed on the unformatted message so "job X missed by 2s" and "missed by
+    3s" are one recurring event, not two — and so no argument value, which
+    could carry a secret, ever becomes a key.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno >= logging.WARNING:
+            _TALLY.record(record.levelname.lower(), f"{record.name}: {record.msg}")
+        return True
+
+
 def configure_logging(settings: Settings) -> None:
     timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True)
     shared_processors: list[Processor] = [
@@ -71,6 +145,7 @@ def configure_logging(settings: Settings) -> None:
         structlog.processors.StackInfoRenderer(),
         _drop_color_message_key,
         _redact_event,
+        _tally_event,
         timestamper,
     ]
 
@@ -107,6 +182,10 @@ def configure_logging(settings: Settings) -> None:
     # Filters on a *handler* see records propagated from every child logger;
     # a filter on the root logger itself would not.
     for handler in logging.getLogger().handlers:
+        # Tally first, on the unformatted template, before redaction rewrites
+        # the message.
+        if not any(isinstance(f, TallyingFilter) for f in handler.filters):
+            handler.addFilter(TallyingFilter())
         if not any(isinstance(f, RedactingFilter) for f in handler.filters):
             handler.addFilter(RedactingFilter())
 
