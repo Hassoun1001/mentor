@@ -312,6 +312,10 @@ class PredictionORM(Base, _TimestampMixin):
 
     model_name: Mapped[str] = mapped_column(String(128), nullable=False)
     p_up: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False)
+    # The model's own probability when a live recalibration restated `p_up`;
+    # NULL means no correction was applied and `p_up` is the model's own.
+    # Live fits read this so one correction is never fitted on top of another.
+    p_up_model: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
     confidence: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False)
     direction: Mapped[str] = mapped_column(String(8), nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, nullable=False)
@@ -332,6 +336,10 @@ class PredictionORM(Base, _TimestampMixin):
     __table_args__ = (
         CheckConstraint("direction IN ('long','short','neutral')", name="ck_predictions_direction"),
         CheckConstraint("p_up >= 0 AND p_up <= 1", name="ck_predictions_p_up"),
+        CheckConstraint(
+            "p_up_model IS NULL OR (p_up_model >= 0 AND p_up_model <= 1)",
+            name="ck_predictions_p_up_model",
+        ),
         CheckConstraint("origin IN ('live','replay')", name="ck_predictions_origin"),
         Index("ix_predictions_symbol_asof", "symbol", asof.desc()),
         Index("ix_predictions_unresolved", "horizon_at", "resolved_at"),

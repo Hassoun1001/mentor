@@ -23,6 +23,10 @@ from mentor.application.forecasting.economics import (
     lane_breakeven,
     round_trip_cost_price,
 )
+from mentor.application.forecasting.live_calibration import (
+    champion_live_calls,
+    parse_promoted_at,
+)
 from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.replay import ReplayService
@@ -32,6 +36,7 @@ from mentor.application.forecasting.vol_service import VolPayload, VolService
 from mentor.application.scheduler.drift import select_independent
 from mentor.domain.errors import DomainError, ValidationError
 from mentor.domain.forecasting.forecast import Direction, Forecast
+from mentor.domain.forecasting.live_recalibration import recalibrate
 from mentor.domain.forecasting.vol_audit import RateCheck
 from mentor.domain.forecasting.volatility import (
     VolForecast,
@@ -46,7 +51,7 @@ from mentor.domain.risk import Direction as RiskDirection
 from mentor.domain.risk import RiskInputs, calculate_position
 from mentor.domain.risk.target_realism import assess_target
 from mentor.domain.risk.trade_management import build_trade_management
-from mentor.domain.stats.significance import assess_proportion
+from mentor.domain.stats.significance import MIN_SAMPLE_FOR_VERDICT, assess_proportion
 from mentor.infrastructure.forecasting.model_store import ModelStore
 from mentor.infrastructure.forecasting.sklearn_forecaster import TrainingReport
 from mentor.infrastructure.repositories import (
@@ -848,6 +853,8 @@ class LessonEntryDTO(BaseModel):
     selection: dict[str, float] = {}
     importances: dict[str, float] = {}
     live: dict[str, float] | None = None
+    calibration_buckets: list[dict[str, float | int | str]] = []
+    live_recalibration: dict[str, float | int | str | bool | None] | None = None
 
 
 @router.get("/loop/lessons", response_model=list[LessonEntryDTO])
@@ -859,6 +866,148 @@ async def loop_lessons(
     loop's memory, newest first."""
     promo = PromotionService(model_store_dir=_lane_store_dir(settings.model_store_dir, lane))
     return [LessonEntryDTO(**entry) for entry in promo.lessons_history()]
+
+
+class CalibrationBucketDTO(BaseModel):
+    bucket: str
+    stated_midpoint: float
+    realised_hit_rate: float
+    samples: int
+
+
+class LiveCalibrationResponse(BaseModel):
+    """Whether the champion's live record has corrected its stated confidence."""
+
+    model_name: str
+    promoted_at: str | None = None
+    # Live progress, counted now — not as of the last retrain.
+    independent_outcomes: int = 0
+    required: int = MIN_SAMPLE_FOR_VERDICT
+    # The decision in force, made at the last retrain (None = never decided
+    # for this champion yet).
+    decided_at: str | None = None
+    decided_on: int | None = None  # independent outcomes the decision saw
+    active: bool = False
+    slope: float = 1.0  # the slope in force; 1.0 = none
+    tried_slope: float | None = None  # what the fit chose, applied or not
+    n_fit: int = 0
+    n_holdout: int = 0
+    brier_before: float | None = None
+    brier_after: float | None = None
+    gain: float | None = None
+    # A 60% call as the champion now states it — the correction in one number.
+    example_from: float = 0.6
+    example_to: float = 0.6
+    reason: str = ""
+    explanation: str = ""
+    # Calibration buckets from the most recent retrain's post-mortem.
+    buckets: list[CalibrationBucketDTO] = []
+    buckets_at: str | None = None
+
+
+def _num(v: object) -> float | None:
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def _explain_live_calibration(r: LiveCalibrationResponse) -> str:
+    """The decision in words a non-specialist can act on."""
+    if r.model_name == "baseline":
+        return (
+            "No trained champion is predicting right now — the baseline rule has no "
+            "learned confidence to correct."
+        )
+    if r.active and r.brier_before is not None and r.brier_after is not None:
+        tone = "overconfident" if r.slope < 1 else "underconfident"
+        return (
+            f"The champion's own live record showed it was {tone}, so it now restates "
+            f"its probabilities: a call it would have given as "
+            f"{r.example_from * 100:.0f}% is shown as {r.example_to * 100:.0f}%. "
+            f"The correction was learned from the older {r.n_fit} live outcomes and only "
+            f"switched on because it also improved the newer {r.n_holdout} it never saw "
+            f"(Brier {r.brier_before:.4f} → {r.brier_after:.4f}; lower is better). It "
+            f"changes how sure the model says it is — never which way it leans."
+        )
+    if r.decided_on is not None and r.decided_on >= r.required:
+        return (
+            f"At the last retrain the champion's confidence was checked against "
+            f"{r.decided_on} independent live outcomes and left unchanged. {r.reason}"
+        )
+    if r.independent_outcomes >= r.required:
+        return (
+            f"The champion now has {r.independent_outcomes} independent live outcomes — "
+            f"enough to check its confidence. The check runs at the next retrain."
+        )
+    return (
+        f"The champion has {r.independent_outcomes} of the {r.required} independent live "
+        f"outcomes needed before its confidence can be checked against reality — roughly "
+        f"one a trading day, because overlapping calls share the same market move. Until "
+        f"then it keeps the calibration it learned in training; a correction fitted on "
+        f"fewer would be fitting luck."
+    )
+
+
+@router.get("/loop/live-calibration", response_model=LiveCalibrationResponse)
+async def loop_live_calibration(
+    session: SessionDep,
+    settings: SettingsDep,
+    lane: Annotated[str, Query(pattern="^(h1|d1)$")] = "h1",
+) -> LiveCalibrationResponse:
+    """Is the system correcting its own confidence from its live mistakes?
+
+    Live progress is counted on request; the correction itself is decided
+    only at retrains, so looking repeatedly can't turn noise into a fix.
+    """
+    promo = PromotionService(model_store_dir=_lane_store_dir(settings.model_store_dir, lane))
+    champion = promo.current_champion()
+    name = str((champion or {}).get("model_name") or "baseline")
+    promoted_at = parse_promoted_at(champion)
+
+    independent = 0
+    if name != "baseline" and promoted_at is not None:
+        timeframe = settings.loop_timeframe if lane == "h1" else Timeframe.D1.value
+        rows = await PredictionRepository(session).list_resolved_since(
+            timeframe=timeframe, since=promoted_at
+        )
+        independent = len(champion_live_calls(rows, promoted_at=promoted_at))
+
+    resp = LiveCalibrationResponse(
+        model_name=name,
+        promoted_at=promoted_at.isoformat() if promoted_at else None,
+        independent_outcomes=independent,
+    )
+    decision = promo.live_calibration()
+    if name != "baseline" and decision and decision.get("model_name") == name:
+        active = decision.get("applied") is True
+        tried = _num(decision.get("slope"))
+        slope = tried if active and tried is not None else 1.0
+        decided_on = _num(decision.get("n_independent"))
+        resp = resp.model_copy(
+            update={
+                "decided_at": str(decision.get("decided_at") or "") or None,
+                "decided_on": int(decided_on) if decided_on is not None else None,
+                "active": active,
+                "slope": slope,
+                "tried_slope": tried,
+                "n_fit": int(_num(decision.get("n_fit")) or 0),
+                "n_holdout": int(_num(decision.get("n_holdout")) or 0),
+                "brier_before": _num(decision.get("brier_before")),
+                "brier_after": _num(decision.get("brier_after")),
+                "gain": _num(decision.get("gain")),
+                "example_to": round(recalibrate(0.6, slope), 4),
+                "required": int(_num(decision.get("required")) or MIN_SAMPLE_FOR_VERDICT),
+                "reason": str(decision.get("reason") or ""),
+            }
+        )
+
+    for lesson in promo.lessons_history(limit=20):
+        raw = lesson.get("calibration_buckets")
+        if isinstance(raw, list) and raw:
+            resp.buckets = [CalibrationBucketDTO(**b) for b in raw if isinstance(b, dict)]
+            resp.buckets_at = str(lesson.get("at") or "") or None
+            break
+
+    resp.explanation = _explain_live_calibration(resp)
+    return resp
 
 
 class PaperPointDTO(BaseModel):
@@ -1320,7 +1469,12 @@ async def trade_plan(
             "or halve size until it normalizes."
         )
 
-    distance = abs(fc.p_up - Decimal("0.5"))
+    # The margin was learned on the model's own probabilities, so it is
+    # compared against the model's own distance from 50/50. A live confidence
+    # correction restates what the model *says*; it does not move the line
+    # the promotion gate validated for when it should act.
+    own_p = fc.p_up_model if fc.p_up_model is not None else fc.p_up
+    distance = abs(own_p - Decimal("0.5"))
     below_learned = learned_margin is not None and distance < learned_margin
     if fc.direction.value == "neutral" or fc.confidence < _PLAN_MIN_CONFIDENCE or below_learned:
         return _stand_aside(

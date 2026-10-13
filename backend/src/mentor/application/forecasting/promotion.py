@@ -33,9 +33,16 @@ The gate's honesty machinery, in order of adoption:
   from *pre-tail* history — not by one lucky roll on a single split.
   The final gate tail stays untouched by selection.
 - **Lessons.** Every retrain writes what it learned (live post-mortem
-  metrics, feature importances, the decision) to a durable log; the
-  "pruned" candidate reads recent lessons to drop dead-weight features.
-  The feedback loop can only ship improvements through the same gate.
+  metrics and calibration buckets, feature importances, the decision) to a
+  durable log; the "pruned" candidate reads recent lessons to drop
+  dead-weight features. The feedback loop can only ship improvements
+  through the same gate.
+- **Live recalibration.** After each decision, the champion's own
+  independent live outcomes are allowed to correct its *stated confidence*
+  — never its features — and only when the correction holds up on live
+  calls it was not fitted on (see ``live_recalibration.py``). Feature
+  selection stays on training-time evidence: a few dozen live days would
+  only teach it noise.
 
 The champion pointer is a small JSON file in the model store so the live
 loop and the forecast API can ask "which model is current?" without
@@ -47,7 +54,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -59,11 +66,17 @@ from mentor.application.forecasting.htf_context import (
     build_htf_by_ts,
     load_htf_series,
 )
+from mentor.application.forecasting.live_calibration import (
+    LiveCalibrationStore,
+    champion_live_calls,
+    parse_promoted_at,
+)
 from mentor.application.forecasting.news_context import build_news_by_ts, load_news_series
 from mentor.application.forecasting.postmortem import compute_post_mortem
 from mentor.application.macro.context import build_macro_by_ts, load_macro_series
 from mentor.domain.errors import ValidationError
 from mentor.domain.forecasting.features import FEATURE_NAMES
+from mentor.domain.forecasting.live_recalibration import fit_live_recalibration
 from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.domain.stats.breakeven import BreakevenBasis, estimate_breakeven
 from mentor.infrastructure.forecasting.model_store import ModelStore
@@ -342,14 +355,63 @@ class PromotionService:
         """What recent retrains learned, newest first."""
         return _read_jsonl_tail(self._lessons_path, limit)
 
+    def live_calibration(self) -> dict[str, object] | None:
+        """The live confidence correction last decided for this lane."""
+        return LiveCalibrationStore(self._dir).read()
+
+    async def _refresh_live_calibration(
+        self, timeframe: Timeframe
+    ) -> dict[str, object] | None:
+        """Re-decide the live confidence correction for the champion in force
+        *after* this retrain's decision.
+
+        A kept champion is re-fitted on its grown live record; a new one has
+        none yet and starts on its own calibration; no champion means no
+        correction. Returns the decision as recorded (None when there is
+        nothing to decide or no live record is wired).
+        """
+        store = LiveCalibrationStore(self._dir)
+        champion = self.current_champion()
+        if champion is None:
+            store.clear()
+            return None
+        if self._predictions is None:
+            return None
+        name = str(champion.get("model_name") or "")
+        promoted_at = parse_promoted_at(champion)
+        if not name or promoted_at is None:
+            # Without a promotion time the champion's calls can't be told
+            # apart from its predecessors' — fitting on them would correct
+            # the wrong model.
+            store.clear()
+            log.warning("promotion.live_recal_unattributable", champion=name)
+            return None
+        rows = await self._predictions.list_resolved_since(
+            timeframe=timeframe.value, since=promoted_at
+        )
+        result = fit_live_recalibration(champion_live_calls(rows, promoted_at=promoted_at))
+        entry = store.write(model_name=name, decided_at=datetime.now(UTC), result=result)
+        log.info(
+            "promotion.live_recalibration",
+            champion=name,
+            applied=result.applied,
+            slope=result.slope,
+            n_independent=result.n_independent,
+            brier_before=result.brier_before,
+            brier_after=result.brier_after,
+        )
+        return entry
+
     async def _log_lesson(
         self,
         result: PromotionResult,
         challenger: SklearnForecaster,
         selection_briers: dict[str, float],
+        live_recalibration: dict[str, object] | None = None,
     ) -> None:
         """Persist what this retrain learned — the feedback loop's memory."""
         live: dict[str, float | int] | None = None
+        buckets: list[dict[str, object]] = []
         if self._predictions is not None:
             rows = await self._predictions.list_resolved(limit=500)
             pm = compute_post_mortem(rows)
@@ -360,6 +422,10 @@ class PromotionService:
                 "brier": round(pm.brier_score, 4),
                 "ece": round(pm.ece, 4),
             }
+            # Where the stated probabilities over- or under-shot reality —
+            # computed by every post-mortem, and now kept so the history of
+            # the system's calibration is inspectable, not just its latest.
+            buckets = [asdict(b) for b in pm.calibration]
         top = sorted(
             challenger.report.feature_importances.items(), key=lambda kv: kv[1], reverse=True
         )
@@ -373,6 +439,8 @@ class PromotionService:
             "selection": selection_briers,
             "importances": {k: round(v, 6) for k, v in top},
             "live": live,
+            "calibration_buckets": buckets,
+            "live_recalibration": live_recalibration,
         }
         with self._lessons_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry) + "\n")
@@ -716,7 +784,8 @@ class PromotionService:
                 challenger_accuracy=r.effective_accuracy,
             )
             self._log_decision(first)
-            await self._log_lesson(first, challenger, selection)
+            recal = await self._refresh_live_calibration(timeframe)
+            await self._log_lesson(first, challenger, selection, recal)
             return first
 
         # Fair gate: champion re-graded on the same fresh window when possible.
@@ -743,7 +812,8 @@ class PromotionService:
             challenger_accuracy=r.effective_accuracy,
         )
         self._log_decision(decision)
-        await self._log_lesson(decision, challenger, selection)
+        recal = await self._refresh_live_calibration(timeframe)
+        await self._log_lesson(decision, challenger, selection, recal)
         return decision
 
     def _decide_vs_incumbent(

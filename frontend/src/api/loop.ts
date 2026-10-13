@@ -114,3 +114,43 @@ export type LoopPolicy = z.infer<typeof loopPolicy>;
 export async function getLoopPolicy(): Promise<LoopPolicy> {
   return apiGet('/forecasting/loop/policy', loopPolicy);
 }
+
+// ---------- live recalibration ----------
+
+const calibrationBucket = z.object({
+  bucket: z.string(),
+  stated_midpoint: z.number(),
+  realised_hit_rate: z.number(),
+  samples: z.number(),
+});
+export type CalibrationBucketEntry = z.infer<typeof calibrationBucket>;
+
+const liveCalibration = z.object({
+  model_name: z.string(),
+  promoted_at: z.string().nullable(),
+  // Counted on request: how far the champion has got toward a first check.
+  independent_outcomes: z.number(),
+  required: z.number(),
+  // The decision in force, made at the last retrain.
+  decided_at: z.string().nullable(),
+  decided_on: z.number().nullable(),
+  active: z.boolean(),
+  slope: z.number(),
+  tried_slope: z.number().nullable(),
+  n_fit: z.number(),
+  n_holdout: z.number(),
+  brier_before: z.number().nullable(),
+  brier_after: z.number().nullable(),
+  gain: z.number().nullable(),
+  example_from: z.number(),
+  example_to: z.number(),
+  reason: z.string(),
+  explanation: z.string(),
+  buckets: z.array(calibrationBucket),
+  buckets_at: z.string().nullable(),
+});
+export type LiveCalibration = z.infer<typeof liveCalibration>;
+
+export function fetchLiveCalibration(): Promise<LiveCalibration> {
+  return apiGet('/forecasting/loop/live-calibration', liveCalibration);
+}

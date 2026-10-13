@@ -6,6 +6,12 @@ returns the forecast.
 
 The audit-log write happens *before* the API returns — so every
 prediction the UI sees is queryable later for calibration.
+
+When the champion's live record has earned a confidence correction (see
+``live_calibration.py``), it is applied here, after the model speaks and
+before anything is recorded or shown — and the model's own probability is
+recorded alongside, so the next live fit learns from the model rather than
+from its own previous correction.
 """
 
 from __future__ import annotations
@@ -17,12 +23,14 @@ from decimal import Decimal
 from pathlib import Path
 
 from mentor.application.forecasting.htf_context import load_htf_series
+from mentor.application.forecasting.live_calibration import LiveCalibrationStore
 from mentor.application.forecasting.news_context import load_news_series
 from mentor.application.macro.context import load_macro_series
 from mentor.domain.errors import ValidationError
 from mentor.domain.forecasting import Forecast
 from mentor.domain.forecasting.baseline import BaselineForecaster
 from mentor.domain.forecasting.forecaster import Forecaster
+from mentor.domain.forecasting.live_recalibration import apply_to_forecast
 from mentor.domain.forecasting.regime import RegimeAdjustedForecaster
 from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.infrastructure.forecasting.model_store import ModelStore
@@ -70,6 +78,7 @@ class ForecastService:
         self._prices = prices
         self._predictions = predictions
         self._store = ModelStore(model_store_dir)
+        self._live_calibration = LiveCalibrationStore(model_store_dir)
         self._news_tone = news_tone
         self._news_query_key = news_query_key
         self._macro = macro
@@ -99,6 +108,11 @@ class ForecastService:
         forecast = forecaster.forecast(
             bars=bars, symbol=symbol, timeframe=timeframe, news=news, macro=macro, htf=htf
         )
+        if model_name != "baseline":
+            # A correction is keyed to the exact model it was learned from, so
+            # a newly promoted champion always starts on its own calibration.
+            slope = self._live_calibration.active_slope_for(model_name)
+            forecast = apply_to_forecast(forecast, slope)
 
         prediction_id = uuid.uuid4()
         if record:

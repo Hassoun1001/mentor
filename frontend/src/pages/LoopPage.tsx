@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  type CalibrationBucketEntry,
   type Heartbeat,
+  type LiveCalibration,
   type LoopEvent,
   type LoopPolicy,
   type LoopStatus,
   type PaperReport,
   type PromotionEntry,
+  fetchLiveCalibration,
   fetchLoopPaper,
   fetchLoopPromotions,
   fetchLoopStatus,
@@ -19,7 +22,7 @@ import { SignificanceNote } from '../components/SignificanceNote';
 
 const REFRESH_MS = 30_000;
 
-// Matches the backend's _MIN_SAMPLE_FOR_VERDICT: below this many independent
+// Matches the backend's MIN_SAMPLE_FOR_VERDICT: below this many independent
 // windows a win rate is noise, so we show progress toward it rather than a
 // percentage that a trend can swing wildly.
 const MIN_WINDOWS_FOR_VERDICT = 30;
@@ -46,6 +49,11 @@ export function LoopPage() {
     queryFn: getLoopPolicy,
     refetchInterval: REFRESH_MS * 2,
   });
+  const liveCalibration = useQuery({
+    queryKey: ['loop-live-calibration'],
+    queryFn: fetchLiveCalibration,
+    refetchInterval: REFRESH_MS * 2,
+  });
 
   return (
     <section className="space-y-8">
@@ -61,6 +69,7 @@ export function LoopPage() {
 
       <StatusPanel status={status.data} loading={status.isLoading} />
       {policy.data && <PolicyPanel policy={policy.data} />}
+      {liveCalibration.data && <LiveCalibrationPanel data={liveCalibration.data} />}
       <PaperPanel
         report={paper.data}
         loading={paper.isLoading}
@@ -140,6 +149,138 @@ function PolicyPanel({ policy }: { policy: LoopPolicy }) {
         </>
       )}
     </div>
+  );
+}
+
+// ---------- live recalibration ----------
+
+/**
+ * Is the system correcting its own confidence from its live mistakes?
+ *
+ * Three honest states: still gathering independent outcomes (a progress
+ * bar, not a verdict), checked and left alone (with the reason), or
+ * corrected (with the held-out evidence that earned it).
+ */
+function LiveCalibrationPanel({ data }: { data: LiveCalibration }) {
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const progress = Math.min(1, data.independent_outcomes / data.required);
+  const gathering = data.decided_on === null || data.decided_on < data.required;
+  const pill = data.active
+    ? { text: 'confidence corrected', tone: 'text-mentor-accent' }
+    : gathering
+      ? { text: 'gathering evidence', tone: 'text-mentor-muted' }
+      : { text: 'no correction needed', tone: 'text-mentor-muted' };
+
+  return (
+    <div className="panel-pad space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium uppercase tracking-wider text-mentor-muted">
+            Learning from its live mistakes
+          </h2>
+          <p className="text-xs text-mentor-muted">
+            Does the champion&apos;s stated confidence match what actually happened to its
+            live calls? If not, it corrects how sure it says it is — never which way it leans.
+          </p>
+        </div>
+        <span className={`pill ${pill.tone}`}>{pill.text}</span>
+      </div>
+
+      <p className="max-w-3xl text-sm leading-relaxed text-mentor-fg">{data.explanation}</p>
+
+      {data.model_name !== 'baseline' && (
+        <div className="space-y-1.5">
+          <div className="flex h-3 w-full overflow-hidden rounded-full bg-mentor-panelLight">
+            <div
+              className="h-full bg-mentor-accent"
+              style={{ width: `${progress * 100}%` }}
+              title="independent live outcomes so far"
+            />
+          </div>
+          <div className="flex justify-between text-xs text-mentor-muted">
+            <span>
+              {data.independent_outcomes} independent live outcome
+              {data.independent_outcomes === 1 ? '' : 's'} since promotion
+            </span>
+            <span>{data.required} needed for a first check</span>
+          </div>
+        </div>
+      )}
+
+      {data.brier_before !== null && data.brier_after !== null && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Metric
+            label="A 60% call now reads"
+            value={pct(data.example_to)}
+            sub={data.active ? 'after the live correction' : 'unchanged'}
+            tone={data.active ? 'positive' : undefined}
+          />
+          <Metric
+            label="Brier before"
+            value={data.brier_before.toFixed(4)}
+            sub={`model's own, on ${data.n_holdout} unseen calls`}
+          />
+          <Metric
+            label="Brier with correction"
+            value={data.brier_after.toFixed(4)}
+            sub="lower is better"
+          />
+          <Metric
+            label="Gain"
+            value={`${(data.gain ?? 0) >= 0 ? '+' : ''}${(data.gain ?? 0).toFixed(4)}`}
+            sub="needs ≥ +0.0020 to switch on"
+            tone={data.active ? 'positive' : undefined}
+          />
+        </div>
+      )}
+
+      {data.decided_at && (
+        <p className="text-xs text-mentor-muted">
+          Last checked {new Date(data.decided_at).toLocaleString()} on {data.decided_on}{' '}
+          independent outcomes. The check runs only at retrains, so looking at this page
+          repeatedly can never turn a lucky streak into a correction.
+        </p>
+      )}
+
+      {data.buckets.length > 0 && <BucketTable buckets={data.buckets} at={data.buckets_at} />}
+    </div>
+  );
+}
+
+function BucketTable({ buckets, at }: { buckets: CalibrationBucketEntry[]; at: string | null }) {
+  return (
+    <details className="rounded-lg border border-mentor-border bg-mentor-panel/40">
+      <summary className="cursor-pointer px-3 py-2 text-xs text-mentor-muted">
+        What it said vs what happened, by confidence band
+        {at ? ` (as of the retrain on ${new Date(at).toLocaleDateString()})` : ''}
+      </summary>
+      <div className="space-y-2 px-3 pb-3 pt-1">
+        <p className="text-xs text-mentor-muted">
+          Every resolved live call, grouped by the probability it stated. Bands with fewer
+          than 10 calls are dimmed — chance dominates there.
+        </p>
+        {buckets.map((b) => {
+          const close = Math.abs(b.stated_midpoint - b.realised_hit_rate) < 0.05;
+          return (
+            <div key={b.bucket} className={b.samples < 10 ? 'opacity-40' : ''}>
+              <div className="mb-1 flex items-center justify-between font-mono text-xs text-mentor-muted">
+                <span>{b.bucket}</span>
+                <span>
+                  said ~{Math.round(b.stated_midpoint * 100)}% → went up{' '}
+                  {Math.round(b.realised_hit_rate * 100)}% · {b.samples} calls
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-mentor-panelLight">
+                <div
+                  className={`h-full rounded-full ${close ? 'bg-mentor-accent' : 'bg-mentor-warn'}`}
+                  style={{ width: `${Math.max(2, Math.round(b.realised_hit_rate * 100))}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </details>
   );
 }
 

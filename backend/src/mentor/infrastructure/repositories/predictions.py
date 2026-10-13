@@ -35,10 +35,11 @@ class PredictionRepository:
                 horizon_at=horizon_at,
                 model_name=forecast.model_name,
                 p_up=forecast.p_up,
+                p_up_model=forecast.p_up_model,
                 confidence=forecast.confidence,
                 direction=forecast.direction.value,
                 reasoning=forecast.reasoning,
-            origin=origin,
+                origin=origin,
                 features_json=json.dumps({k: str(v) for k, v in forecast.features.items()}),
             )
         )
@@ -100,6 +101,32 @@ class PredictionRepository:
         if not include_replay:
             stmt = stmt.where(PredictionORM.origin == "live")
         stmt = stmt.order_by(PredictionORM.asof.desc()).limit(limit)
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def list_resolved_since(
+        self, *, timeframe: str, since: datetime
+    ) -> Sequence[PredictionORM]:
+        """Resolved live predictions on one lane made at or after ``since``,
+        oldest first.
+
+        The live-recalibration read: everything one champion has said since
+        it took the crown, in the order it said it. Replays are never
+        included — a correction fitted on backfilled history would be
+        correcting the model's past, not its live behaviour.
+        """
+        stmt = (
+            select(PredictionORM)
+            .where(
+                and_(
+                    PredictionORM.resolved_at.is_not(None),
+                    PredictionORM.origin == "live",
+                    PredictionORM.timeframe == timeframe,
+                    PredictionORM.asof >= since,
+                )
+            )
+            .order_by(PredictionORM.asof.asc())
+        )
         result = await self._session.execute(stmt)
         return result.scalars().all()
 

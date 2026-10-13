@@ -58,10 +58,17 @@ class Forecast:
     model_name: str
     reasoning: str
     features: dict[str, Decimal]
+    # The model's own probability when a live recalibration changed `p_up`
+    # (None = no correction, `p_up` is the model's own). Recorded so the next
+    # live fit learns from what the model said, not from an earlier
+    # correction of it — corrections must not stack.
+    p_up_model: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not (Decimal("0") <= self.p_up <= Decimal("1")):
             raise ValidationError("p_up must be in [0, 1]", field="p_up")
+        if self.p_up_model is not None and not (Decimal("0") <= self.p_up_model <= Decimal("1")):
+            raise ValidationError("p_up_model must be in [0, 1]", field="p_up_model")
         if not (Decimal("0") <= self.confidence <= Decimal("1")):
             raise ValidationError("confidence must be in [0, 1]", field="confidence")
         if self.horizon_bars < 1:
