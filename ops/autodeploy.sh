@@ -31,7 +31,7 @@ LOG_MAX_BYTES=5000000
 # constants are the honesty gates. An agent told to "improve" will otherwise
 # find that lowering a bar makes the numbers look better — exactly the
 # self-deception the system exists to prevent.
-PROTECTED_PATHS='^(ops/|docker-compose[^/]*\.ya?ml$|Caddyfile$|Dockerfile$|backend/Dockerfile$|\.github/|backend/tests/test_honesty_gates_pinned\.py$)'
+PROTECTED_PATHS='^(ops/|docker-compose[^/]*\.ya?ml$|Caddyfile$|Dockerfile$|backend/Dockerfile$|\.github/|backend/tests/test_honesty_gates_pinned\.py$|backend/src/mentor/domain/strategy_lab/(gate|deflation|live)\.py$)'
 WRITABLE_EXCEPTIONS='^ops/autonomy/LOG\.md$'
 PROTECTED_CONSTANTS='_PROMOTION_MARGIN|_COIN_FLIP_BRIER|_BASELINE_FLOOR|_MIN_COVERAGE|MIN_COVERAGE|_DEMOTION_AFTER|_SELECTION_FOLDS|_MIN_GAIN|_MIN_SENSIBLE_STOP_PIPS|_EXTREME_LEVERAGE|MIN_WINDOWS|_MAX_BREAKEVEN|_COIN_FLIP|_Z|MIN_SAMPLE_FOR_VERDICT|_PUBLICATION_LAG|spread_pips|slippage_pips|_WALK_FORWARD_FOLDS|_MIN_SELECTION_TRADES|_HOLDOUT_MIN_TRADES|_HOLDOUT_START_D1|_HOLDOUT_START_H1|_MIN_SHARPE_DENOMINATOR|_LIVE_CHECKPOINT'
 
