@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
 from mentor.application.health import Level, build_digest
+from mentor.application.health.collect import late_predictions, outcome_expected_by
 from mentor.config import Settings
+from mentor.domain.market.bars import Timeframe
 
 NOW = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
 
@@ -52,11 +55,78 @@ def test_a_dead_feed_is_a_failure_and_discredits_everything_else() -> None:
     assert "describe the past" in d.headline
 
 
-def test_overdue_predictions_are_named_as_lost_record_not_a_queue() -> None:
-    d = _digest(overdue_predictions=14)
+def test_lost_predictions_are_named_as_lost_record_not_a_queue() -> None:
+    d = _digest(lost_predictions=14)
     check = next(c for c in d.checks if c.key == "resolution")
     assert check.level is Level.FAIL
     assert "permanently lost" in check.detail
+
+
+def test_late_but_recoverable_predictions_warn_rather_than_fail() -> None:
+    d = _digest(overdue_predictions=3)
+    check = next(c for c in d.checks if c.key == "resolution")
+    assert check.level is Level.WARN
+    assert "recoverable" in check.detail
+
+
+# ---- when a pending call is late (production false FAIL, 2026-10-13) ----
+
+_LOOP = Settings(
+    db_password="x",
+    loop_ingest_interval_minutes=60,
+    loop_resolve_interval_minutes=15,
+    loop_d1_ingest_interval_hours=24,
+)
+_WED_18 = datetime(2026, 10, 14, 18, 0, tzinfo=UTC)  # a Wednesday, market open
+
+
+def _call(horizon_at: datetime, timeframe: str = "1h") -> SimpleNamespace:
+    return SimpleNamespace(horizon_at=horizon_at, timeframe=timeframe)
+
+
+def test_a_call_five_minutes_past_its_horizon_is_not_overdue() -> None:
+    """Regression: the report went red every hour for a call due at 18:00
+    and checked at 18:05 — its outcome bar cannot exist before 19:00."""
+    assert late_predictions([_call(_WED_18)], _LOOP, now=_WED_18 + timedelta(minutes=5)) == (0, 0)
+
+
+def test_an_hourly_call_is_late_only_after_its_bar_settled_and_was_fetched() -> None:
+    due = outcome_expected_by(
+        _WED_18, Timeframe.H1, ingest_every=timedelta(hours=1), resolve_every=timedelta(minutes=15)
+    )
+    assert due == _WED_18 + timedelta(hours=2, minutes=45)  # bar 1h + ingest 1h + 15m + 30m
+    assert late_predictions([_call(_WED_18)], _LOOP, now=due) == (0, 0)
+    assert late_predictions([_call(_WED_18)], _LOOP, now=due + timedelta(minutes=1)) == (1, 0)
+
+
+def test_a_call_expiring_into_the_weekend_waits_for_the_reopen() -> None:
+    saturday = datetime(2026, 10, 17, 6, 0, tzinfo=UTC)  # when the weekly report runs
+    friday_late = datetime(2026, 10, 16, 23, 0, tzinfo=UTC)
+    assert late_predictions([_call(friday_late)], _LOOP, now=saturday) == (0, 0)
+    sunday_reopen = datetime(2026, 10, 18, 23, 0, tzinfo=UTC)
+    assert late_predictions([_call(friday_late)], _LOOP, now=sunday_reopen) == (0, 0)
+    monday = datetime(2026, 10, 19, 6, 0, tzinfo=UTC)
+    assert late_predictions([_call(friday_late)], _LOOP, now=monday) == (1, 0)
+
+
+def test_a_daily_call_has_about_two_days_before_it_is_late() -> None:
+    horizon = datetime(2026, 10, 13, tzinfo=UTC)  # Tuesday
+    assert late_predictions([_call(horizon, "1d")], _LOOP, now=horizon + timedelta(days=2)) == (
+        0,
+        0,
+    )
+    assert late_predictions([_call(horizon, "1d")], _LOOP, now=horizon + timedelta(days=3)) == (
+        1,
+        0,
+    )
+
+
+def test_a_call_past_the_resolvers_limit_is_lost_not_merely_late() -> None:
+    lost_at = _WED_18 + timedelta(days=4)
+    assert late_predictions([_call(_WED_18)], _LOOP, now=lost_at - timedelta(hours=1)) == (1, 0)
+    assert late_predictions([_call(_WED_18)], _LOOP, now=lost_at) == (0, 1)
+    d = _digest(overdue_predictions=0, lost_predictions=1)
+    assert next(c for c in d.checks if c.key == "resolution").level is Level.FAIL
 
 
 def test_a_retrain_that_stopped_firing_is_caught() -> None:

@@ -19,17 +19,34 @@ The honest realisation is the **first price the market actually printed
 at or after the horizon**. If you had held that position, the weekend gap
 is exactly what you would have lived through, and Sunday's open is the
 price you would have got. So that is what we grade against, with the lag
-recorded. Past ``_MAX_RESOLUTION_LAG`` the silence is no longer a weekend
+recorded. Past ``MAX_RESOLUTION_LAG`` the silence is no longer a weekend
 but a data outage, and the prediction stays pending rather than being
 graded against a price from an unrelated week.
+
+**Only a finished bar grades a call.** The outcome is the close of the
+bar whose period contains the horizon (or, in a closed market, the first
+bar after it), so it exists one bar *after* the horizon. The resolver
+used to take the nearest earlier bar whenever that one was not stored
+yet, and it runs every 15 minutes: in production 2,134 of 2,229 hourly
+and 105 of 106 daily outcomes (audit 2026-10-13) were graded against the
+bar before the horizon — one bar short, and itself captured mid-period.
+A call now stays pending until its own bar has settled; nothing already
+graded is re-graded.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.market.settlement import (
+    StoredBar,
+    closes_at,
+    is_settled,
+    was_stored_provisional,
+)
 from mentor.infrastructure.repositories.predictions import PredictionRepository
 from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.logging import get_logger
@@ -40,7 +57,30 @@ log = get_logger("mentor.forecasting.resolver")
 # A weekend is ~50h; four days absorbs that plus a public holiday. Beyond
 # it, the gap is a broken feed rather than a closed market, and grading a
 # 24-hour call against a price from the following week would be fiction.
-_MAX_RESOLUTION_LAG = timedelta(days=4)
+MAX_RESOLUTION_LAG = timedelta(days=4)
+
+
+def outcome_bar(
+    bars: Sequence[StoredBar], *, horizon_at: datetime, timeframe: Timeframe, now: datetime
+) -> StoredBar | None:
+    """The bar a call is graded on, or None while it cannot be known yet.
+
+    That is the first bar still open at the horizon — the one whose period
+    contains it (feeds round to bar boundaries, so a 10:05 horizon is the
+    10:00 bar), or in a closed market the first bar after it. Its close is
+    the price you would have got. It must have settled and must not be a
+    row captured mid-period; until then the call waits rather than being
+    graded on whatever earlier bar happens to be stored.
+    """
+    candidates = [b for b in bars if closes_at(b.ts, timeframe) > horizon_at]
+    if not candidates:
+        return None
+    first = min(candidates, key=lambda b: b.ts)
+    if not is_settled(first.ts, timeframe, now):
+        return None
+    if was_stored_provisional(first.ts, timeframe, first.ingested_at):
+        return None  # ingestion replaces it with the settled bar shortly
+    return first
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,29 +103,18 @@ async def resolve_pending_predictions(
 
     for row in pending:
         tf = Timeframe(row.timeframe)
-        # A bar stamped slightly before the horizon still counts — feeds round
-        # to bar boundaries. Beyond that we look *forward* for the next price
-        # the market printed, so a horizon expiring into a closed market
-        # resolves at the reopen instead of hanging forever.
         window_start = row.horizon_at - timedelta(seconds=tf.seconds * 2)
-        window_end = row.horizon_at + _MAX_RESOLUTION_LAG
+        window_end = row.horizon_at + MAX_RESOLUTION_LAG
         bars = await prices.range(
             symbol=row.symbol,
             timeframe=tf,
             start=window_start,
             end=window_end,
         )
-        if not bars:
+        chosen = outcome_bar(bars, horizon_at=row.horizon_at, timeframe=tf, now=now)
+        if chosen is None:
             still_pending += 1
             continue
-        # The first price at or after the horizon is what you would have got.
-        # Only fall back to the nearest earlier bar when nothing follows.
-        at_or_after = [b for b in bars if b.ts >= row.horizon_at]
-        chosen = (
-            min(at_or_after, key=lambda b: b.ts)
-            if at_or_after
-            else max(bars, key=lambda b: b.ts)
-        )
         lag_hours = (chosen.ts - row.horizon_at).total_seconds() / 3600
         if lag_hours > 3:
             log.info(

@@ -11,7 +11,7 @@ import pytest
 
 from mentor.application.forecasting.resolver import resolve_pending_predictions
 from mentor.application.scheduler.drift import select_independent
-from mentor.domain.market.bars import PriceBar, Timeframe
+from mentor.domain.market.bars import Timeframe
 
 _NOW = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
 
@@ -25,11 +25,12 @@ def _pending(horizon_at: datetime) -> SimpleNamespace:
     )
 
 
-def _bar(ts: datetime, close: str) -> PriceBar:
+def _bar(ts: datetime, close: str, *, stored_at: datetime | None = None) -> SimpleNamespace:
+    """A stored row; by default written just after its hour closed, as ingestion now does."""
     p = Decimal(close)
-    return PriceBar(
+    return SimpleNamespace(
         symbol="EURUSD",
-        timeframe=Timeframe.H1,
+        timeframe="1h",
         ts=ts,
         open=p,
         high=p,
@@ -37,6 +38,7 @@ def _bar(ts: datetime, close: str) -> PriceBar:
         close=p,
         volume=Decimal("1"),
         source="test",
+        ingested_at=stored_at or ts + timedelta(hours=1, minutes=2),
     )
 
 
@@ -55,12 +57,12 @@ class _FakePredictions:
 
 
 class _FakePrices:
-    def __init__(self, bars: list[PriceBar]) -> None:
+    def __init__(self, bars: list[SimpleNamespace]) -> None:
         self._bars = bars
 
     async def range(
         self, *, symbol: str, timeframe: Timeframe, start: datetime, end: datetime
-    ) -> list[PriceBar]:
+    ) -> list[SimpleNamespace]:
         return [b for b in self._bars if start <= b.ts <= end]
 
 
@@ -81,9 +83,7 @@ async def test_a_horizon_inside_the_weekend_resolves_at_the_reopen() -> None:
     )
     preds = _FakePredictions([_pending(horizon)])
 
-    result = await resolve_pending_predictions(
-        predictions=preds, prices=prices, now=_NOW
-    )
+    result = await resolve_pending_predictions(predictions=preds, prices=prices, now=_NOW)
 
     assert result.resolved == 1
     assert result.still_pending == 0
@@ -127,12 +127,59 @@ async def test_a_data_outage_leaves_the_prediction_pending() -> None:
     prices = _FakePrices([_bar(datetime(2026, 7, 20, 0, 0, tzinfo=UTC), "1.1900")])
     preds = _FakePredictions([_pending(horizon)])
 
-    result = await resolve_pending_predictions(
-        predictions=preds, prices=prices, now=_NOW
-    )
+    result = await resolve_pending_predictions(predictions=preds, prices=prices, now=_NOW)
     assert result.resolved == 0
     assert result.still_pending == 1
     assert preds.resolved == []
+
+
+@pytest.mark.asyncio
+async def test_a_call_waits_for_its_own_bar_instead_of_taking_the_one_before() -> None:
+    """Regression, production audit 2026-10-13: the outcome of a 10:00 horizon
+    is the 10:00 bar's close, which exists at 11:00. The resolver runs every
+    15 minutes and used to grade from the newest earlier bar whenever the
+    horizon bar was not stored yet — 2,134 of 2,229 hourly and 105 of 106
+    daily outcomes were graded one bar short."""
+    horizon = datetime(2026, 7, 22, 10, 0, tzinfo=UTC)
+    nine = _bar(datetime(2026, 7, 22, 9, 0, tzinfo=UTC), "1.1000")
+    preds = _FakePredictions([_pending(horizon)])
+
+    at_1015 = horizon + timedelta(minutes=15)
+    result = await resolve_pending_predictions(
+        predictions=preds, prices=_FakePrices([nine]), now=at_1015
+    )
+    assert (result.resolved, result.still_pending) == (0, 1)
+
+    ten = _bar(horizon, "1.1100")
+    at_1115 = horizon + timedelta(hours=1, minutes=15)
+    await resolve_pending_predictions(
+        predictions=preds, prices=_FakePrices([nine, ten]), now=at_1115
+    )
+    assert preds.resolved[0][1] == Decimal("1.1100")
+
+
+@pytest.mark.asyncio
+async def test_a_bar_captured_mid_period_never_grades_a_call() -> None:
+    horizon = datetime(2026, 7, 22, 10, 0, tzinfo=UTC)
+    early = _bar(horizon, "1.1003", stored_at=horizon + timedelta(minutes=5))
+    preds = _FakePredictions([_pending(horizon)])
+    result = await resolve_pending_predictions(
+        predictions=preds, prices=_FakePrices([early]), now=_NOW
+    )
+    assert result.still_pending == 1 and preds.resolved == []
+
+
+@pytest.mark.asyncio
+async def test_a_bar_still_forming_never_grades_a_call() -> None:
+    horizon = datetime(2026, 7, 22, 10, 0, tzinfo=UTC)
+    forming = _bar(horizon, "1.1003", stored_at=horizon + timedelta(minutes=5))
+    preds = _FakePredictions([_pending(horizon)])
+    result = await resolve_pending_predictions(
+        predictions=preds,
+        prices=_FakePrices([forming]),
+        now=horizon + timedelta(minutes=30),
+    )
+    assert result.still_pending == 1
 
 
 @pytest.mark.asyncio

@@ -98,17 +98,35 @@ def _feed_check(newest_bar: datetime | None, interval_minutes: int, now: datetim
     )
 
 
-def _resolution_check(pending: int, overdue: int) -> Check:
-    """Overdue predictions are lost track record, not a queue."""
-    if overdue > 0:
+def _resolution_check(pending: int, overdue: int, lost: int) -> Check:
+    """Lost predictions are lost track record, not a queue.
+
+    ``overdue`` counts calls past the time their outcome should have been
+    graded (their own bar settled, fetched and resolved — see
+    ``outcome_expected_by``): late, but still recoverable. ``lost`` counts
+    calls past the resolver's four-day limit, which can never be graded.
+    Counting every call past its horizon as overdue — the bar it is graded
+    on cannot exist until an hour later — turned the report red every hour.
+    """
+    if lost > 0:
         return Check(
             key="resolution",
             label="Predictions resolving",
             level=Level.FAIL,
             detail=(
-                f"{overdue} prediction(s) are past their horizon and unresolved. "
-                f"Beyond four days they can never be graded — that is track record "
-                f"being permanently lost."
+                f"{lost} prediction(s) went unresolved for more than four days after "
+                f"their horizon. They can never be graded — that is track record being "
+                f"permanently lost."
+            ),
+        )
+    if overdue > 0:
+        return Check(
+            key="resolution",
+            label="Predictions resolving",
+            level=Level.WARN,
+            detail=(
+                f"{overdue} prediction(s) should have been graded by now and are not. "
+                f"Still recoverable; after four days past their horizon they are lost."
             ),
         )
     return Check(
@@ -190,6 +208,7 @@ def build_digest(
     ingest_interval_minutes: int,
     pending_predictions: int,
     overdue_predictions: int,
+    lost_predictions: int = 0,
     last_retrain: datetime | None,
     retrain_interval_hours: int,
     alerts_enabled: bool,
@@ -201,7 +220,7 @@ def build_digest(
     now = now or datetime.now(UTC)
     checks = (
         _feed_check(newest_bar, ingest_interval_minutes, now),
-        _resolution_check(pending_predictions, overdue_predictions),
+        _resolution_check(pending_predictions, overdue_predictions, lost_predictions),
         _retrain_check(last_retrain, retrain_interval_hours, now),
         _alerting_check(alerts_enabled),
     )
