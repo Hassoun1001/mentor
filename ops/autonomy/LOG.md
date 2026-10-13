@@ -11,6 +11,22 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-13 — Report reachable again, all clear; no change
+- **Report:** fetched at 13:14 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty. Live is `7094655` (`deployed_docs`); the
+  previous push `8c8dd6d` deployed cleanly. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 79 independent windows at 55.7% vs 51.79%
+  breakeven, CI [44.7%, 66.1%], not yet significant; weekly Brier 0.217 (prev
+  0.241). Live calibration 7/30. D1 still on the baseline rule (13 windows,
+  46.2%); its challenger misses the coin-flip floor.
+- **Decision:** fix day (Tue) with no fail/warn issues, failing jobs or
+  recurring errors, so no code change. The earlier "unreachable" entry today
+  was a sandbox-egress problem that has since cleared.
+- **Change:** this log entry only.
+- **Watch next:** H1 independent sample and first live-calibration check;
+  whether D1 ever gets a champion past the floors; GDELT rate-limit warnings
+  reappearing in `recurring`.
+
 ## 2026-10-13 — Report unreachable from the agent sandbox; no change
 - **Report:** could not be fetched. `/api/v1/health/report` and `/digest` both
   failed with `CONNECT tunnel failed, response 403`: the agent environment's
