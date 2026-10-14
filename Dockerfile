@@ -28,11 +28,13 @@ RUN apt-get update \
 # in that order, or the COPY invalidates the pip layer and every deploy
 # reinstalls numpy/scipy/scikit-learn/pandas from scratch — minutes of pure
 # waste on a 2-vCPU box. The stub package exists only so hatchling can build
-# something to resolve dependencies against.
-COPY backend/pyproject.toml ./backend/
+# something to resolve dependencies against. constraints.txt pins every
+# dependency to an exact, verified version, so a rebuild on an unattended
+# deploy installs what was tested rather than whatever is newest that day.
+COPY backend/pyproject.toml backend/constraints.txt ./backend/
 RUN mkdir -p backend/src/mentor \
     && touch backend/src/mentor/__init__.py \
-    && pip install ./backend \
+    && pip install --constraint backend/constraints.txt ./backend \
     && rm -rf backend/src
 
 # Now the real source. --no-deps because the layer above already has them.
