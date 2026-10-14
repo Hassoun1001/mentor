@@ -23,28 +23,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from mentor.application.market.quality import DataQualityReport
+from mentor.domain.market.hours import fx_market_open
 
-# FX weekly close/open (UTC hours).
-_FRIDAY = 4
-_SATURDAY = 5
-_SUNDAY = 6
-_CLOSE_OPEN_HOUR_UTC = 22
+__all__ = ["QualityVerdict", "assess_quality", "fx_market_open"]
 
 
 @dataclass(frozen=True, slots=True)
 class QualityVerdict:
     predict_ok: bool
     reason: str
-
-
-def fx_market_open(now: datetime) -> bool:
-    """True when the FX market is normally trading at `now` (UTC)."""
-    ts = now.astimezone(UTC)
-    if ts.weekday() == _SATURDAY:
-        return False
-    if ts.weekday() == _FRIDAY and ts.hour >= _CLOSE_OPEN_HOUR_UTC:
-        return False
-    return not (ts.weekday() == _SUNDAY and ts.hour < _CLOSE_OPEN_HOUR_UTC)
 
 
 def _spans_weekend(start: datetime, end: datetime) -> bool:

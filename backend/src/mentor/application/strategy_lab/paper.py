@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Final
 
+from mentor.application.alerts import messages as msg
 from mentor.application.strategy_lab.store import BarLoader, LabStore
 from mentor.domain.errors import ValidationError
 from mentor.domain.instruments import Instrument, get_instrument
@@ -39,7 +40,7 @@ from mentor.domain.money import Money
 from mentor.domain.risk.position_sizing import Direction
 from mentor.domain.stats.independence import select_independent
 from mentor.domain.strategy_lab import indicators
-from mentor.domain.strategy_lab.library import CANDIDATES, CandidateDefinition
+from mentor.domain.strategy_lab.library import CANDIDATES, CandidateDefinition, find_candidate
 from mentor.domain.strategy_lab.live import LabStatus, LiveAction, LiveDecision, judge_live
 from mentor.domain.strategy_lab.simulator import (
     BookEvent,
@@ -92,12 +93,9 @@ class PaperUpdate:
         d = self.decision
         if d is None or d.action is LiveAction.NONE:
             return None
-        marker = {
-            LiveAction.PROMOTE: "📈",
-            LiveAction.DEMOTE: "📉",
-            LiveAction.RETIRE: "🛑",
-        }[d.action]
-        return f"{marker} Strategy lab — {self.key}: {d.reason} (paper trading only)"
+        candidate = find_candidate(self.key)
+        title = candidate.title if candidate is not None else self.key
+        return msg.paper_status(title=title, action=d.action)
 
 
 def chosen_spec(definition: CandidateDefinition, row: StrategyCandidateORM) -> StrategySpec | None:

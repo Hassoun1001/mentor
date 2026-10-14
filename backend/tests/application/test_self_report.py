@@ -180,12 +180,21 @@ def test_calibration_progress_is_described_in_words() -> None:
 
 def test_the_telegram_summary_carries_the_essentials() -> None:
     text = _report(lanes=[_lane(floor_failures=1)]).telegram_text(report_url="https://x/report")
-    assert "WARN" in text
-    assert "78 independent results" in text
-    assert "needs 51.8%" in text
-    assert "prediction error this week 0.234 (last week 0.244)" in text
-    assert "Full report: https://x/report" in text
+    assert "1 thing worth a look" in text
+    assert "across 78 separate forecasts" in text
+    assert "it needs 51.8% to beat trading costs" in text
+    assert "Accuracy this week: better than last week." in text  # 0.234 vs 0.244, lower is better
+    assert "failed its latest check" in text  # the issue, in words, not its code
+    assert "Full details: https://x/report" in text
     assert len(text) < 4096  # Telegram's message limit
+
+
+def test_the_telegram_summary_carries_no_jargon() -> None:
+    """The owner is not a quant: no model names, error scores or issue codes."""
+    text = _report(lanes=[_lane(floor_failures=1)]).telegram_text(report_url="https://x/report")
+    for jargon in ("auto_m", "Brier", "0.234", "champion", "h1.", "independent results", "WARN"):
+        assert jargon not in text, jargon
+    assert any(line.startswith("👉 ") for line in text.splitlines())  # says what to do
 
 
 # ---------- persistence and trend ----------

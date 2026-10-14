@@ -126,7 +126,10 @@ watchdog() {
     rm -f "$STATE/strikes"
     log "watchdog: restarted app"
     record restarted "$(git rev-parse HEAD)" "not answering for about $(( n * 10 )) minutes"
-    notify "🔁 Mentor stopped answering for about $(( n * 10 )) minutes, so it was restarted automatically."
+    notify "🔁 Mentor froze and was restarted
+It stopped responding for about $(( n * 10 )) minutes, so it was restarted automatically. It is running again.
+
+👉 Nothing to do. If this happens often, ask Claude to take a look."
   fi
 }
 
@@ -143,6 +146,18 @@ protected_violations() {
     | sed 's/^/skipped test: /' || true
   git diff --name-only --diff-filter=D "$from" "$to" -- 'backend/tests' \
     | sed 's/^/deleted test file: /' || true
+}
+
+plain_violations() {
+  # $1: violation lines. Prints them as everyday categories, once each.
+  local v=$1 parts=()
+  grep -q '^protected file:' <<<"$v" && parts+=("the safety system's own files")
+  grep -q '^protected constant:' <<<"$v" && parts+=("the honesty thresholds")
+  grep -q '^skipped test:' <<<"$v" && parts+=("switching off tests")
+  grep -q '^deleted test file:' <<<"$v" && parts+=("deleting tests")
+  local out="" p
+  for p in "${parts[@]}"; do out+="${out:+, }$p"; done
+  printf '%s' "${out:-a protected part of the system}"
 }
 
 deploy_tree() {
@@ -188,7 +203,10 @@ if ! git merge-base --is-ancestor "$local_sha" "$remote_sha"; then
   log "refusing non-fast-forward ${local_sha:0:7} -> ${remote_sha:0:7}"
   echo "$remote_sha" >"$STATE/bad"
   record refused_history "$remote_sha" "not a fast-forward of the running commit"
-  notify "🛑 Mentor did not deploy ${remote_sha:0:7}: history was rewritten on GitHub (not a fast-forward). A human needs to look."
+  notify "🛑 An update was blocked
+The code history on GitHub was rewritten, which should never happen, so Mentor kept running the current version.
+
+👉 Please ask Claude to take a look."
   watchdog
   exit 0
 fi
@@ -199,9 +217,10 @@ if [[ -n "$violations" && $ALLOW_PROTECTED -eq 0 ]]; then
   log "refusing ${remote_sha:0:7}: $(tr '\n' ';' <<<"$violations")"
   echo "$remote_sha" >"$STATE/bad"
   record refused_protected "$remote_sha" "$violations"
-  notify "🛑 Mentor refused to deploy ${remote_sha:0:7} — it changes things only a human may change:
-$(head -n 6 <<<"$violations")
-Still running ${local_sha:0:7}."
+  notify "🛑 A change was blocked by the safety rules
+The maintenance agent tried to change something only you (with Claude) may change: $(plain_violations "$violations"). The change was NOT installed, and Mentor keeps running as before.
+
+👉 Nothing urgent. If you see this more than once, ask Claude to take a look."
   watchdog
   exit 0
 fi
@@ -222,7 +241,10 @@ if grep -q '^backend/alembic/versions/' <<<"$changed"; then
     echo "$remote_sha" >"$STATE/bad"
     log "backup failed; not deploying ${remote_sha:0:7}"
     record refused_backup "$remote_sha" "schema change, and the pre-deploy database backup failed"
-    notify "🛑 Mentor did not deploy ${remote_sha:0:7}: it changes the database and the safety backup failed."
+    notify "🛑 An update was postponed
+It needed a safety backup of the database first, and the backup failed, so nothing was changed.
+
+👉 If you see this again, ask Claude to take a look."
     exit 1
   fi
 fi
@@ -233,8 +255,11 @@ if deploy_tree && healthy_after_deploy "$started"; then
   rm -f "$STATE/bad" "$STATE/strikes"
   log "deployed ${remote_sha:0:7}"
   record deployed "$remote_sha" "$subjects"
-  notify "🚀 Mentor updated itself to ${remote_sha:0:7}:
-$subjects"
+  notify "🔧 Mentor improved itself
+The maintenance agent made a change. It passed every safety check and is running fine:
+$subjects
+
+👉 Nothing to do — just keeping you informed."
   exit 0
 fi
 
@@ -247,11 +272,18 @@ echo "$remote_sha" >"$STATE/bad"
 if app_answers /api/v1/health /api/v1/health/report; then
   record rolled_back "$remote_sha" "failed its post-deploy health check
 $traceback"
-  notify "↩️ Mentor tried ${remote_sha:0:7}, it failed its health check, and it rolled itself back to ${local_sha:0:7}. Nothing is broken; the change waits for a fix:
-$subjects"
+  notify "↩️ An update didn't work, so it was undone
+Mentor tried a change from the maintenance agent, but it failed its health check, so the previous version was put back. Everything is running normally.
+What it tried:
+$subjects
+
+👉 Nothing to do — the agent sees this and fixes it on its next run."
 else
   record rollback_failed "$remote_sha" "the previous commit is not answering either
 $traceback"
-  notify "🚨 Mentor rolled back ${remote_sha:0:7} but ${local_sha:0:7} is not answering either. This needs a human."
+  notify "🚨 Mentor is down and needs you
+An update failed, and putting back the previous version did not bring it back either.
+
+👉 Please ask Claude to take a look as soon as you can."
 fi
 exit 1

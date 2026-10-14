@@ -184,7 +184,7 @@ async def test_a_plan_that_proves_itself_live_is_promoted_and_the_owner_told() -
     store, alerts = await _paper_trade(600, timedelta(days=7))
     kinds = [e.kind for e in store.events]
     assert "promoted" in kinds
-    assert any("📈" in a and "paper trading only" in a for a in alerts)
+    assert any(a.startswith("⭐ A trading idea proved itself") for a in alerts)
     row = store.candidates[0]
     assert row.live_looks >= 1 and row.promoted_at is not None
 

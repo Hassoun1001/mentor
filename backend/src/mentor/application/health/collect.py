@@ -16,10 +16,10 @@ from mentor.application.forecasting.economics import BREAKEVEN_LABEL, lane_break
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import MAX_RESOLUTION_LAG
 from mentor.application.health.digest import Digest, build_digest
-from mentor.application.scheduler.quality_gate import fx_market_open
 from mentor.config import Settings
 from mentor.domain.forecasting.forecast import Direction
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.market.hours import fx_market_open
 from mentor.domain.market.settlement import closes_at
 from mentor.domain.stats.independence import select_independent
 from mentor.domain.stats.significance import assess_proportion

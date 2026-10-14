@@ -24,6 +24,7 @@ from pathlib import Path, PurePath
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mentor.application.alerts import messages as msg
 from mentor.application.forecasting.economics import lane_breakeven
 from mentor.application.forecasting.live_calibration import (
     champion_live_calls,
@@ -155,48 +156,55 @@ class SelfReport:
         return out
 
     def telegram_text(self, *, report_url: str | None = None) -> str:
-        """A phone-sized summary. Plain words; the JSON carries the detail."""
-        marker = {"ok": "✅", "warn": "⚠️", "fail": "❌"}.get(self.status, "")
-        lines = [f"📋 Mentor weekly report {marker} {self.status.upper()}", self.headline, ""]
+        """A phone-sized summary in everyday words; the JSON carries the detail.
+
+        No model names, error scores or issue codes: the owner should be able
+        to read it in ten seconds and know whether anything needs them.
+        """
+        lines = ["📋 Your weekly Mentor report", msg.overall_line(self.status, len(self.issues))]
         for lane in self.lanes:
-            since = f" (since {lane.champion_since[:10]})" if lane.champion_since else ""
-            lines.append(f"{lane.label} — model: {lane.model}{since}")
-            if lane.win_rate is not None:
-                lines.append(
-                    f"  {lane.independent_windows} independent results, "
-                    f"{lane.win_rate * 100:.1f}% right (needs {lane.breakeven * 100:.1f}%)"
-                    f" — {'proven' if lane.significant else 'not proven yet'}"
-                )
-            if lane.brier_week is not None:
-                prev = (
-                    f" (last week {lane.brier_prev_week:.3f})"
-                    if lane.brier_prev_week is not None
-                    else ""
-                )
-                lines.append(f"  prediction error this week {lane.brier_week:.3f}{prev}")
+            lines += ["", f"📊 {msg.lane_name(lane.lane).capitalize()}"]
+            record = msg.record_line(
+                n=lane.independent_windows, win_rate=lane.win_rate, breakeven=lane.breakeven
+            )
+            lines += [record] if record else []
             lines.append(
-                f"  {lane.retrains_week} retrain(s), {lane.promotions_week} promotion(s), "
-                f"{lane.demotions_week} demotion(s)"
+                msg.verdict_line(
+                    n=lane.independent_windows,
+                    significant=lane.significant,
+                    win_rate=lane.win_rate,
+                    breakeven=lane.breakeven,
+                )
+            )
+            trend = msg.accuracy_trend(lane.brier_week, lane.brier_prev_week)
+            lines += [trend] if trend else []
+            lines.append(
+                msg.in_charge_line(
+                    has_model=lane.model != "baseline rule", since=lane.champion_since
+                )
+            )
+            lines.append(
+                msg.week_changes_line(
+                    retrains=lane.retrains_week,
+                    promotions=lane.promotions_week,
+                    demotions=lane.demotions_week,
+                )
             )
         lab = self.strategies
         if lab is not None:
             counts = lab.get("counts")
-            c = counts if isinstance(counts, dict) else {}
-            lines += [
-                "",
-                f"Strategy lab — {c.get('evaluated', 0)} idea(s) tested "
-                f"({lab.get('trials_ever', 0)} parameter sets tried), "
-                f"{c.get('passed_backtest', 0)} passed history, "
-                f"{c.get('paper', 0)} paper trading, {c.get('recommended', 0)} recommended.",
-            ]
+            lines += ["", msg.lab_line(counts if isinstance(counts, dict) else {})]
         if self.issues:
-            lines += ["", "Issues:"]
-            lines += [f" {'❌' if i.severity == 'fail' else '⚠️'} {i.detail}" for i in self.issues]
-        if self.notes:
-            lines += ["", "Notes:"]
-            lines += [f" • {n}" for n in self.notes]
+            lines += ["", "Worth a look:"]
+            seen: set[str] = set()
+            for i in self.issues:
+                words = msg.plain_issue(i.code, i.detail)
+                if words not in seen:  # several codes can map to one plain sentence
+                    seen.add(words)
+                    lines.append(f"{'❌' if i.severity == 'fail' else '⚠️'} {words}")
+        lines += ["", f"👉 {msg.weekly_action(self.status)}"]
         if report_url:
-            lines += ["", f"Full report: {report_url}"]
+            lines.append(f"Full details: {report_url}")
         return "\n".join(lines)
 
 

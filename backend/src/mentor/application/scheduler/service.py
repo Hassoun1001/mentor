@@ -39,6 +39,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[impo
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from mentor.application.alerts import messages as msg
 from mentor.application.forecasting.inference_service import ForecastService
 from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
@@ -56,6 +57,7 @@ from mentor.application.strategy_lab.store import sql_bar_loader
 from mentor.config import Settings
 from mentor.domain.errors import DomainError
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.strategy_lab.library import find_candidate
 from mentor.infrastructure.adapters import FailoverMarketDataAdapter
 from mentor.infrastructure.adapters.factory import build_sources, close_sources
 from mentor.infrastructure.alerts import build_notifier
@@ -68,6 +70,12 @@ from mentor.infrastructure.repositories.strategy_lab import StrategyLabRepositor
 from mentor.logging import get_logger
 
 log = get_logger("mentor.scheduler")
+
+
+def _idea_title(key: str) -> str:
+    """A strategy-lab idea's human title, falling back to its key."""
+    candidate = find_candidate(key)
+    return candidate.title if candidate is not None else key
 
 # GDELT publishes daily; refreshing every 6 hours keeps the latest day
 # current without hammering a free service. The lookback re-fetches a
@@ -235,7 +243,14 @@ class LoopScheduler:
             if self._ingest_failures == s.loop_ingest_failure_alert_after:
                 detail = f"ingest failed {self._ingest_failures}x in a row: {exc}"
                 self._health.event("ingest_error", detail)
-                await self._alert(f"⚠️ Mentor: data feed problem — {detail}")
+                every = (
+                    s.loop_d1_ingest_interval_hours * 60
+                    if tf is Timeframe.D1
+                    else s.loop_ingest_interval_minutes
+                )
+                await self._alert(
+                    msg.feed_problem(failures=self._ingest_failures, every_minutes=every)
+                )
             return 0
         finally:
             await close_sources(sources)
@@ -363,14 +378,8 @@ class LoopScheduler:
             return f"failed: {exc}"
         self._health.beat("strategy_lab", ok=True, note=outcome.summary)
         if outcome.evaluated:
-            passed = [k for k, ok in outcome.evaluated if ok]
             await self._alert(
-                f"🧪 Strategy lab tested {len(outcome.evaluated)} new idea(s) on history: "
-                + (
-                    f"{len(passed)} passed and start paper trading ({', '.join(passed)})."
-                    if passed
-                    else "none passed. That is the common, honest outcome."
-                )
+                msg.ideas_tested([(_idea_title(key), ok) for key, ok in outcome.evaluated])
             )
         return outcome.summary
 
@@ -464,9 +473,12 @@ class LoopScheduler:
         )
         if float(f.confidence) >= s.loop_alert_min_confidence:
             await self._alert(
-                f"📈 Mentor signal: {f.symbol} {f.direction.value.upper()} — "
-                f"P(up) {float(f.p_up) * 100:.0f}% over the next {f.horizon_bars} bars "
-                f"({tf.value}). Not advice; check the dashboard."
+                msg.strong_forecast(
+                    symbol=f.symbol,
+                    p_up=float(f.p_up),
+                    horizon_bars=f.horizon_bars,
+                    timeframe=tf.value,
+                )
             )
         return str(payload.prediction_id)
 
@@ -551,7 +563,7 @@ class LoopScheduler:
             return
         log.warning("loop.drift_detected", reason=verdict.reason, live_brier=verdict.live_brier)
         self._health.event("drift_detected", verdict.reason)
-        await self._alert(f"🔄 Mentor: {verdict.reason}. Retraining now.")
+        await self._alert(msg.rough_patch(lane="h1"))
         self._last_drift_retrain = now
         reason = await self.run_retrain_once()
         log.info("loop.drift_retrain_done", outcome=reason)
@@ -606,10 +618,15 @@ class LoopScheduler:
         if result.promoted:
             self._health.event("promotion", f"[{lane}] {result.reason}")
             await self._alert(
-                f"🏆 Mentor: new {lane.upper()} champion promoted. {result.reason}"
+                msg.new_model(
+                    lane=lane, accuracy=result.challenger_accuracy, breakeven=result.breakeven
+                )
             )
         if result.demoted:
+            # Retiring a model is as much the owner's business as installing one;
+            # it used to happen silently.
             self._health.event("demotion", f"[{lane}] {result.reason}")
+            await self._alert(msg.model_retired(lane=lane))
         return result.reason
 
     def _next_retrain_time(self, lane: str) -> datetime:

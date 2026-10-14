@@ -80,12 +80,12 @@ def test_a_quiet_lab_adds_a_section_and_no_issues() -> None:
     assert r.strategies["trials_ever"] == 74
     (c,) = r.strategies["candidates"]  # type: ignore[misc]
     assert c["status"] == "rejected" and c["oos_trades"] == 120
-    assert "Strategy lab — 1 idea(s) tested (74 parameter sets tried)" in r.telegram_text()
+    assert "🧪 Trading ideas: 1 idea tested so far, none good enough yet." in r.telegram_text()
 
 
 def test_no_lab_no_section() -> None:
     r = _report()
-    assert r.strategies is None and "Strategy lab" not in r.telegram_text()
+    assert r.strategies is None and "Trading ideas" not in r.telegram_text()
 
 
 def test_lab_problems_have_stable_codes() -> None:
