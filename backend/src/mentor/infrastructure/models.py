@@ -392,6 +392,37 @@ class PredictionORM(Base, _TimestampMixin):
     )
 
 
+class PredictionRegradeORM(Base):
+    """A graded outcome that was re-graded, with the values it replaced.
+
+    Until 2026-10-13 the resolver graded a call from the bar *before* its
+    horizon whenever the horizon bar was not stored yet, and those bars were
+    themselves captured mid-period. Re-grading puts each outcome on its own
+    finished bar (``application/forecasting/regrade.py``). Only
+    ``realised_close`` and ``realised_outcome`` change; what was predicted,
+    when, and from what price never does. A revert stamps ``reverted_at``.
+    """
+
+    __tablename__ = "prediction_regrades"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    prediction_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    old_realised_close: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    old_realised_outcome: Mapped[int] = mapped_column(nullable=False)
+    new_realised_close: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    new_realised_outcome: Mapped[int] = mapped_column(nullable=False)
+    outcome_bar_ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    regraded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_prediction_regrades_batch", "batch_id"),
+        Index("ix_prediction_regrades_prediction", "prediction_id"),
+    )
+
+
 # --- alerts -----------------------------------------------------------------
 
 

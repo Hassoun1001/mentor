@@ -59,6 +59,7 @@ from mentor.domain.market.bars import Timeframe
 from mentor.infrastructure.adapters import FailoverMarketDataAdapter
 from mentor.infrastructure.adapters.factory import build_sources, close_sources
 from mentor.infrastructure.alerts import build_notifier
+from mentor.infrastructure.locks import try_exclusive
 from mentor.infrastructure.repositories.macro_series import MacroSeriesRepository
 from mentor.infrastructure.repositories.news_tone import NewsToneRepository
 from mentor.infrastructure.repositories.predictions import PredictionRepository
@@ -122,6 +123,9 @@ _OVERDUE_RETRAIN_DELAY = timedelta(minutes=10)
 _LAB_EVALUATION_DELAY = timedelta(minutes=10)
 # Paper trading kicks after the first ingest tick has had time to land.
 _PAPER_DELAY_SECONDS = _STARTUP_DELAY_SECONDS + 60
+
+# Lock file in each lane's model store; see infrastructure/locks.py.
+_RETRAIN_LOCK = ".retrain.lock"
 
 # How much history to (idempotently) pull each ingest tick, per timeframe.
 _INGEST_DAYS: dict[Timeframe, int] = {
@@ -553,6 +557,21 @@ class LoopScheduler:
         log.info("loop.drift_retrain_done", outcome=reason)
 
     async def _retrain_lane(
+        self, *, tf: Timeframe, horizon_bars: int, lane: str, job: str
+    ) -> str:
+        # One retrain per lane at a time, across processes: the weekly slot,
+        # a drift trigger and an operator's CLI run all write the same store.
+        with try_exclusive(Path(self._lane_store(lane)) / _RETRAIN_LOCK) as held:
+            if not held:
+                note = "skipped: another retrain of this lane is already running"
+                log.warning("loop.retrain_skipped", job=job, error=note)
+                self._health.beat(job, ok=True, note=note)
+                return note
+            return await self._retrain_lane_locked(
+                tf=tf, horizon_bars=horizon_bars, lane=lane, job=job
+            )
+
+    async def _retrain_lane_locked(
         self, *, tf: Timeframe, horizon_bars: int, lane: str, job: str
     ) -> str:
         s = self._settings

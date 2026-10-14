@@ -7,12 +7,14 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import Any, cast
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import CursorResult, and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mentor.domain.forecasting.forecast import Forecast
-from mentor.infrastructure.models import PredictionORM
+from mentor.domain.forecasting.outcome import OutcomeRegrade, outcome_of
+from mentor.infrastructure.models import PredictionORM, PredictionRegradeORM
 
 
 class PredictionRepository:
@@ -171,9 +173,95 @@ class PredictionRepository:
         if orm is None:
             return
         orm.realised_close = realised_close
-        orm.realised_outcome = 1 if realised_close > orm.asof_close else 0
+        orm.realised_outcome = outcome_of(orm.asof_close, realised_close)
         orm.resolved_at = resolved_at
         await self._session.flush()
+
+    async def all_resolved(self) -> Sequence[PredictionORM]:
+        """Every graded call, oldest horizon first — for a full re-grade."""
+        stmt = (
+            select(PredictionORM)
+            .where(PredictionORM.resolved_at.is_not(None))
+            .order_by(PredictionORM.horizon_at.asc())
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
+    async def apply_regrades(
+        self,
+        regrades: Sequence[OutcomeRegrade],
+        *,
+        batch_id: str,
+        reason: str,
+        now: datetime,
+    ) -> int:
+        """Move graded calls onto new outcome bars, logging the old values first.
+
+        Only ``realised_close`` and ``realised_outcome`` change, and only on a
+        row still holding exactly the close that was read, so a concurrent
+        change is never overwritten. ``resolved_at`` keeps the time the call
+        was first graded; the re-grade's own time is in the log.
+        """
+        changed = 0
+        for g in regrades:
+            audit = PredictionRegradeORM(
+                id=uuid.uuid4(),
+                batch_id=batch_id,
+                prediction_id=g.prediction_id,
+                reason=reason,
+                old_realised_close=g.old_close,
+                old_realised_outcome=g.old_outcome,
+                new_realised_close=g.new_close,
+                new_realised_outcome=g.new_outcome,
+                outcome_bar_ts=g.outcome_bar_ts,
+                regraded_at=now,
+            )
+            stmt = (
+                update(PredictionORM)
+                .where(
+                    PredictionORM.id == g.prediction_id,
+                    PredictionORM.realised_close == g.old_close,
+                    PredictionORM.resolved_at.is_not(None),
+                )
+                .values(realised_close=g.new_close, realised_outcome=g.new_outcome)
+                .execution_options(synchronize_session=False)
+            )
+            result = cast("CursorResult[Any]", await self._session.execute(stmt))
+            if not result.rowcount:
+                continue
+            self._session.add(audit)
+            changed += 1
+        await self._session.flush()
+        return changed
+
+    async def revert_regrades(self, *, batch_id: str, now: datetime) -> tuple[int, int]:
+        """Restore every outcome a batch changed, unless it has changed again since."""
+        stmt = select(PredictionRegradeORM).where(
+            PredictionRegradeORM.batch_id == batch_id,
+            PredictionRegradeORM.reverted_at.is_(None),
+        )
+        restored = skipped = 0
+        for rev in (await self._session.execute(stmt)).scalars().all():
+            undo = (
+                update(PredictionORM)
+                .where(
+                    PredictionORM.id == rev.prediction_id,
+                    PredictionORM.realised_close == rev.new_realised_close,
+                )
+                .values(
+                    realised_close=rev.old_realised_close,
+                    realised_outcome=rev.old_realised_outcome,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            result = cast("CursorResult[Any]", await self._session.execute(undo))
+            if result.rowcount:
+                rev.reverted_at = now
+                restored += 1
+            else:
+                skipped += 1
+        await self._session.flush()
+        return restored, skipped
 
     async def calibration_summary(self) -> dict[str, dict[str, float]]:
         """Group resolved predictions by 10% probability bucket and

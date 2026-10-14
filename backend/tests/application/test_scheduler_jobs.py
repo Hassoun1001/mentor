@@ -9,10 +9,12 @@ we only inspect the registered APScheduler jobs.
 from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from mentor.application.scheduler.service import LoopScheduler, _next_boundary
 from mentor.config import Settings
+from mentor.infrastructure.locks import try_exclusive
 
 
 def _scheduler(*, enabled: bool) -> LoopScheduler:
@@ -87,3 +89,14 @@ async def test_ingest_runs_just_after_bar_boundaries_plus_once_at_startup() -> N
         assert d1.next_run_time.astimezone(UTC).time() == time(0, 2)
     finally:
         scheduler.shutdown()
+
+
+async def test_a_lane_already_retraining_is_not_retrained_twice(tmp_path: Path) -> None:
+    """The weekly slot, a drift trigger and the operator's CLI share one store."""
+    settings = Settings(loop_enabled=False, db_password="x", model_store_dir=str(tmp_path))
+    sessions = MagicMock(side_effect=AssertionError("must not open a session"))
+    scheduler = LoopScheduler(settings=settings, session_factory=sessions)
+    with try_exclusive(tmp_path / ".retrain.lock") as held:
+        assert held
+        result = await scheduler.run_retrain_once()
+    assert result.startswith("skipped: another retrain")
