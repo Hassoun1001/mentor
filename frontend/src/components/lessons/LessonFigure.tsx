@@ -2377,6 +2377,1110 @@ function Abstention() {
   );
 }
 
+// ---- "How the mentor keeps itself honest" ---------------------------------
+
+/** A tinted, borderless area: zones, bars and highlighted cells. */
+function Fill({
+  x,
+  y,
+  w,
+  h,
+  tone,
+  opacity = 0.15,
+  rx = 4,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  tone: Tone;
+  opacity?: number;
+  rx?: number;
+}) {
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      rx={rx}
+      className={TONE[tone]}
+      fill="currentColor"
+      fillOpacity={opacity}
+    />
+  );
+}
+
+/** A plain line with no arrowhead: axes, thresholds, guides. */
+function Rule({
+  x1,
+  y1,
+  x2,
+  y2,
+  tone = 'border',
+  dashed = false,
+  width = 1.2,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  tone?: Tone;
+  dashed?: boolean;
+  width?: number;
+}) {
+  return (
+    <line
+      x1={x1}
+      y1={y1}
+      x2={x2}
+      y2={y2}
+      className={TONE[tone]}
+      stroke="currentColor"
+      strokeWidth={width}
+      strokeDasharray={dashed ? '4 3' : undefined}
+    />
+  );
+}
+
+function Dot({ cx, cy, tone, r = 4 }: { cx: number; cy: number; tone: Tone; r?: number }) {
+  return <circle cx={cx} cy={cy} r={r} className={TONE[tone]} fill="currentColor" />;
+}
+
+function BreakevenHurdle() {
+  // Win-rate scale 49%..53%.
+  const x = (p: number) => 40 + (p - 49) * 90;
+  const rows = [
+    { y: 52, label: '24-hour forecast', hurdle: 51.77, tag: 'breakeven 51.8%' },
+    { y: 104, label: '5-day forecast', hurdle: 50.71, tag: 'breakeven 50.7%' },
+  ];
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        The win rate a call needs to pay for the spread
+      </T>
+      {rows.map((r) => (
+        <g key={r.label}>
+          <T x={40} y={r.y - 7} size={9.5} anchor="start" bold>
+            {r.label}
+          </T>
+          <Fill x={x(49)} y={r.y} w={x(r.hurdle) - x(49)} h={22} tone="danger" opacity={0.16} />
+          <Fill x={x(r.hurdle)} y={r.y} w={x(53) - x(r.hurdle)} h={22} tone="accent" opacity={0.2} />
+          <Rule x1={x(r.hurdle)} y1={r.y - 4} x2={x(r.hurdle)} y2={r.y + 26} tone="accent" width={2} />
+          <T x={x(r.hurdle) + 5} y={r.y - 7} size={9} anchor="start" tone="accent" bold>
+            {r.tag}
+          </T>
+          <T x={x(49) + 6} y={r.y + 15} size={8.5} tone="danger" anchor="start">
+            loses after costs
+          </T>
+          <T x={(x(r.hurdle) + x(53)) / 2} y={r.y + 15} size={8.5} tone="accent">
+            pays
+          </T>
+        </g>
+      ))}
+
+      {/* coin flip and a 51% model */}
+      <Rule x1={x(50)} y1={44} x2={x(50)} y2={146} tone="muted" dashed />
+      <Rule x1={x(51)} y1={44} x2={x(51)} y2={146} tone="warn" dashed />
+
+      <Rule x1={40} y1={146} x2={400} y2={146} />
+      {[49, 50, 51, 52, 53].map((p) => (
+        <T key={p} x={x(p)} y={158} size={8.5} tone="muted">
+          {p}%
+        </T>
+      ))}
+      <T x={x(50)} y={172} size={8.5} tone="muted">
+        coin flip
+      </T>
+      <T x={x(51)} y={172} size={8.5} tone="warn">
+        a 51% model
+      </T>
+
+      <T x={220} y={192} size={9} tone="fg">
+        breakeven = 50% + cost ÷ (2 × typical move)
+      </T>
+      <T x={220} y={206} size={8.5} tone="muted">
+        1.2 pips per trade against a typical move of ~34 pips (24 h) or ~84 pips (5 days)
+      </T>
+    </Svg>
+  );
+}
+
+function PromotionFloors() {
+  const floors = [
+    { x: 12, head: '1 · Honest?', a: 'Brier ≤ 0.248', b: 'beats always-50/50' },
+    { x: 158, head: '2 · Willing to speak?', a: 'acts on ≥ 15%', b: 'of hours' },
+    { x: 304, head: '3 · Worth trading?', a: 'hit rate ≥ breakeven', b: '(after costs)' },
+  ];
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Three floors, then a fair race
+      </T>
+      {floors.map((f) => (
+        <g key={f.head}>
+          <Box x={f.x} y={30} w={124} h={60} />
+          <T x={f.x + 62} y={48} size={9.5} bold>
+            {f.head}
+          </T>
+          <T x={f.x + 62} y={64} size={9} tone="accent">
+            {f.a}
+          </T>
+          <T x={f.x + 62} y={78} size={8.5} tone="muted">
+            {f.b}
+          </T>
+        </g>
+      ))}
+      <Arrow x1={136} y1={60} x2={156} y2={60} />
+      <Arrow x1={282} y1={60} x2={302} y2={60} />
+      <T x={220} y={106} size={8.5} tone="danger">
+        Fail any floor → refused, and the message names which one
+      </T>
+
+      <Arrow x1={366} y1={90} x2={330} y2={126} />
+      <Box x={90} y={128} w={260} h={40} />
+      <T x={220} y={144} size={9.5} bold>
+        4 · Beat the champion on the same fresh data
+      </T>
+      <T x={220} y={159} size={8.5} tone="muted">
+        by at least 0.002 Brier. Its old score doesn&apos;t count.
+      </T>
+
+      <Arrow x1={220} y1={168} x2={220} y2={180} tone="accent" />
+      <Box x={150} y={182} w={140} h={26} tone="accent" fill />
+      <T x={220} y={199} size={10} tone="accent" bold>
+        New champion
+      </T>
+    </Svg>
+  );
+}
+
+function AbstainByProfit() {
+  const x = (coverage: number) => 60 + 3.4 * coverage;
+  const y = (hit: number) => 160 - (hit - 49) * 13.33;
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Choosing the quiet band by profit
+      </T>
+
+      {/* zones that disqualify a band */}
+      <Fill x={60} y={40} w={x(15) - 60} h={120} tone="muted" opacity={0.12} rx={0} />
+      <Fill x={x(15)} y={y(51.8)} w={400 - x(15)} h={160 - y(51.8)} tone="danger" opacity={0.1} rx={0} />
+      <T x={85} y={146} size={8} tone="muted">
+        too few
+      </T>
+      <T x={85} y={156} size={8} tone="muted">
+        hours
+      </T>
+      <T x={220} y={154} size={8.5} tone="danger">
+        doesn&apos;t pay
+      </T>
+
+      <Rule x1={60} y1={y(51.8)} x2={400} y2={y(51.8)} tone="warn" dashed />
+      <T x={398} y={y(51.8) - 5} size={8.5} tone="warn" anchor="end">
+        breakeven 51.8%
+      </T>
+
+      {/* candidate bands */}
+      <Dot cx={x(100)} cy={y(50.6)} tone="danger" />
+      <T x={392} y={y(50.6) + 15} size={8.5} tone="danger" anchor="end">
+        always speak: 50.6%
+      </T>
+      <circle cx={x(38)} cy={y(52.3)} r={9} className={TONE.accent} stroke="currentColor" strokeWidth={1.4} fill="none" />
+      <Dot cx={x(38)} cy={y(52.3)} tone="accent" />
+      <T x={x(38) + 13} y={y(52.3) - 6} size={9} tone="accent" anchor="start" bold>
+        chosen: 52.3% on 38% of hours
+      </T>
+      <Dot cx={x(16)} cy={y(54)} tone="accent" />
+      <T x={x(16) + 8} y={y(54) - 3} size={8.5} tone="muted" anchor="start">
+        54% on 16%: pays, fewer chances
+      </T>
+      <Dot cx={x(9)} cy={y(57)} tone="muted" />
+      <T x={x(9) + 8} y={y(57) - 3} size={8.5} tone="muted" anchor="start">
+        57% on 9%: looks best, too few hours
+      </T>
+
+      {/* axes */}
+      <Rule x1={60} y1={160} x2={400} y2={160} />
+      <Rule x1={60} y1={40} x2={60} y2={160} />
+      <T x={62} y={34} size={9} tone="muted" anchor="start">
+        hit rate
+      </T>
+      {[0, 15, 50, 100].map((c) => (
+        <T key={c} x={x(c)} y={172} size={8.5} tone="muted">
+          {c}%
+        </T>
+      ))}
+      <T x={230} y={186} size={9} tone="muted">
+        share of hours the model speaks on
+      </T>
+      <T x={220} y={205} size={8.5} tone="warn">
+        If no band clears breakeven, it abstains nowhere and the gate judges it as it is.
+      </T>
+    </Svg>
+  );
+}
+
+function OverlappingWindows() {
+  const hour = 5; // px per hour; 72 hours across
+  const calls = Array.from({ length: 10 }, (_, i) => i);
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Overlapping calls vs independent windows
+      </T>
+      <T x={40} y={36} size={9} anchor="start" bold>
+        Every hourly call (each looks 24 hours ahead)
+      </T>
+      {calls.map((i) => (
+        <Fill key={i} x={40 + i * hour} y={44 + i * 7} w={24 * hour} h={5} tone="muted" opacity={0.45} rx={2} />
+      ))}
+      <T x={222} y={72} size={9} anchor="start" tone="warn">
+        neighbours share 23 of 24 hours,
+      </T>
+      <T x={222} y={85} size={9} anchor="start" tone="warn">
+        so one move is counted many times
+      </T>
+
+      <T x={40} y={128} size={9} anchor="start" bold>
+        Independent windows (what is counted)
+      </T>
+      {[0, 1, 2].map((d) => (
+        <g key={d}>
+          <Fill x={40 + d * 24 * hour} y={136} w={24 * hour - 3} h={16} tone="accent" opacity={0.45} />
+          <T x={40 + d * 24 * hour + 60} y={148} size={8.5} tone="fg">
+            one result
+          </T>
+        </g>
+      ))}
+
+      <Rule x1={40} y1={164} x2={400} y2={164} />
+      {['Mon 09:00', 'Tue 09:00', 'Wed 09:00', 'Thu 09:00'].map((label, d) => (
+        <T key={label} x={40 + d * 24 * hour} y={176} size={8} tone="muted">
+          {label}
+        </T>
+      ))}
+      <T x={220} y={200} size={9} tone="accent">
+        About one independent result per trading day on the 24-hour forecast.
+      </T>
+    </Svg>
+  );
+}
+
+function IntervalShrink() {
+  const y = (pct: number) => 160 - (pct - 30) * 2.2545;
+  const breakeven = 51.77;
+  const samples = [
+    { n: '10', x: 120, lo: 31.3, hi: 83.2 },
+    { n: '30', x: 185, lo: 42.3, hi: 75.4 },
+    { n: '79 (Oct)', x: 250, lo: 48.5, hi: 69.6 },
+    { n: '161', x: 315, lo: 51.9, hi: 66.9 },
+    { n: '400', x: 380, lo: 54.6, hi: 64.2 },
+  ];
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        The same 59.5% win rate, very different certainty
+      </T>
+      <Rule x1={20} y1={y(breakeven)} x2={410} y2={y(breakeven)} tone="danger" dashed />
+      <T x={20} y={y(breakeven) - 5} size={8.5} tone="danger" anchor="start">
+        breakeven 51.8%
+      </T>
+      {samples.map((s) => {
+        const proven = s.lo > breakeven;
+        return (
+          <g key={s.n}>
+            <Fill
+              x={s.x - 9}
+              y={y(s.hi)}
+              w={18}
+              h={y(s.lo) - y(s.hi)}
+              tone={proven ? 'accent' : 'warn'}
+              opacity={0.3}
+            />
+            <Dot cx={s.x} cy={y(59.5)} tone="fg" r={3} />
+            <T x={s.x + 13} y={y(s.hi) + 4} size={8} tone="muted" anchor="start">
+              {s.hi.toFixed(0)}%
+            </T>
+            <T x={s.x + 13} y={y(s.lo) + 2} size={8} tone="muted" anchor="start">
+              {s.lo.toFixed(0)}%
+            </T>
+            <T x={s.x} y={178} size={8.5} tone={proven ? 'accent' : 'warn'} bold>
+              {s.n}
+            </T>
+          </g>
+        );
+      })}
+      <T x={250} y={192} size={9} tone="muted">
+        independent results
+      </T>
+      <T x={220} y={207} size={8.5} tone="fg">
+        Proven only once the whole 95% range sits above breakeven.
+      </T>
+    </Svg>
+  );
+}
+
+function CotPublicationLag() {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const cx = (i: number) => 20 + i * 58 + 27;
+  return (
+    <Svg vb="0 0 440 200">
+      <T x={220} y={16} bold>
+        COT: dated when published, not when measured
+      </T>
+      {days.map((d, i) => (
+        <g key={d}>
+          {i === 1 && <Fill x={20 + i * 58} y={36} w={54} h={34} tone="muted" opacity={0.2} rx={7} />}
+          {i === 4 && <Fill x={20 + i * 58} y={36} w={54} h={34} tone="warn" opacity={0.18} rx={7} />}
+          {i === 5 && <Fill x={20 + i * 58} y={36} w={54} h={34} tone="accent" opacity={0.25} rx={7} />}
+          <Box x={20 + i * 58} y={36} w={54} h={34} />
+          <T x={cx(i)} y={57} size={10} bold>
+            {d}
+          </T>
+        </g>
+      ))}
+      <T x={cx(1)} y={86} size={8.5} tone="muted">
+        positions
+      </T>
+      <T x={cx(1)} y={97} size={8.5} tone="muted">
+        measured
+      </T>
+      <T x={cx(4)} y={86} size={8.5} tone="warn">
+        published
+      </T>
+      <T x={cx(4)} y={97} size={8.5} tone="warn">
+        3:30 pm NY
+      </T>
+      <T x={cx(5)} y={86} size={8.5} tone="accent">
+        model may
+      </T>
+      <T x={cx(5)} y={97} size={8.5} tone="accent">
+        use it
+      </T>
+
+      <Arrow x1={cx(1)} y1={118} x2={cx(5)} y2={118} tone="accent" />
+      <T x={(cx(1) + cx(5)) / 2} y={113} size={9} tone="accent" bold>
+        dated +4 days
+      </T>
+
+      <Fill x={78} y={130} w={228} h={20} tone="danger" opacity={0.12} />
+      <T x={192} y={144} size={9} tone="danger">
+        using it in here = peeking at the future
+      </T>
+      <T x={220} y={178} size={9} tone="muted">
+        A backtest that files it under Tuesday sees three days nobody had yet.
+      </T>
+    </Svg>
+  );
+}
+
+function LiveRecalibration() {
+  const x = (p: number) => 70 + (p - 20) * 5;
+  const y = (p: number) => 180 - (p - 20) * 2.333;
+  // sigmoid(0.6 * logit(p)), precomputed
+  const curve: [number, number][] = [
+    [20, 30.3],
+    [30, 37.6],
+    [40, 43.9],
+    [50, 50],
+    [60, 56.1],
+    [70, 62.4],
+    [80, 69.7],
+  ];
+  const points = curve.map(([p, q]) => `${x(p)},${y(q)}`).join(' ');
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Correcting overconfidence from live results
+      </T>
+      <Rule x1={x(20)} y1={y(20)} x2={x(80)} y2={y(80)} tone="muted" dashed />
+      <polyline
+        points={points}
+        className={TONE.accent}
+        stroke="currentColor"
+        strokeWidth={2}
+        fill="none"
+      />
+      <T x={330} y={46} size={8.5} tone="muted" anchor="end">
+        stretch 1: unchanged
+      </T>
+      <T x={290} y={102} size={8.5} tone="accent" anchor="start">
+        stretch 0.6: pulled toward 50%
+      </T>
+
+      {/* the worked example */}
+      <Rule x1={x(62)} y1={180} x2={x(62)} y2={y(62)} tone="border" dashed width={1} />
+      <Dot cx={x(62)} cy={y(62)} tone="muted" r={3} />
+      <Arrow x1={x(62)} y1={y(62) + 3} x2={x(62)} y2={y(57.3) - 2} tone="accent" />
+      <Dot cx={x(62)} cy={y(57.3)} tone="accent" r={3.5} />
+      <T x={x(62) - 8} y={y(62) - 2} size={9} tone="accent" anchor="end" bold>
+        62% becomes ~57%
+      </T>
+      <Dot cx={x(50)} cy={y(50)} tone="fg" r={3} />
+      <T x={80} y={56} size={8.5} anchor="start">
+        • 50% stays 50%; no call changes side
+      </T>
+
+      <Rule x1={70} y1={180} x2={370} y2={180} />
+      <Rule x1={70} y1={40} x2={70} y2={180} />
+      {[20, 50, 80].map((p) => (
+        <T key={p} x={x(p)} y={192} size={8.5} tone="muted">
+          {p}%
+        </T>
+      ))}
+      <T x={220} y={206} size={9} tone="muted">
+        what the model says
+      </T>
+      <T x={74} y={34} size={9} tone="muted" anchor="start">
+        what it says after correction
+      </T>
+    </Svg>
+  );
+}
+
+function ChampionLifecycle() {
+  return (
+    <Svg vb="0 0 440 210">
+      <T x={220} y={16} bold>
+        Champion, challenger and three strikes
+      </T>
+      <Box x={14} y={30} w={96} h={40} />
+      <T x={62} y={54} size={10} bold>
+        Challenger
+      </T>
+      <Arrow x1={110} y1={50} x2={138} y2={50} />
+      <Box x={140} y={30} w={130} h={40} />
+      <T x={205} y={46} size={9}>
+        three floors, then
+      </T>
+      <T x={205} y={60} size={9}>
+        beat champion by 0.002
+      </T>
+      <Arrow x1={270} y1={50} x2={298} y2={50} tone="accent" />
+      <Box x={300} y={30} w={124} h={40} tone="accent" fill />
+      <T x={362} y={54} size={10} tone="accent" bold>
+        Champion
+      </T>
+
+      <Arrow x1={362} y1={70} x2={362} y2={94} />
+      <Box x={282} y={96} w={152} h={30} />
+      <T x={358} y={115} size={9}>
+        re-checked every retrain
+      </T>
+      <T x={358} y={150} size={14} tone="danger" bold>
+        ✗ ✗ ✗
+      </T>
+      <T x={358} y={166} size={8.5} tone="danger">
+        three failures in a row
+      </T>
+      <T x={358} y={190} size={8.5} tone="accent">
+        ✓ one pass resets the count
+      </T>
+
+      <Arrow x1={300} y1={146} x2={196} y2={146} tone="danger" />
+      <Box x={34} y={128} w={160} h={38} tone="warn" fill />
+      <T x={114} y={144} size={9.5} tone="warn" bold>
+        Baseline rule takes over
+      </T>
+      <T x={114} y={158} size={8.5} tone="muted">
+        until a model earns the job
+      </T>
+      <Arrow x1={62} y1={128} x2={62} y2={73} tone="muted" dashed />
+      <T x={68} y={104} size={8} tone="muted" anchor="start">
+        challengers keep trying
+      </T>
+    </Svg>
+  );
+}
+
+function FormingVsFinished() {
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        A bar saved too early vs a finished bar
+      </T>
+      <Rule x1={40} y1={120} x2={400} y2={120} tone="border" dashed width={1} />
+      <T x={38} y={116} size={8} tone="muted" anchor="start">
+        open
+      </T>
+
+      {/* the snapshot, with the real candle as a ghost behind it */}
+      <rect x={106} y={60} width={28} height={60} rx={2} className={TONE.border}
+        stroke="currentColor" strokeDasharray="3 3" fill="none" />
+      <Rule x1={120} y1={36} x2={120} y2={60} tone="border" dashed width={1} />
+      <Rule x1={120} y1={120} x2={120} y2={160} tone="border" dashed width={1} />
+      <Rule x1={120} y1={102} x2={120} y2={130} tone="warn" width={1.6} />
+      <Fill x={108} y={110} w={24} h={10} tone="warn" opacity={0.7} rx={1} />
+      <T x={120} y={182} size={9.5} tone="warn" bold>
+        saved at 14:08
+      </T>
+      <T x={120} y={196} size={8.5} tone="muted">
+        typically ~23% of the hour&apos;s real range
+      </T>
+
+      {/* the finished bar */}
+      <Rule x1={320} y1={36} x2={320} y2={160} tone="accent" width={1.6} />
+      <Fill x={306} y={60} w={28} h={60} tone="accent" opacity={0.7} rx={1} />
+      <T x={320} y={182} size={9.5} tone="accent" bold>
+        finished at 15:00, stored 15:02
+      </T>
+      <T x={320} y={196} size={8.5} tone="muted">
+        the real high, low and close
+      </T>
+
+      <T x={220} y={88} size={9} tone="muted">
+        the next fetch
+      </T>
+      <T x={220} y={100} size={9} tone="muted">
+        replaces it, logged
+      </T>
+      <Arrow x1={160} y1={110} x2={290} y2={110} tone="accent" />
+    </Svg>
+  );
+}
+
+function GradeOwnBar() {
+  const hours = ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+  const bx = (i: number) => 40 + i * 60;
+  return (
+    <Svg vb="0 0 440 205">
+      <T x={220} y={16} bold>
+        Which bar grades a call with an 18:00 horizon?
+      </T>
+      {hours.map((h, i) => (
+        <g key={h}>
+          {i === 2 && <Fill x={bx(i)} y={56} w={56} h={30} tone="danger" opacity={0.18} rx={7} />}
+          {i === 3 && <Fill x={bx(i)} y={56} w={56} h={30} tone="accent" opacity={0.25} rx={7} />}
+          <Box x={bx(i)} y={56} w={56} h={30} />
+          <T x={bx(i) + 28} y={75} size={8.5}>
+            {h} bar
+          </T>
+        </g>
+      ))}
+      <Rule x1={bx(3)} y1={42} x2={bx(3)} y2={96} tone="warn" width={1.6} />
+      <T x={bx(3)} y={38} size={9} tone="warn" bold>
+        horizon 18:00
+      </T>
+
+      <Arrow x1={188} y1={116} x2={188} y2={90} tone="danger" />
+      <T x={196} y={128} size={9} tone="danger" anchor="end">
+        old: the bar before the horizon,
+      </T>
+      <T x={196} y={140} size={9} tone="danger" anchor="end">
+        often only minutes old
+      </T>
+      <Arrow x1={248} y1={116} x2={248} y2={90} tone="accent" />
+      <T x={240} y={128} size={9} tone="accent" anchor="start">
+        now: the bar containing the horizon,
+      </T>
+      <T x={240} y={140} size={9} tone="accent" anchor="start">
+        once it has finished (19:00)
+      </T>
+      <T x={220} y={172} size={9}>
+        A call waits for its own finished bar before it is graded.
+      </T>
+      <T x={220} y={190} size={8.5} tone="muted">
+        The October audit: 2,134 of 2,229 hourly calls had been graded one bar early.
+      </T>
+    </Svg>
+  );
+}
+
+function PlanAnatomy() {
+  const parts = [
+    { x: 20, y: 30, head: 'Why?', sub: 'a reason it might work' },
+    { x: 170, y: 30, head: 'Entry', sub: 'rule, filled next open' },
+    { x: 320, y: 30, head: 'Stop', sub: 'ATR or structure' },
+    { x: 20, y: 134, head: 'Target', sub: 'an R multiple' },
+    { x: 170, y: 134, head: 'Time limit', sub: 'exit after N bars' },
+    { x: 320, y: 134, head: 'Size', sub: 'risk engine, ≤ 2%' },
+  ];
+  return (
+    <Svg vb="0 0 440 200">
+      <T x={220} y={18} bold>
+        A complete trading plan
+      </T>
+      {parts.map((p, i) => {
+        const top = p.y < 100;
+        const tx = 200 + (i % 3) * 20;
+        return (
+          <g key={p.head}>
+            <Box x={p.x} y={p.y} w={100} h={40} />
+            <T x={p.x + 50} y={p.y + 17} size={10} bold>
+              {p.head}
+            </T>
+            <T x={p.x + 50} y={p.y + 31} size={8.5} tone="muted">
+              {p.sub}
+            </T>
+            <Arrow
+              x1={p.x + 50}
+              y1={top ? p.y + 40 : p.y}
+              x2={tx}
+              y2={top ? 84 : 118}
+              tone="muted"
+            />
+          </g>
+        );
+      })}
+      <Box x={170} y={84} w={100} h={34} tone="accent" fill />
+      <T x={220} y={105} size={10.5} tone="accent" bold>
+        the plan
+      </T>
+      <T x={220} y={192} size={9} tone="muted">
+        Results in R after costs, so a plan&apos;s breakeven is 0R per trade.
+      </T>
+    </Svg>
+  );
+}
+
+function WalkForwardHoldout() {
+  const dev = [0, 1, 2, 3, 4];
+  const bx = (i: number) => 40 + i * 62;
+  const rows = [0, 1, 2, 3, 4];
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Walk-forward, then one final exam
+      </T>
+      <T x={193} y={34} size={9} tone="muted">
+        development history
+      </T>
+      <T x={388} y={34} size={9} tone="warn" bold>
+        held-out
+      </T>
+      {rows.map((r) => {
+        const y = 42 + r * 28;
+        const exam = r === 4;
+        return (
+          <g key={r}>
+            {dev.map((i) => {
+              const choose = exam ? true : i <= r;
+              const trade = !exam && i === r + 1;
+              return (
+                <g key={i}>
+                  {choose && <Fill x={bx(i)} y={y} w={58} h={20} tone="muted" opacity={0.22} />}
+                  {trade && <Fill x={bx(i)} y={y} w={58} h={20} tone="accent" opacity={0.4} />}
+                  {!choose && !trade && (
+                    <rect x={bx(i)} y={y} width={58} height={20} rx={4} className={TONE.border}
+                      stroke="currentColor" strokeWidth={1} fill="none" />
+                  )}
+                  {choose && (
+                    <T x={bx(i) + 29} y={y + 14} size={8} tone="muted">
+                      choose
+                    </T>
+                  )}
+                  {trade && (
+                    <T x={bx(i) + 29} y={y + 14} size={8} tone="accent" bold>
+                      trade
+                    </T>
+                  )}
+                </g>
+              );
+            })}
+            {exam ? (
+              <>
+                <Fill x={352} y={y} w={72} h={20} tone="warn" opacity={0.35} />
+                <T x={388} y={y + 14} size={8} tone="warn" bold>
+                  exam, once
+                </T>
+              </>
+            ) : (
+              <rect x={352} y={y} width={72} height={20} rx={4} className={TONE.border}
+                stroke="currentColor" strokeWidth={1} strokeDasharray="3 3" fill="none" />
+            )}
+          </g>
+        );
+      })}
+      <T x={220} y={194} size={8.5} tone="muted">
+        Held-out starts 1 Jan 2024 (daily ideas) and 1 Apr 2026 (hourly ideas), fixed in code.
+      </T>
+      <T x={220} y={208} size={8.5} tone="muted">
+        A setting that lost money in the earlier blocks doesn&apos;t trade the next one.
+      </T>
+    </Svg>
+  );
+}
+
+function RisingBar() {
+  const x = (n: number) => 60 + (Math.log10(n) / Math.log10(500)) * 330;
+  const y = (s: number) => 170 - s * 26;
+  // Expected best t-score from pure luck across n tries (deflation.py's E[max]).
+  const luck: [number, number][] = [
+    [1, 0],
+    [2, 0.52],
+    [5, 1.19],
+    [10, 1.58],
+    [20, 1.9],
+    [74, 2.42],
+    [200, 2.77],
+    [500, 3.05],
+  ];
+  const points = luck.map(([n, s]) => `${x(n)},${y(s)}`).join(' ');
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Why the bar rises with every try
+      </T>
+      <Rule x1={60} y1={y(1.96)} x2={390} y2={y(1.96)} tone="border" dashed />
+      <T x={64} y={y(1.96) - 4} size={8} tone="muted" anchor="start">
+        one test on its own: ~2
+      </T>
+      <polyline points={points} className={TONE.muted} stroke="currentColor" strokeWidth={2} fill="none" />
+      <T x={386} y={y(3.05) - 8} size={8.5} tone="muted" anchor="end">
+        best score from luck alone
+      </T>
+
+      <Dot cx={x(74)} cy={y(4.38)} tone="warn" r={5} />
+      <T x={x(74) - 9} y={y(4.38) - 2} size={9} tone="warn" anchor="end" bold>
+        the lab&apos;s bar today ≈ 4.4
+      </T>
+      <T x={x(74) - 9} y={y(4.38) + 10} size={8} tone="muted" anchor="end">
+        74 trials, plus a 95% safety margin
+      </T>
+      <Dot cx={x(74)} cy={y(0.97)} tone="accent" r={5} />
+      <T x={x(74) + 9} y={y(0.97) + 3} size={9} tone="accent" anchor="start" bold>
+        best idea so far ≈ 1.0
+      </T>
+
+      <Rule x1={60} y1={170} x2={390} y2={170} />
+      <Rule x1={60} y1={36} x2={60} y2={170} />
+      {[1, 10, 74, 500].map((n) => (
+        <T key={n} x={x(n)} y={182} size={8.5} tone="muted">
+          {n}
+        </T>
+      ))}
+      {[0, 2, 4].map((s) => (
+        <T key={s} x={54} y={y(s) + 3} size={8.5} tone="muted" anchor="end">
+          {s}
+        </T>
+      ))}
+      <T x={62} y={32} size={9} tone="muted" anchor="start">
+        score
+      </T>
+      <T x={225} y={198} size={9} tone="muted">
+        settings ever tried (log scale)
+      </T>
+    </Svg>
+  );
+}
+
+function LabLifecycle() {
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        An idea&apos;s life in the lab
+      </T>
+      <Box x={10} y={40} w={76} h={32} />
+      <T x={48} y={60} size={9.5} bold>
+        new idea
+      </T>
+      <Arrow x1={86} y1={56} x2={112} y2={56} />
+      <Box x={114} y={40} w={104} h={32} />
+      <T x={166} y={60} size={9.5} bold>
+        back-test gate
+      </T>
+
+      <Arrow x1={166} y1={72} x2={166} y2={106} tone="danger" />
+      <T x={172} y={92} size={8} tone="danger" anchor="start">
+        fails
+      </T>
+      <Box x={114} y={108} w={104} h={40} tone="danger" fill />
+      <T x={166} y={125} size={9.5} tone="danger" bold>
+        rejected
+      </T>
+      <T x={166} y={139} size={8} tone="muted">
+        never trades · 8 of 8 so far
+      </T>
+
+      <Arrow x1={218} y1={56} x2={246} y2={56} tone="accent" />
+      <T x={232} y={50} size={8} tone="accent">
+        passes
+      </T>
+      <Box x={248} y={40} w={84} h={32} tone="warn" />
+      <T x={290} y={60} size={9.5} bold>
+        paper trading
+      </T>
+      <Arrow x1={332} y1={56} x2={352} y2={56} tone="accent" />
+      <Box x={354} y={40} w={80} h={32} tone="accent" fill />
+      <T x={394} y={60} size={9.5} tone="accent" bold>
+        recommended
+      </T>
+      <T x={342} y={32} size={8} tone="muted">
+        checkpoint every 30 trades
+      </T>
+
+      <Arrow x1={384} y1={72} x2={384} y2={106} tone="warn" />
+      <Arrow x1={404} y1={108} x2={404} y2={74} tone="accent" dashed />
+      <Box x={354} y={108} w={80} h={32} tone="warn" />
+      <T x={394} y={128} size={9.5} tone="warn" bold>
+        demoted
+      </T>
+      <T x={394} y={154} size={8} tone="muted">
+        can earn it back
+      </T>
+
+      <Arrow x1={290} y1={72} x2={290} y2={160} tone="danger" />
+      <Arrow x1={364} y1={140} x2={322} y2={162} tone="danger" />
+      <Box x={248} y={162} w={84} h={30} tone="danger" fill />
+      <T x={290} y={181} size={9.5} tone="danger" bold>
+        retired
+      </T>
+      <T x={284} y={98} size={8} tone="danger" anchor="end">
+        significantly
+      </T>
+      <T x={284} y={109} size={8} tone="danger" anchor="end">
+        losing
+      </T>
+      <T x={220} y={208} size={9} tone="accent">
+        Paper only: nothing ever reaches a broker.
+      </T>
+    </Svg>
+  );
+}
+
+function AutonomyLoop() {
+  const boxes = [
+    { x: 20, y: 34, head: 'The app', sub: 'predicts, grades, retrains' },
+    { x: 270, y: 34, head: 'Self-report', sub: 'health + issue codes' },
+    { x: 270, y: 134, head: 'Maintenance agent', sub: 'daily 06:30 UTC · one change' },
+    { x: 20, y: 134, head: 'Server auto-deploy', sub: 'refuse · check · roll back' },
+  ];
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Who looks after what
+      </T>
+      {boxes.map((b) => (
+        <g key={b.head}>
+          <Box x={b.x} y={b.y} w={150} h={46} />
+          <T x={b.x + 75} y={b.y + 20} size={10} bold>
+            {b.head}
+          </T>
+          <T x={b.x + 75} y={b.y + 35} size={8.5} tone="muted">
+            {b.sub}
+          </T>
+        </g>
+      ))}
+      <Arrow x1={170} y1={57} x2={268} y2={57} />
+      <T x={219} y={51} size={8} tone="muted">
+        reports
+      </T>
+      <Arrow x1={345} y1={80} x2={345} y2={132} />
+      <T x={351} y={110} size={8} tone="muted" anchor="start">
+        reads
+      </T>
+      <Arrow x1={270} y1={157} x2={172} y2={157} />
+      <T x={221} y={151} size={8} tone="muted">
+        pushes code
+      </T>
+      <Arrow x1={95} y1={134} x2={95} y2={82} tone="accent" />
+      <T x={101} y={112} size={8} tone="accent" anchor="start">
+        ships only if healthy
+      </T>
+
+      <Box x={180} y={92} w={80} h={28} tone="accent" />
+      <T x={220} y={110} size={9.5} tone="accent" bold>
+        you (Telegram)
+      </T>
+      <Arrow x1={300} y1={80} x2={258} y2={94} tone="accent" dashed />
+      <Arrow x1={150} y1={134} x2={186} y2={121} tone="accent" dashed />
+      <T x={220} y={204} size={9} tone="muted">
+        Fix days Sunday to Friday; Saturday is the one improve day.
+      </T>
+    </Svg>
+  );
+}
+
+function DeployGate() {
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Every 10 minutes on the server
+      </T>
+      <Box x={8} y={32} w={72} h={32} />
+      <T x={44} y={52} size={9} bold>
+        new code
+      </T>
+      <Arrow x1={80} y1={48} x2={98} y2={48} />
+      <Box x={100} y={32} w={82} h={32} />
+      <T x={141} y={52} size={9} bold>
+        protected?
+      </T>
+      <Arrow x1={182} y1={48} x2={200} y2={48} />
+      <T x={191} y={42} size={8} tone="muted">
+        no
+      </T>
+      <Box x={202} y={32} w={92} h={32} />
+      <T x={248} y={46} size={8.5}>
+        back up (if needed),
+      </T>
+      <T x={248} y={58} size={8.5}>
+        build, start
+      </T>
+      <Arrow x1={294} y1={48} x2={312} y2={48} />
+      <Box x={314} y={32} w={118} h={32} />
+      <T x={373} y={46} size={8.5} bold>
+        healthy in 5 min,
+      </T>
+      <T x={373} y={58} size={8.5} bold>
+        no crash in logs?
+      </T>
+
+      <Arrow x1={141} y1={64} x2={141} y2={98} tone="danger" />
+      <T x={147} y={84} size={8} tone="danger" anchor="start">
+        yes
+      </T>
+      <Box x={100} y={100} w={82} h={30} tone="danger" fill />
+      <T x={141} y={119} size={9.5} tone="danger" bold>
+        refused
+      </T>
+
+      <Arrow x1={340} y1={64} x2={334} y2={98} tone="accent" />
+      <Arrow x1={406} y1={64} x2={406} y2={98} tone="warn" />
+      <T x={324} y={84} size={8} tone="accent" anchor="end">
+        yes
+      </T>
+      <T x={412} y={84} size={8} tone="warn" anchor="start">
+        no
+      </T>
+      <Box x={300} y={100} w={64} h={30} tone="accent" fill />
+      <T x={332} y={119} size={9.5} tone="accent" bold>
+        live ✓
+      </T>
+      <Box x={370} y={100} w={64} h={30} tone="warn" fill />
+      <T x={402} y={113} size={8.5} tone="warn" bold>
+        rolled
+      </T>
+      <T x={402} y={124} size={8.5} tone="warn" bold>
+        back ↺
+      </T>
+
+      <Arrow x1={141} y1={130} x2={170} y2={158} tone="muted" />
+      <Arrow x1={332} y1={130} x2={300} y2={158} tone="muted" />
+      <Arrow x1={402} y1={130} x2={360} y2={158} tone="muted" />
+      <Box x={60} y={160} w={320} h={28} tone="accent" />
+      <T x={220} y={178} size={9}>
+        Telegram message + recorded in the report, every time
+      </T>
+      <T x={220} y={206} size={8.5} tone="muted">
+        Between deploys: if the app stops answering for ~30 minutes, it is restarted.
+      </T>
+    </Svg>
+  );
+}
+
+function ProtectedThresholds() {
+  const left = [
+    'Brier floor 0.248 (margin 0.002)',
+    'breakeven floor (cost-based)',
+    'coverage ≥ 15% of hours',
+    'demote after 3 failed re-checks',
+    '30-result verdict floor',
+    '95% confidence level',
+    'costs: 0.8 spread + 0.2 slippage',
+  ];
+  const right = [
+    'windows needed to measure breakeven',
+    'COT 4-day publication lag',
+    'lab: held-out start dates',
+    'lab: walk-forward blocks, min. trades',
+    'lab: 30-trade live checkpoints',
+    'lab: its gate and promotion code',
+    'the safety net itself',
+  ];
+  return (
+    <Svg vb="0 0 440 215">
+      <T x={220} y={16} bold>
+        Locked: only a human may change these
+      </T>
+      <Box x={14} y={26} w={412} h={136} tone="warn" />
+      {left.map((t, i) => (
+        <T key={t} x={28} y={48 + i * 16} size={8.5} anchor="start">
+          • {t}
+        </T>
+      ))}
+      {right.map((t, i) => (
+        <T key={t} x={226} y={48 + i * 16} size={8.5} anchor="start">
+          • {t}
+        </T>
+      ))}
+      <Box x={36} y={174} w={176} h={28} tone="accent" fill />
+      <T x={124} y={192} size={9} tone="accent" bold>
+        lock 1: a test pins them
+      </T>
+      <Box x={228} y={174} w={176} h={28} tone="accent" fill />
+      <T x={316} y={192} size={9} tone="accent" bold>
+        lock 2: the server refuses edits
+      </T>
+    </Svg>
+  );
+}
+
+function HonestScorecard() {
+  const columns: { x: number; tone: Tone; head: string; items: string[] }[] = [
+    {
+      x: 10,
+      tone: 'accent',
+      head: 'Strong',
+      items: [
+        'volatility forecast',
+        'sizing from the stop',
+        'the cost hurdle',
+        'independent windows',
+        'held-out tests',
+        'locked thresholds',
+      ],
+    },
+    {
+      x: 153,
+      tone: 'warn',
+      head: 'Unproven',
+      items: [
+        '24-hour direction',
+        '(range includes breakeven)',
+        '5-day direction',
+        '(baseline rule for now)',
+        'trading plans: 0 of 8',
+        'COT positioning',
+      ],
+    },
+    {
+      x: 296,
+      tone: 'danger',
+      head: 'Never',
+      items: [
+        'placing trades',
+        'talking to a broker',
+        'promising returns',
+        '"probably" read as',
+        '"certainly"',
+      ],
+    },
+  ];
+  return (
+    <Svg vb="0 0 440 200">
+      <T x={220} y={16} bold>
+        An honest scorecard
+      </T>
+      {columns.map((c) => (
+        <g key={c.head}>
+          <Box x={c.x} y={28} w={134} h={160} tone={c.tone} fill />
+          <T x={c.x + 67} y={48} size={11} tone={c.tone} bold>
+            {c.head}
+          </T>
+          {c.items.map((item, i) => (
+            <T key={item} x={c.x + 67} y={72 + i * 18} size={8.5}>
+              {item}
+            </T>
+          ))}
+        </g>
+      ))}
+    </Svg>
+  );
+}
+
 const FIGURES: Record<string, () => ReactNode> = {
   'honest-thesis': HonestThesis,
   'data-pipeline': DataPipeline,
@@ -2455,6 +3559,25 @@ const FIGURES: Record<string, () => ReactNode> = {
   'candle-types': CandleTypes,
   fibonacci: Fibonacci,
   'trade-anatomy': TradeAnatomy,
+  // how the mentor keeps itself honest
+  'breakeven-hurdle': BreakevenHurdle,
+  'promotion-floors': PromotionFloors,
+  'abstain-by-profit': AbstainByProfit,
+  'overlapping-windows': OverlappingWindows,
+  'interval-shrink': IntervalShrink,
+  'cot-publication-lag': CotPublicationLag,
+  'live-recalibration': LiveRecalibration,
+  'champion-lifecycle': ChampionLifecycle,
+  'forming-vs-finished': FormingVsFinished,
+  'grade-own-bar': GradeOwnBar,
+  'plan-anatomy': PlanAnatomy,
+  'walk-forward-holdout': WalkForwardHoldout,
+  'rising-bar': RisingBar,
+  'lab-lifecycle': LabLifecycle,
+  'autonomy-loop': AutonomyLoop,
+  'deploy-gate': DeployGate,
+  'protected-thresholds': ProtectedThresholds,
+  'honest-scorecard': HonestScorecard,
 };
 
 export function LessonFigure({ figureKey, caption }: { figureKey: string; caption: string }) {

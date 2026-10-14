@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
 import pytest
 
@@ -30,21 +32,53 @@ def test_all_plan_modules_present() -> None:
         "candles-volume",
         "smart-money",
         "orders-conditions",
+        "keeping-honest",
     }
     assert {m.id for m in CATALOG} == expected
 
 
 def test_every_lesson_has_a_figure() -> None:
-    missing = [
-        lesson.slug for module in CATALOG for lesson in module.lessons if not lesson.figures
-    ]
+    missing = [lesson.slug for module in CATALOG for lesson in module.lessons if not lesson.figures]
     assert missing == []
 
 
-def test_under_the_hood_module_is_last() -> None:
-    last = max(CATALOG, key=lambda m: m.order)
-    assert last.id == "under-the-hood"
-    assert len(last.lessons) >= 8  # covers every prediction method
+def test_system_modules_close_the_curriculum() -> None:
+    # "Under the hood" explains how the mentor predicts; "keeping-honest" follows
+    # it with everything that keeps those predictions honest.
+    by_order = sorted(CATALOG, key=lambda m: m.order)
+    assert [m.id for m in by_order[-2:]] == ["under-the-hood", "keeping-honest"]
+    assert len(by_order[-2].lessons) >= 8  # covers every prediction method
+    assert len(by_order[-1].lessons) >= 8
+
+
+def test_keeping_honest_lessons_all_have_a_quiz_and_a_figure() -> None:
+    module = next(m for m in CATALOG if m.id == "keeping-honest")
+    for lesson in module.lessons:
+        assert lesson.slug.startswith("keeping-honest/"), lesson.slug
+        assert lesson.module_id == "keeping-honest", lesson.slug
+        assert lesson.figures, f"{lesson.slug} has no figure"
+        assert len(lesson.quiz) >= 2, f"{lesson.slug} needs at least two quiz questions"
+        assert "What this means for you" in lesson.body_md, lesson.slug
+
+
+_FIGURE_REGISTRY = (
+    Path(__file__).resolve().parents[3]
+    / "frontend"
+    / "src"
+    / "components"
+    / "lessons"
+    / "LessonFigure.tsx"
+)
+
+
+def test_every_figure_key_has_a_frontend_diagram() -> None:
+    # The frontend silently renders nothing for an unknown key, so a typo would
+    # ship a lesson with an empty space where its diagram should be.
+    source = _FIGURE_REGISTRY.read_text(encoding="utf-8")
+    registry = source.split("const FIGURES", 1)[1]
+    registered = set(re.findall(r"^\s+'?([a-z0-9-]+)'?:\s+[A-Z]\w+,$", registry, re.MULTILINE))
+    used = {fig.key for module in CATALOG for lesson in module.lessons for fig in lesson.figures}
+    assert used - registered == set()
 
 
 def test_under_the_hood_lessons_have_figures() -> None:

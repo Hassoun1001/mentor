@@ -178,7 +178,9 @@ function LessonModal({ slug, onClose }: { slug: string; onClose: () => void }) {
             )}
 
             <div className="prose prose-invert mt-6 max-w-none text-mentor-fg
+              prose-h2:mt-8 prose-h2:text-xl prose-h2:font-medium prose-h2:text-mentor-fg
               prose-h3:font-medium prose-h3:text-mentor-fg/95
+              prose-blockquote:border-mentor-accent prose-blockquote:text-mentor-fg
               prose-p:leading-relaxed prose-li:leading-relaxed
               prose-strong:text-mentor-fg prose-code:rounded prose-code:bg-mentor-panelLight prose-code:px-1.5 prose-code:py-0.5 prose-code:text-mentor-accentSoft
               prose-pre:rounded-lg prose-pre:bg-mentor-panelLight prose-pre:text-xs">

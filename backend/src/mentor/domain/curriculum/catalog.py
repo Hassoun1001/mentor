@@ -2285,8 +2285,7 @@ isn't homework *about* trading here — it's the interface itself.
         order_in_module=6,
         title="A professional's trading day",
         summary=(
-            "Pros don't watch charts all day. They run a routine: prepare, execute, review, "
-            "leave."
+            "Pros don't watch charts all day. They run a routine: prepare, execute, review, leave."
         ),
         est_minutes=6,
         key_concepts=("routine", "preparation", "execution window", "review", "screen time"),
@@ -2355,12 +2354,15 @@ it's about making the losing hours structurally impossible.
         order_in_module=7,
         title="From demo to real money: the ladder",
         summary=(
-            "Demo → tiny live → measured size-ups. Each rung has a graduation test you can't "
-            "skip."
+            "Demo → tiny live → measured size-ups. Each rung has a graduation test you can't skip."
         ),
         est_minutes=7,
         key_concepts=(
-            "demo account", "micro lots", "graduation criteria", "prop firms", "drawdown"
+            "demo account",
+            "micro lots",
+            "graduation criteria",
+            "prop firms",
+            "drawdown",
         ),
         figures=(
             Figure(
@@ -2905,7 +2907,13 @@ _MARKET_STRUCTURE = (
         ),
         est_minutes=7,
         key_concepts=(
-            "bullish", "bearish", "neutral", "uptrend", "downtrend", "sideways", "range-bound"
+            "bullish",
+            "bearish",
+            "neutral",
+            "uptrend",
+            "downtrend",
+            "sideways",
+            "range-bound",
         ),
         figures=(
             Figure(
@@ -2988,9 +2996,17 @@ you're in a range is itself a decision: usually, *stand aside*.
         ),
         est_minutes=9,
         key_concepts=(
-            "support", "resistance", "breakout", "breakdown", "pullback",
-            "retracement", "reversal", "continuation", "consolidation",
-            "expansion", "compression",
+            "support",
+            "resistance",
+            "breakout",
+            "breakdown",
+            "pullback",
+            "retracement",
+            "reversal",
+            "continuation",
+            "consolidation",
+            "expansion",
+            "compression",
         ),
         figures=(
             Figure(
@@ -3087,8 +3103,14 @@ out."
         ),
         est_minutes=8,
         key_concepts=(
-            "swing high", "swing low", "higher high", "higher low",
-            "lower high", "lower low", "break of structure", "change of character",
+            "swing high",
+            "swing low",
+            "higher high",
+            "higher low",
+            "lower high",
+            "lower low",
+            "break of structure",
+            "change of character",
         ),
         figures=(
             Figure(
@@ -3196,8 +3218,15 @@ _CANDLES_VOLUME = (
         ),
         est_minutes=9,
         key_concepts=(
-            "doji", "hammer", "hanging man", "shooting star", "engulfing",
-            "inside bar", "outside bar", "pin bar", "marubozu",
+            "doji",
+            "hammer",
+            "hanging man",
+            "shooting star",
+            "engulfing",
+            "inside bar",
+            "outside bar",
+            "pin bar",
+            "marubozu",
         ),
         figures=(
             Figure(
@@ -3298,8 +3327,14 @@ probability, not pattern-spotting.
         ),
         est_minutes=8,
         key_concepts=(
-            "volume spike", "buying volume", "selling volume", "delta",
-            "volume profile", "point of control", "value area high", "value area low",
+            "volume spike",
+            "buying volume",
+            "selling volume",
+            "delta",
+            "volume profile",
+            "point of control",
+            "value area high",
+            "value area low",
             "open interest",
         ),
         figures=(
@@ -3411,7 +3446,11 @@ _SMART_MONEY = (
         ),
         est_minutes=6,
         key_concepts=(
-            "smart money", "institutional", "narrative", "unfalsifiable", "honest skepticism"
+            "smart money",
+            "institutional",
+            "narrative",
+            "unfalsifiable",
+            "honest skepticism",
         ),
         figures=(
             Figure(
@@ -3589,8 +3628,14 @@ context.
         ),
         est_minutes=8,
         key_concepts=(
-            "order block", "breaker block", "mitigation block", "fair value gap",
-            "imbalance", "premium", "discount", "equilibrium",
+            "order block",
+            "breaker block",
+            "mitigation block",
+            "fair value gap",
+            "imbalance",
+            "premium",
+            "discount",
+            "equilibrium",
         ),
         figures=(
             Figure(
@@ -3694,8 +3739,14 @@ _ORDERS_CONDITIONS = (
         ),
         est_minutes=8,
         key_concepts=(
-            "market order", "limit order", "stop order", "stop limit order",
-            "buy stop", "sell stop", "buy limit", "sell limit",
+            "market order",
+            "limit order",
+            "stop order",
+            "stop limit order",
+            "buy stop",
+            "sell stop",
+            "buy limit",
+            "sell limit",
         ),
         figures=(
             Figure(
@@ -3778,8 +3829,14 @@ both *before* you enter is the whole difference between a plan and a gamble.
         ),
         est_minutes=8,
         key_concepts=(
-            "volatility", "momentum", "trend", "mean reversion", "correlation",
-            "liquidity", "slippage", "spread",
+            "volatility",
+            "momentum",
+            "trend",
+            "mean reversion",
+            "correlation",
+            "liquidity",
+            "slippage",
+            "spread",
         ),
         figures=(
             Figure(
@@ -4055,7 +4112,12 @@ confirm the machine is genuinely running and learning, not stuck.
         ),
         est_minutes=8,
         key_concepts=(
-            "risk calculator", "journal", "backtester", "prices", "data health", "settings"
+            "risk calculator",
+            "journal",
+            "backtester",
+            "prices",
+            "data health",
+            "settings",
         ),
         figures=(
             Figure(
@@ -4373,10 +4435,7 @@ _PSYCHOLOGY_EXT2 = (
         ),
         quiz=(
             QuizQuestion(
-                prompt=(
-                    "You followed your plan exactly and lost. What should you "
-                    "change?"
-                ),
+                prompt=("You followed your plan exactly and lost. What should you change?"),
                 options=(
                     "Tighten the entry rules so it doesn't happen again",
                     "Nothing - tag it 'good process' and move on",
@@ -4508,8 +4567,7 @@ _UNDER_THE_HOOD_EXT2 = (
         order_in_module=11,
         title="Knowing when to say nothing",
         summary=(
-            "Why the model is allowed to decline a call - and why its silence is "
-            "information."
+            "Why the model is allowed to decline a call - and why its silence is information."
         ),
         est_minutes=7,
         key_concepts=(
@@ -4530,9 +4588,7 @@ _UNDER_THE_HOOD_EXT2 = (
         ),
         quiz=(
             QuizQuestion(
-                prompt=(
-                    "The system says it acts on 30% of hours. Is that good or bad?"
-                ),
+                prompt=("The system says it acts on 30% of hours. Is that good or bad?"),
                 options=(
                     "Bad - it should have an opinion every hour",
                     "Good if those 30% score better than all hours would; the "
@@ -4658,7 +4714,1768 @@ so, the gain will read zero, the model will not abstain, and the honest
 conclusion is that this system does not currently have an edge worth
 trading. That would be a genuinely useful thing to learn, and it is
 better to learn it from a number on a page than from an account balance.
+
+---
+
+## Since then: the margin is chosen by profit
+
+Everything above still holds, with one change made in July 2026. The
+margin is no longer picked to make the Brier score look best. It is picked
+by asking which quiet band leaves calls that would actually **pay for the
+spread**. The lesson *"Saying 'no opinion' when a call can't pay"* in the
+module **How the mentor keeps itself honest** explains the new rule.
 """,
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Module 18 — How the mentor keeps itself honest (everything added since July 2026)
+# ---------------------------------------------------------------------------
+
+_HONEST_EVIDENCE = (
+    Lesson(
+        slug="keeping-honest/the-cost-hurdle",
+        module_id="keeping-honest",
+        order_in_module=1,
+        title="Better than a coin flip isn't enough: the cost hurdle",
+        summary=(
+            "Every trade pays the spread, win or lose, so a call has to be right more than "
+            "half the time just to break even."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "breakeven win rate",
+            "spread",
+            "round-trip cost",
+            "promotion floors",
+            "Brier score",
+        ),
+        figures=(
+            Figure(
+                key="breakeven-hurdle",
+                caption=(
+                    "After costs, a 24-hour call must clear about 51.8% and a 5-day call about "
+                    "50.7%. A 51% model loses on one and pays on the other."
+                ),
+            ),
+            Figure(
+                key="promotion-floors",
+                caption=(
+                    "A new model must be honest, willing to speak and worth trading, then beat "
+                    "the champion on the same fresh data."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A model is right 51% of the time on the 24-hour forecast. What happens "
+                    "after costs?"
+                ),
+                options=(
+                    "It makes a small, steady profit",
+                    "It breaks even exactly",
+                    "It loses money, because the hurdle is about 51.8%, not 50%",
+                ),
+                correct_index=2,
+                explanation=(
+                    "Each trade pays about 1.2 pips whether it wins or loses. Against a "
+                    "typical 34-pip daily move, 51% right loses roughly 52 pips per 100 "
+                    "calls. Better than a coin is not the same as worth trading."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "Why is the hurdle lower for the 5-day forecast (about 50.7%) than for the "
+                    "24-hour one (about 51.8%)?"
+                ),
+                options=(
+                    "The 5-day model is better",
+                    "The same 1.2-pip cost is a smaller slice of a bigger typical move",
+                    "The spread is cheaper on daily charts",
+                ),
+                correct_index=1,
+                explanation=(
+                    "The cost per trade is the same, but a 5-day move is typically around 84 "
+                    "pips against about 34 pips for 24 hours. A fixed cost matters less "
+                    "when the move it is paid out of is bigger."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "A challenger has a Brier score of 0.240, speaks on 40% of hours, and is "
+                    "right 50.5% of the time on the 24-hour lane. Is it promoted?"
+                ),
+                options=(
+                    "No, it fails the breakeven floor: honest probabilities don't pay the spread",
+                    "Yes, because its Brier score beats 0.248",
+                    "Yes, as long as it beats the champion",
+                ),
+                correct_index=0,
+                explanation=(
+                    "All three floors must hold. It passes the Brier and coverage floors, "
+                    "but 50.5% is below the roughly 51.8% it needs to pay for its trades, "
+                    "so it is refused and the message says exactly that."
+                ),
+            ),
+        ),
+        body_md="""
+Here is a trap that caught this system until July 2026, and catches most
+people who build a trading model.
+
+You build a model. It is right **51%** of the time. That beats a coin
+flip, so it has an edge, right?
+
+It is also a model that **loses money on every trade it suggests**.
+
+---
+
+## Why: you pay the spread whether you win or lose
+
+Every trade you open and close costs something: the spread, plus a little
+slippage on the way in and out. The mentor charges **1.2 pips per round
+trip** on EUR/USD: a 0.8-pip spread plus 0.2 pips of slippage on each leg.
+That is the same figure the backtester has always charged.
+
+The cost is paid on winners **and** on losers:
+
+- a winning call earns the move **minus** the cost;
+- a losing call loses the move **plus** the cost.
+
+So winning half the time is not enough. You need to win a little more than
+half just to stand still.
+
+## A worked example in pips
+
+Over the stored price history, a typical 24-hour EUR/USD move is about
+**34 pips** (and about **84 pips** over 5 trading days). Take 100 calls on
+the 24-hour forecast:
+
+- **51% right:** 51 wins × (34 − 1.2) = +1,673 pips. 49 losses × (34 + 1.2)
+  = −1,725 pips. Net: about **−52 pips**. Better than a coin, still losing.
+- **About 51.8% right:** roughly zero. That is the **breakeven**.
+- **55% right:** 55 × 32.8 − 45 × 35.2 = **+220 pips**.
+
+The rule behind it, in plain words:
+
+> breakeven = 50% + cost ÷ (2 × typical move)
+
+For the 24-hour forecast that is 50% + 1.2 ÷ 68 ≈ **51.8%**. For the 5-day
+forecast it is 50% + 1.2 ÷ 168 ≈ **50.7%**. The longer forecast has the
+lower hurdle because a fixed cost is a smaller share of a bigger move.
+
+## These numbers are measured, not typed in
+
+The system recomputes the hurdle from the stored price history every time
+it needs it, using windows that don't overlap (the lesson on honest win
+rates explains why that matters). So the figures drift as the market
+changes. In mid-October 2026 they read **51.77%** for the 24-hour forecast
+and **50.71%** for the 5-day one. An early measurement on a quieter 90-day
+sample read 52.36%. If there are fewer than 30 independent windows to
+measure from, the system says plainly that it could not measure the hurdle
+instead of inventing one.
+
+One honest simplification: the rule assumes wins and losses are about the
+same size. A model whose wins are reliably bigger than its losses would
+face a lower hurdle, but that is an edge it would have to *prove*, so the
+system doesn't assume it.
+
+---
+
+## The three floors a new model must clear
+
+Every week, and earlier if the drift watch fires, the system trains fresh
+**challenger** models. Before a challenger can take over, it has to clear
+three separate floors:
+
+1. **Honest probabilities (the Brier floor).** The Brier score measures
+   how far stated probabilities sit from what actually happened; lower is
+   better. Always saying "50/50" scores 0.25. A challenger must score
+   **0.248 or better** on the hours it acts on: beat "50/50" by a margin
+   of 0.002.
+2. **Willing to speak (the coverage floor).** If it sometimes declines to
+   call, it must still act on at least **15% of hours**. Otherwise it could
+   hide in a handful of lucky hours.
+3. **Worth trading (the breakeven floor).** Its hit rate on the hours it
+   acts on must clear the measured breakeven for its forecast.
+
+Then it must **beat the current champion**, with both scored on the same
+fresh stretch of data, by at least 0.002 Brier.
+
+Why three floors and not one? Because Brier knows nothing about the spread.
+A model can be perfectly calibrated, clear 0.248, be right 51% of the time,
+and lose money on every call. Before July only the first two floors
+existed. When a challenger fails, the message names which floor stopped
+it, because "failed the gate" tells nobody what to fix.
+
+**Real examples.** July's challengers were right 46.8% and 48.2% of the
+time: wrong more often than right, before costs are even counted. The
+24-hour champion promoted on 6 October tested at 58.3% against a hurdle of
+about 51.8%. The 5-day forecast has no champion at all: its latest
+challenger scored 0.260 Brier, worse than the 0.248 floor, so a simple,
+transparent baseline rule keeps making the 5-day calls until a model earns
+the job.
+
+### What this means for you
+
+- Whenever you see a win rate in the app, compare it with the
+  **breakeven**, not with 50%. The Loop page and the weekly report print
+  them side by side for that reason.
+- "Baseline rule" on a forecast is not a fault. It means no trained model
+  has earned the job yet.
+- The same arithmetic applies to you and to anyone selling signals: a 52%
+  hit rate on short-term trades is roughly breakeven after costs, not an
+  edge.
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/abstaining-by-profit",
+        module_id="keeping-honest",
+        order_in_module=2,
+        title='Saying "no opinion" when a call can\'t pay',
+        summary=(
+            "The model chooses where to stay quiet by asking which calls would pay for the "
+            "spread, not which would make its score look neat."
+        ),
+        est_minutes=6,
+        key_concepts=(
+            "abstention",
+            "margin",
+            "coverage floor",
+            "breakeven",
+            "cherry-picking",
+        ),
+        figures=(
+            Figure(
+                key="abstain-by-profit",
+                caption=(
+                    "Each dot is one possible quiet band. The rule takes the loosest band whose "
+                    "calls clear breakeven while still covering 15% of hours."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Breakeven is 51.8% and the coverage floor is 15%. Band 1 speaks on 60% of "
+                    "hours at 52.5% right; band 2 on 25% at 54%; band 3 on 8% at 60%. Which wins?"
+                ),
+                options=(
+                    "Band 3, because it has the best hit rate",
+                    "Band 2, because it is the best one that still covers 15%",
+                    "Band 1, the loosest band whose calls still clear breakeven",
+                ),
+                correct_index=2,
+                explanation=(
+                    "Band 3 covers too few hours to count. Bands 1 and 2 both pay, and once "
+                    "calls pay, more of them is more money, so the rule takes the loosest: band 1."
+                ),
+            ),
+            QuizQuestion(
+                prompt="No quiet band leaves calls that clear breakeven. What happens?",
+                options=(
+                    "The model keeps only its best few hours, however few",
+                    "The model speaks on every hour and the promotion gate judges it as it is",
+                    "The system lowers the breakeven until something passes",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Shrinking the calls down to a lucky-looking sliver is how an edge is "
+                    "manufactured. The honest move is to abstain nowhere and let the gate "
+                    "refuse the model, which it almost certainly will."
+                ),
+            ),
+        ),
+        body_md="""
+The lesson *"Knowing when to say nothing"* in the Under the hood module
+introduced **abstention**: the model may decline to call an hour when its
+probability sits too close to 50/50. The distance from 50/50 a call must
+reach is called the **margin**. This lesson is about how that margin is
+chosen, which changed in July 2026.
+
+---
+
+## The old rule: make the score look best
+
+At first the margin was chosen to give the best Brier score on the calls
+the model kept. Brier measures *calibration*: whether "60%" really means
+60%. It knows nothing about the spread. So the model could fall silent on
+hours that would have paid and keep talking on hours that wouldn't, because
+good calibration and profit do not always point the same way.
+
+## The new rule: choose by profit
+
+The system now tries margins from zero (speak every hour) upwards. For each
+one it looks at the hours the model would still speak on and asks two
+questions:
+
+1. Is that still **at least 15% of hours**?
+2. Is the hit rate on those hours **at or above the breakeven**?
+
+Among the margins that pass both, it picks the **loosest**, the one that
+speaks most often, because once calls pay, more calls means more money.
+
+And if **no** margin passes, the model doesn't abstain at all. It speaks
+on every hour, and the promotion gate judges it as it is (and almost
+certainly refuses it).
+
+## A worked example
+
+Suppose that on the data used to choose the margin:
+
+- margin 0 (always speak): right **50.6%** of the time on all hours.
+  Below the 51.8% breakeven. Fails.
+- margin 0.04: right **52.3%** on 38% of hours. Passes both tests.
+- margin 0.08: right **54%** on 16% of hours. Also passes.
+- margin 0.10: right **57%** on 9% of hours. Looks best, but covers too
+  few hours. Fails.
+
+The rule picks **0.04**: the loosest margin that pays. Not 0.10, which
+looks best but rests on too few hours to mean anything. Not 0.08, which
+pays too but gives fewer chances to trade.
+
+The chosen margin is then graded on a **separate** stretch of history it
+never saw. A threshold picked and scored on the same data only describes
+that data. One that survives fresh data is a rule.
+
+## Why "abstain nowhere" is the honest fallback
+
+The tempting alternative is to keep narrowing until some sliver of hours
+looks profitable. Slice any history finely enough and you will always find
+a lucky slice. That is cherry-picking, and the rule refuses to do it. When
+it first ran on live data there was no profitable band at all: the margin
+came out at zero and the gate refused the model on accuracy (47.7% against
+a 52.4% hurdle at the time). That was the correct, honest result.
+
+One more detail. A later feature (live recalibration, lesson 5) can adjust
+how confident the model sounds. The stand-aside check still compares the
+margin with the model's **own original** probability, because that is the
+scale the margin was learned on.
+
+### What this means for you
+
+- **Stand aside** on the Trade page is a decision, not a malfunction. It
+  means this hour sits where the model learned its calls don't pay.
+- If the Loop page shows the model never abstains, it usually means no
+  quiet band would have made the remaining calls pay. In other words,
+  there is no edge yet to pay with.
+- Apply the same discipline to yourself: don't filter your own backtest
+  down to the few setups that happened to work.
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/honest-win-rates",
+        module_id="keeping-honest",
+        order_in_module=3,
+        title="Honest win rates: overlap, sample size, and the truth emerging",
+        summary=(
+            "Why one market day can be counted 24 times, why 30 independent results is the bare "
+            "minimum, and why a falling win rate is often just the truth showing up."
+        ),
+        est_minutes=9,
+        key_concepts=(
+            "overlapping windows",
+            "independent windows",
+            "sample size",
+            "confidence interval",
+            "regression to the mean",
+        ),
+        figures=(
+            Figure(
+                key="overlapping-windows",
+                caption=(
+                    "Hourly calls on a 24-hour horizon share 23 of their 24 hours. Only calls "
+                    "whose windows don't touch count as separate results."
+                ),
+            ),
+            Figure(
+                key="interval-shrink",
+                caption=(
+                    "The same 59.5% win rate: with few results the plausible range is huge. "
+                    "It clears breakeven only after about 161 independent results."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "The 24-hour forecast made about 120 calls this week (5 trading days). "
+                    "Roughly how many independent results does the week add?"
+                ),
+                options=(
+                    "About 120, one per call",
+                    "About 5, roughly one per trading day",
+                    "About 24, one per hour of the day",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Each call covers the next 24 hours, so calls made within the same day "
+                    "share almost all their market time. Counted honestly, that is about one "
+                    "independent result per trading day."
+                ),
+            ),
+            QuizQuestion(
+                prompt="A forecast is right on 7 of 8 independent windows. What can you conclude?",
+                options=(
+                    "It has a strong edge",
+                    "It is overfitted",
+                    "Nothing yet: below 30 independent results no verdict is possible",
+                ),
+                correct_index=2,
+                explanation=(
+                    "Streaks like that happen by luck all the time. Below 30 independent "
+                    "results the app shows no win rate at all, only progress toward a first "
+                    "verdict."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "Win rate 59.5% on 79 independent windows, 95% range 48.5% to 69.6%, "
+                    "breakeven 51.77%. Is the edge proven?"
+                ),
+                options=(
+                    "No, the range still includes breakeven, so it can't be told apart from"
+                    " a model that only covers its costs",
+                    "Yes, 59.5% is above 51.77%",
+                    "Yes, because 79 is more than 30",
+                ),
+                correct_index=0,
+                explanation=(
+                    "Thirty is the minimum before any verdict, not proof. The range of "
+                    "plausible true win rates still reaches below breakeven, so the honest "
+                    "verdict is 'not yet distinguishable'."
+                ),
+            ),
+        ),
+        body_md="""
+A win rate is the most persuasive number in trading and one of the easiest
+to get wrong. Three problems, and how the mentor deals with each.
+
+---
+
+## Problem 1: one market day counted 24 times
+
+The 24-hour forecast is made **every hour**, and each one asks where price
+will be 24 hours later. The 09:00 call covers 09:00 to 09:00 the next day.
+The 10:00 call covers 10:00 to 10:00. They share **23 of their 24 hours**.
+
+So if EUR/USD rallies 80 pips on Tuesday, every "down" call made on Monday
+is wrong *together*. Counting them as 20 separate failures counts one
+market event 20 times.
+
+**A real example (July 2026).** The Loop page once showed the model's
+recent win rate at **11%**. It looked like a collapse. In fact it was a
+single short stance losing to a two-day EUR/USD rally, counted about 18
+times. Counted honestly, as one stance and one result, the win rate over
+the same stretch was **56%**: coin-flip territory, neither a collapse nor
+genius.
+
+**The fix: independent windows.** Starting from the newest call and
+walking back, the system keeps a call only if its 24-hour window ends
+before the previously kept call began. Every kept result covers its own
+stretch of market time, which works out at roughly **one independent
+result per trading day** on the 24-hour forecast and fewer on the 5-day
+one. The same rule is used everywhere a result is counted: the headline
+win rate, the drift watch, live recalibration, the strategy lab's trades,
+and the move-size estimate behind the breakeven.
+
+## Problem 2: a small sample says nothing
+
+Five right out of five sounds like a great model. But a fair coin lands
+heads five times in a row about **once in every 32 tries**. Production hit
+exactly this once: after collapsing the overlap, the sample fell to five
+results, all correct, and the old verdict announced a real edge.
+
+So there is now a **30-result floor**. Below 30 independent results
+nothing is ever called significant, whatever it looks like, and the Loop
+page shows "—" with "N / 30 toward a first verdict" instead of a win rate.
+(It once printed "25%" from just four windows on the 5-day forecast, which
+read as a crisis and meant nothing.)
+
+And 30 is a floor, not proof. Every win rate also comes with a **95%
+range**: the band where the true win rate plausibly sits, given how many
+results there are. A thin edge needs far more than 30 results before that
+band lifts clear of breakeven.
+
+**Mid-October 2026, the 24-hour forecast:** 79 independent windows, 59.5%
+right. The 95% range is **48.5% to 69.6%**. That range still includes the
+51.77% breakeven, so the honest verdict is *"not yet distinguishable from
+breakeven."* At this rate it needs about **161** independent windows to
+tell, which is several more months of trading days.
+
+## Problem 3: a falling win rate is often the truth emerging
+
+Early numbers are noisy, and big early numbers tend to drift back toward
+the true rate as results pile up. Statisticians call this **regression to
+the mean**.
+
+In August the owner noticed the win rate had "dropped" and asked for an
+investigation. It was traced end to end: every graded result was correct,
+the new price feed had introduced no errors, and there was **no bug**. The
+24-hour independent win rate had simply moved from **56% on 9 results to
+48% on 27**, toward the roughly 50% you would expect if there is no edge.
+The earlier, happier number was the misleading one.
+
+It works in reverse too. In October, after fixing which price bar each
+call is graded against (lesson 6), the 24-hour win rate on the *same* 79
+windows went from 53.2% to 59.5%. That is not new skill. It is the same
+calls, graded correctly, and the range still includes breakeven.
+
+### What this means for you
+
+- Read the **independent** win rate, next to the **breakeven**, and read
+  the verdict sentence under it. That sentence is the result; the
+  percentage alone is not.
+- A drop is not automatically a problem, and a rise is not automatically
+  an edge. Ask two questions: how many independent results, and does the
+  range clear breakeven?
+- The raw signal count and equity curve sit in a collapsed "not a track
+  record" section on the Loop page. An equity curve of overlapping signals
+  is the most persuasive and least informative chart in trading.
+- Apply it to yourself: your last eight trades tell you almost nothing
+  about your edge.
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/new-data-sources",
+        module_id="keeping-honest",
+        order_in_module=4,
+        title="New data: a better price feed, and who is positioned where",
+        summary=(
+            "Twelve Data now supplies prices with Yahoo as backup, and the weekly COT report adds "
+            "a genuinely different clue, dated the day it was published."
+        ),
+        est_minutes=7,
+        key_concepts=(
+            "Twelve Data",
+            "failover",
+            "COT report",
+            "speculative positioning",
+            "publication lag",
+            "lookahead bias",
+        ),
+        figures=(
+            Figure(
+                key="cot-publication-lag",
+                caption=(
+                    "COT describes Tuesday's positions but is published on Friday. The model "
+                    "may only use it from Saturday on."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A COT report shows large speculators' positions as of Tuesday. From when "
+                    "may a model use it?"
+                ),
+                options=(
+                    "From Tuesday, the date it describes",
+                    "From Friday morning",
+                    "From Saturday, after it has actually been published",
+                ),
+                correct_index=2,
+                explanation=(
+                    "It is released Friday afternoon New York time. Using it any earlier would "
+                    "let a backtest see information nobody had yet, which is lookahead bias."
+                ),
+            ),
+            QuizQuestion(
+                prompt="Twelve Data returns an error at 14:02. What happens?",
+                options=(
+                    "The system asks Yahoo instead and carries on as normal",
+                    "The hour's prediction fails",
+                    "Everything waits until Twelve Data recovers",
+                ),
+                correct_index=0,
+                explanation=(
+                    "The price feed is a failover chain. If the first source errors or "
+                    "returns nothing, the next one answers, and nothing downstream needs to "
+                    "know which source it was."
+                ),
+            ),
+        ),
+        body_md="""
+Two changes to what the system reads, one about reliability and one about
+looking at the market from a genuinely different angle.
+
+---
+
+## Prices: Twelve Data first, Yahoo as backup
+
+Since mid-July 2026 **Twelve Data** has been the primary source of
+EUR/USD hourly and daily bars, with **Yahoo Finance** as the backup. The
+mechanism is called **failover**: the system asks the first source, and if
+it errors or returns nothing, it asks the next. The rest of the system
+never needs to know which one answered.
+
+Why Twelve Data first: it delivers bars stamped cleanly on the hour.
+Yahoo labels its live hourly bar with the time of the last trade, such as
+10:29:05, which once put 275 phantom rows between real hours (lesson 6
+tells that story).
+
+An honest caveat: the older years of daily history come from Yahoo, whose
+definition of where a "day" starts differs slightly from Twelve Data's.
+The daily series is therefore a mix of two conventions. It is known,
+flagged, and waiting on a deliberate decision rather than a quiet patch.
+
+## COT: who is positioned where
+
+Every week the US futures regulator, the **CFTC**, publishes the
+**Commitments of Traders** report: how different groups of traders are
+positioned in futures markets, including euro futures. The interesting
+group is **large speculators** (hedge funds and other big directional
+traders).
+
+The mentor turns it into two clues:
+
+- **How crowded**: speculators' net position as a share of all open
+  contracts.
+- **How it shifted**: the change from last week.
+
+Why bother? Every other input the model has is some version of price, or
+something that is already priced in: indicators, rates, the dollar index.
+COT is different in kind. It is *who holds what*, not *what price did*.
+Trading folklore says extreme crowding tends to come before reversals,
+because the crowd runs out of new buyers. Whether that helps predict
+EUR/USD is exactly what the system tests.
+
+## The lookahead trap, and how it is avoided
+
+The report shows positions **as of Tuesday**, but it is not published
+until **Friday at 3:30 pm New York time**. If you file it under Tuesday, a
+backtest gets to use it on Wednesday, Thursday and Friday, when nobody
+in the real world had it yet. The backtest looks great and live trading
+disappoints. This is the classic COT mistake.
+
+The mentor dates every report by its **publication**: Tuesday plus four
+days, which is the Saturday after release. Neither the hourly nor the
+daily model can peek at it on Friday. That costs a day of freshness on a
+signal that only changes weekly; safety is the cheaper side of the trade.
+A test proves the value is invisible the day before it is released.
+
+## What it found, honestly
+
+The system loaded **1,448 weeks** of history, back to 1986. When the first
+model was trained with COT, the measured importance of the positioning
+clues came out at **0.00000**: on the evidence so far, positioning does
+not help predict EUR/USD direction. That is an honest and fairly expected
+result. The clues stay wired in, and the promotion gate re-judges them on
+every retrain, so if they ever start to help in some market regime the
+system can find out. If the CFTC site is unreachable, the clue is simply
+missing that day; nothing else stops.
+
+### What this means for you
+
+- If a price differs from your broker's by a fraction of a pip, that is
+  normal: feeds differ slightly.
+- If you read COT positioning on a charting site, remember it is already
+  three days old the moment it is published.
+- Any backtest that uses data with a publication delay (economic
+  releases, COT, company results) must date it by **release**, not by the
+  period it describes.
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/learning-from-live-mistakes",
+        module_id="keeping-honest",
+        order_in_module=5,
+        title="Learning from its own live mistakes",
+        summary=(
+            "How the champion's real results correct how sure it sounds, how challengers are "
+            "judged fairly, and when a champion loses its job."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "live recalibration",
+            "overconfidence",
+            "held-out check",
+            "champion and challenger",
+            "demotion",
+        ),
+        figures=(
+            Figure(
+                key="live-recalibration",
+                caption=(
+                    "If live results show '62%' calls landing nearer 55%, the correction pulls "
+                    "stated confidence toward 50/50. It never pushes a call past it."
+                ),
+            ),
+            Figure(
+                key="champion-lifecycle",
+                caption=(
+                    "Challengers race the champion on the same fresh data. Three failed "
+                    "re-checks in a row and the baseline rule takes over."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Over 40 independent live results, the champion's 65% calls were right "
+                    "about 55% of the time. What can live recalibration do?"
+                ),
+                options=(
+                    "Pull its stated confidence toward 50%, if that holds up on the newer half",
+                    "Flip some of its calls to the other direction",
+                    "Retrain the model's features on those 40 results",
+                ),
+                correct_index=0,
+                explanation=(
+                    "The correction only stretches or shrinks the distance from 50/50, and it "
+                    "ships only if it improves the score on results it was not fitted on. "
+                    "Forty results are far too few to re-decide features."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "The champion fails its re-check on one retrain, passes the next, then "
+                    "fails again. Is it demoted?"
+                ),
+                options=(
+                    "Yes, two failures are enough",
+                    "No: it takes three failures in a row, and a pass resets the count",
+                    "Yes, any failure demotes it",
+                ),
+                correct_index=1,
+                explanation=(
+                    "One rough week shouldn't dethrone a model, so a single pass resets the "
+                    "count. Only three consecutive failures hand the job to the baseline rule."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "Why is the challenger compared with the champion re-scored on the same "
+                    "fresh data, rather than with the champion's old stored score?"
+                ),
+                options=(
+                    "It saves computing time",
+                    "Old scores are deleted after a week",
+                    "Some market periods are easier to predict than others; only the same "
+                    "data makes it a fair race",
+                ),
+                correct_index=2,
+                explanation=(
+                    "A score earned in a calm period isn't comparable with one earned in a "
+                    "wild period. Re-scoring both models on the same window removes that "
+                    "unfairness."
+                ),
+            ),
+        ),
+        body_md="""
+The lesson *"The system that grades itself"* described the basic loop:
+predict, wait, grade, retrain, keep the better model. Since then the live
+results do more than trigger retrains. Three pieces.
+
+---
+
+## Part 1: correcting how sure it sounds
+
+The model's "60% up" was learned from history. Live trading is a later,
+different market. If, over its live record, the model's 60% calls have
+really been landing 53% of the time, the honest thing is to *say* 53%.
+
+**Why only confidence, and nothing else?** The live record grows by
+roughly one independent result per trading day. Thirty results cannot
+support re-deciding which clues matter; that would chase noise straight
+into the model. They *can* support one number: how far to stretch or
+shrink the model's distance from 50/50.
+
+**How it works.** The correction is a single **stretch factor**:
+
+- below 1: the model has been overconfident, so its calls are pulled
+  toward 50%;
+- exactly 1: leave it alone;
+- above 1: it has been underconfident, so its calls are pushed outward.
+
+50% always stays 50%, and a call can never change sides: a 55% "up" can
+become 52% "up", never 48%. It corrects how sure the model sounds, not
+what it thinks.
+
+**The safety rules**, the same discipline as everywhere else:
+
+1. Only **independent** live results of the **current champion** since it
+   was promoted count. Calls made by the baseline rule are excluded.
+2. **30-result floor.** Below 30, no correction is fitted at all.
+3. **Choose on one half, check on the other.** The stretch is chosen on
+   the older half of the record and checked on the newer half, in time
+   order.
+4. **It must clearly help.** It ships only if it improves the Brier score
+   on the newer half by at least 0.002. "No correction" wins every tie.
+5. **It looks rarely.** The check runs once per retrain, not every hour,
+   because repeated peeking is another way to fool yourself.
+
+**An example.** Say there are 40 independent live results. On the older
+20, calls the model gave around 62% were landing nearer 55%. The best
+stretch for those is 0.6, which turns 62% into about 57%. Then comes the
+real test: on the newer 20, does 57% score better than 62% by at least
+0.002? Only if it does is the correction applied.
+
+**Where it stands (mid-October 2026):** the 24-hour champion has 7 of the
+30 results it needs, so its first check is expected around late November.
+One honest limitation: the correction belongs to one champion. If
+champions were replaced every week or two, none would ever reach 30 and the
+correction would never apply. That is deliberate: a new model starts on its
+own calibration instead of inheriting another model's mistakes. The
+model's original probability is always stored alongside, so corrections
+never pile on top of each other.
+
+---
+
+## Part 2: champion and challenger, judged fairly
+
+Each retrain (weekly, or early if the drift watch fires) produces
+challengers. To take over, a challenger must clear the three floors from
+lesson 1 and then **beat the champion by at least 0.002 Brier, with both
+scored on the same fresh window**. The champion's old score, earned in a
+different market period, doesn't count. Some periods are simply easier to
+predict than others, and only the same data makes it a fair race.
+
+A real decision from the weekly report: *"Challenger (technical) Brier
+0.2624 did not beat champion 0.2372 (re-graded on the same fresh window)…
+champion kept."* "Champion kept" is the most common outcome, and a healthy
+one.
+
+## Part 3: demotion after three strikes
+
+The champion is re-checked against the floors at every retrain. If it
+fails **three retrains in a row**, it loses the job and the transparent
+**baseline rule** takes over until a model genuinely earns it. A single
+pass resets the count, so one rough week can't dethrone anyone and the
+crown doesn't flip back and forth. The weekly report shows each forecast's
+current count of failed re-checks.
+
+### What this means for you
+
+- Over time the confidence numbers should become more *trustworthy*, not
+  more exciting. When the correction does kick in, it will most likely
+  pull calls toward 50%.
+- "Champion kept" after a retrain is good news: nothing better turned up,
+  and nothing worse was installed.
+- When a forecast is run by the baseline rule, treat its calls as
+  low-information.
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/finished-bars",
+        module_id="keeping-honest",
+        order_in_module=6,
+        title="Clean prices: storing and grading only finished bars",
+        summary=(
+            "For three months each hourly bar was saved minutes after it opened. What went wrong, "
+            "how it was repaired, and why every call is now graded on its own finished bar."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "price bar",
+            "forming vs finished",
+            "data integrity",
+            "revision log",
+            "grading",
+        ),
+        figures=(
+            Figure(
+                key="forming-vs-finished",
+                caption=(
+                    "Saved eight minutes in, a bar holds a fraction of the hour's real range. "
+                    "Now a bar is stored only once it has finished."
+                ),
+            ),
+            Figure(
+                key="grade-own-bar",
+                caption=(
+                    "The old grader used the bar before the horizon. Now a call waits for the "
+                    "finished bar that contains its horizon."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="The system saves the 14:00 hourly bar at 14:08. What's wrong with that?",
+                options=(
+                    "Nothing, as long as the open price is right",
+                    "The timezone is wrong",
+                    "It holds only 8 minutes of a 60-minute bar, so its high, low and close"
+                    " are not final",
+                ),
+                correct_index=2,
+                explanation=(
+                    "A bar is only final when its period ends. Saved early, its high and low "
+                    "miss most of the hour and its close is just the price at 14:08."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "After the re-grade, the 24-hour win rate on the same 79 windows rose from "
+                    "53.2% to 59.5%. What does that show?"
+                ),
+                options=(
+                    "The model got better",
+                    "The same calls were graded against the correct bars: a measurement fix, "
+                    "not new skill",
+                    "The re-grade was rigged",
+                ),
+                correct_index=1,
+                explanation=(
+                    "No forecast changed, only the price each one was checked against. The "
+                    "range of plausible win rates still includes breakeven, so nothing is "
+                    "proven either way."
+                ),
+            ),
+        ),
+        body_md="""
+This lesson is about a bug, told plainly, because how a system handles its
+own mistakes says more about it than any feature does.
+
+---
+
+## What a bar is
+
+An hourly **bar** (or candle) records four prices for one hour: open,
+high, low and close. It is only final when the hour is over. Until then it
+is still **forming**: the high and low can still stretch, and the close is
+just the latest price.
+
+## What went wrong
+
+From mid-July to 13 October 2026 the system fetched each bar a few minutes
+after it opened, saved it, and never updated it. The database was told to
+ignore any later version of a row it already had, so the finished bar
+fetched an hour later was thrown away.
+
+The audit on 13 October found:
+
+- **2,310 hourly bars** (every one since 16 July) and **86 daily bars**
+  had been saved before they finished, most within ten minutes of opening;
+- the typical saved hourly bar held only **23%** of the hour's real
+  high-to-low range;
+- **774** saved bars were more than 5 pips off; the worst, 16 September at
+  18:00, had a close **66.5 pips** wrong;
+- **275** extra rows from Yahoo were stamped between hours (10:29:05) and
+  didn't belong at all.
+
+What that touched, honestly: models trained since July learned partly from
+these bars, backtests of recent months saw prices that never closed, and
+grading used them.
+
+## How it was fixed
+
+1. **Only finished bars are stored**, stamped exactly on the hour. The
+   fetch now runs two minutes after each hour (and at 00:02 UTC for daily
+   bars).
+2. **A bar saved too early is "provisional"**, and the next fetch replaces
+   it with the finished version. A finished bar is never overwritten:
+   feeds quietly revise by fractions of a pip, and history that shifts every
+   time you read it is history nothing can be tested against.
+3. **Every correction is logged** with the old values, and any batch can be
+   undone with one command. The production repair (approved by the owner)
+   corrected 1,796 hourly bars, removed the 275 misplaced rows, and
+   corrected 26 daily bars.
+
+A sign the repair worked: one hour's close and the next hour's open should
+be nearly the same price. The average gap between them since July fell
+from **3.65 pips to 0.40 pips**.
+
+What was **not** rewritten: each prediction keeps the price it was made
+from. That is the record of what the model actually saw at the time.
+
+## Grading each call on its own finished bar
+
+A second bug surfaced the same day. The grader, which runs every 15
+minutes, used the nearest *earlier* bar whenever the bar at the call's
+horizon wasn't stored yet. So **2,134 of 2,229** hourly calls and **105 of
+106** daily calls were graded one bar early, on a bar that was itself only
+a few minutes old.
+
+Now a call is graded on the **finished bar that contains its horizon** (or
+the first bar after it, if the market was closed), and it waits until that
+bar has finished. With the owner's approval, past calls were re-graded the
+same way, reversibly: only the outcome price and the up/down result
+changed, never the forecast, its probability, or which calls exist.
+
+The effect on the 24-hour forecast: the independent win rate on the same
+79 windows moved from **53.2% to 59.5%**. Two cautions. It is the same
+calls graded correctly, not new evidence of skill. And the range of
+plausible win rates still includes breakeven, so nothing is proven.
+
+A related false alarm was fixed too. The report used to flag a call as
+overdue the minute its horizon passed, though its bar can't exist until an
+hour later. Now a call only counts as late once its bar should have
+finished, been fetched and been graded.
+
+### What this means for you
+
+- Charts covering July to October now show the corrected prices.
+- The next retrain learns from the corrected data automatically.
+- A rule for any data you use: a candle isn't real until it has closed.
+  Indicators calculated on a forming candle change ("repaint") as the
+  candle grows.
+""".strip(),
+    ),
+)
+
+_HONEST_LAB = (
+    Lesson(
+        slug="keeping-honest/strategy-lab-testing",
+        module_id="keeping-honest",
+        order_in_module=7,
+        title="The strategy lab: testing a trading plan properly",
+        summary=(
+            "A trading idea becomes a complete plan, then gets tested the way a careful trader "
+            "would: walk-forward, after costs, with an untouched final exam."
+        ),
+        est_minutes=9,
+        key_concepts=(
+            "trading plan",
+            "walk-forward testing",
+            "held-out period",
+            "R-multiple",
+            "transaction costs",
+        ),
+        figures=(
+            Figure(
+                key="plan-anatomy",
+                caption=(
+                    "A plan the lab can test answers six questions: why, entry, stop, target, "
+                    "time limit and size."
+                ),
+            ),
+            Figure(
+                key="walk-forward-holdout",
+                caption=(
+                    "Choose settings on the past, trade the next block, repeat. The held-out "
+                    "stretch at the end is used exactly once."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "Why does the lab choose each block's settings using only the blocks before it?"
+                ),
+                options=(
+                    "It runs faster",
+                    "That is the only choice a trader could have made at the time; using later "
+                    "data would be peeking at the future",
+                    "Older data is more accurate",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Walk-forward testing replays history the way it was lived: decide with "
+                    "what you knew, then trade what came next."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "A plan averaged +0.3R per trade in development but lost money on the "
+                    "held-out period. Does it pass?"
+                ),
+                options=(
+                    "No: the held-out period must be positive on its own, with at least 10 trades",
+                    "Yes, its development average is positive",
+                    "Yes, as long as it has 30 trades in total",
+                ),
+                correct_index=0,
+                explanation=(
+                    "The held-out period is the final exam. A plan that shines in development "
+                    "and fails the exam is the textbook sign of a setting fitted to the past."
+                ),
+            ),
+        ),
+        body_md="""
+A forecast answers one question: *which way?* Trading needs several more:
+when do I get in, where am I wrong, where do I take profit, how long do I
+give it, and how much do I risk? The **strategy lab** (added in October
+2026, on the **Lab** tab) tests complete trading plans that answer all of
+them, the way a careful professional would.
+
+---
+
+## A plan is six answers
+
+1. **Why might this work?** A plain-language reason, economic or
+   behavioural. An idea that can't state its own reason is usually a
+   pattern found by staring at noise.
+2. **Entry**, for example "buy when the day closes above the highest high
+   of the last 20 days".
+3. **Stop**, either a multiple of the average daily range (ATR) or a
+   structural level such as the far side of a range.
+4. **Target**, as an R-multiple (2R means twice the distance risked).
+5. **Time limit**: get out after so many bars if neither stop nor target
+   is hit.
+6. **Size**, from the app's own risk engine, never more than 2% of the
+   account per trade.
+
+Results are measured in **R** (profit or loss divided by the amount
+risked), so they don't depend on account size.
+
+**Example hypothesis** (the "buy the dip in a trend" idea): *"Inside an
+established trend, a sharp few-day move against it is often just
+profit-taking. Entering on that dip gets a better price than chasing, and
+the trend is the reason to expect a recovery."*
+
+## Realistic fills, real costs
+
+The lab's simulator is deliberately unkind:
+
+- a signal at a bar's close is filled at the **next bar's open**, made
+  worse by half the spread plus slippage;
+- if the market opens beyond the stop or target, the order is cancelled
+  (a trader doesn't chase);
+- if one bar touches both the stop and the target, it assumes the **stop**
+  was hit first;
+- a gap through the stop fills at the open, which is worse than the stop;
+- costs are the same 1.2 pips per round trip the rest of the app charges;
+- only one position at a time, so trades never overlap.
+
+Because costs are already inside every R figure, a plan's breakeven is
+simply **0R** per trade. The **same simulator** later runs paper trading,
+so a paper record is the tested plan meeting the future, not a lookalike.
+
+## Walk-forward: choosing settings the way a real trader would
+
+Each idea comes with a handful of settings to try (a 20-day channel or a
+55-day one, a 2R target or 3R). The cheating way to test is to run every
+setting over all of history and report the best. That only proves the
+best setting fitted the past.
+
+The lab instead cuts the development history into **five blocks**. For
+blocks 2 to 5 in turn, it picks the setting using **only the earlier
+blocks**, then trades that setting through the next block. Trades used to
+choose a setting must have closed before the test block starts. If no
+setting made money in the earlier blocks, the plan doesn't trade the next
+one at all, because a trader wouldn't run a plan that just lost in
+testing. A setting also needs at least 10 trades before it can be chosen.
+
+## The final exam: an untouched held-out period
+
+Everything from **1 January 2024** (for daily ideas) and **1 April 2026**
+(for hourly ideas) is held back. The dates are fixed in the code, so
+nobody can slide them around until a plan looks good. The held-out stretch
+is used **once**: the setting is chosen on all development data, then
+traded through it.
+
+## What it takes to pass
+
+All out-of-sample trades (the walk-forward blocks plus the held-out
+period) are pooled, and every one of these must hold:
+
+- at least **30** trades that don't overlap in time;
+- an average R whose **95% range sits above zero**;
+- a score above **today's bar**, which rises with every idea ever tried
+  (the next lesson);
+- the held-out period **on its own**: at least 10 trades and a positive
+  average.
+
+### What this means for you
+
+- Use the six questions for your own plan. Write the answers down before
+  you place a trade.
+- When someone shows you a backtest, ask four things: was it walk-forward?
+  Was there an untouched held-out period? Were costs included? How many
+  settings were tried before this one?
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/the-rising-bar",
+        module_id="keeping-honest",
+        order_in_module=8,
+        title="Why the bar rises with every idea tried",
+        summary=(
+            "Try enough ideas and one will look brilliant by luck. The lab counts every attempt, "
+            "raises the bar to match, and makes survivors prove themselves on paper. First "
+            "result: 8 ideas, all rejected."
+        ),
+        est_minutes=9,
+        key_concepts=(
+            "multiple testing",
+            "deflated Sharpe ratio",
+            "trial ledger",
+            "paper trading",
+            "promotion and retirement",
+        ),
+        figures=(
+            Figure(
+                key="rising-bar",
+                caption=(
+                    "The best score pure luck produces grows with the number of tries. The "
+                    "lab's bar sits above it; the best idea so far sits far below."
+                ),
+            ),
+            Figure(
+                key="lab-lifecycle",
+                caption=(
+                    "Rejected ideas never trade. Survivors paper-trade, and earn "
+                    "'recommended' only on a live record."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="Why does the bar rise with every idea tested, even the ones that failed?",
+                options=(
+                    "To discourage people from testing ideas",
+                    "More tries means a higher best score from luck alone, and forgetting "
+                    "failures makes the survivors look special",
+                    "Old ideas go stale",
+                ),
+                correct_index=1,
+                explanation=(
+                    "If 74 settings have been tried, the best of them would look good even "
+                    "if none had an edge. Counting every try is what keeps the winner honest."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "'Buy the dip in a trend' averaged +0.17R on its held-out trades. Why was it "
+                    "still rejected?"
+                ),
+                options=(
+                    "Its held-out result was negative",
+                    "It had fewer than 10 trades",
+                    "Its overall score (about 1.0) was far below the bar (about 4.4) set by"
+                    " 74 trials",
+                ),
+                correct_index=2,
+                explanation=(
+                    "A small positive average is exactly what luck produces when you try many "
+                    "things. Against a bar adjusted for 74 trials, it is nowhere near proven."
+                ),
+            ),
+            QuizQuestion(
+                prompt="Why does paper trading only consider promotion every 30 trades?",
+                options=(
+                    "Checking after every trade and stopping at the first pass would find "
+                    "edges in pure noise",
+                    "To save database space",
+                    "The broker only reports every 30 trades",
+                ),
+                correct_index=0,
+                explanation=(
+                    "Each look is another chance for luck to cross the line. Rationing the "
+                    "looks, and counting every one of them, keeps the bar meaningful."
+                ),
+            ),
+        ),
+        body_md="""
+## The problem: luck scales with tries
+
+Ask 20 people to flip a coin ten times and someone will get eight heads.
+That person isn't skilled; there were just 20 of them. Testing trading
+ideas works the same way. Try 74 settings on the same history and the best
+one will look good **even if none of them has any edge**.
+
+This isn't a risk to manage. With enough tries it is a certainty, and it
+has to be corrected for. Statisticians call it the **multiple-testing
+problem**.
+
+## The fix: count every try, and raise the bar to match
+
+**The trial ledger.** Every setting the lab has ever tested is written to
+an append-only ledger, whether it was chosen or not and whether it passed
+or not. Nothing is ever deleted from it. Quietly forgetting the failures is
+the classic way to make a survivor look special.
+
+**The score.** Each idea gets a score: its average R, divided by how much
+its results vary, times the square root of the number of trades. Roughly,
+it measures how far above zero the average sits compared with the noise.
+For a single test, a score around 2 is the usual line for "probably not
+luck".
+
+**The bar.** Across many tries, the *best* score pure luck produces climbs:
+about **2.4 for 70 tries** and about **3.0 for 500**. The lab computes that
+expected best-of-luck score for every trial ever recorded, raises it
+further when the trials disagree with each other more than noise would,
+and then adds the app's usual 95% safety margin. This is the **deflated
+Sharpe ratio** (Bailey and López de Prado, 2014). In mid-October 2026,
+with **74 trials** in the ledger, the bar stood at about **4.4**.
+
+One more safeguard: lopsided results, such as a few huge winners, are only
+ever allowed to make the bar *harder*, never easier.
+
+## The honest first result: 8 ideas, 8 rejections
+
+The starter library has eight well-known ideas, 74 settings in all. Every
+one was rejected:
+
+- **Channel breakout (turtle style), daily:** lost 0.32R per trade on
+  average over 31 out-of-sample trades.
+- **Time-series momentum, daily:** +0.02R over 112 trades, then −0.04R on
+  the held-out period.
+- **Buy the dip in a trend, daily:** the best of the eight. +0.08R over 135
+  trades and +0.17R on 41 held-out trades. Score about **1.0** against a bar
+  of about **4.4**: promising-looking, nowhere near proven.
+- **Volatility squeeze breakout, daily:** only 5 trades in total,
+  averaging −0.59R.
+- **Narrow-range breakout (NR4/NR7), daily:** −0.58R per trade.
+- **Moving-average crossover with a trend filter, daily:** no setting made
+  money in development, so it never traded out of sample.
+- **Range fade, hourly:** −0.07R over 88 trades.
+- **London-open breakout, hourly:** −0.06R over 206 trades. Every setting
+  lost in development, so the held-out period was, by design, never traded.
+
+That is good news about the lab, not bad news. These are popular,
+widely taught ideas, and watching them fail an honest test after costs is
+genuinely valuable. A lab that "found" an edge in half of them would be the
+one to distrust.
+
+## If an idea ever passes: paper trading
+
+Passing the back-test earns an idea the right to be **watched**, nothing
+more. It then paper-trades the live market every hour with the same
+simulator, and nothing ever reaches a broker.
+
+- **Recommended** only at checkpoints, every **30 independent paper
+  trades**, and only if the average R's 95% range is above zero and the
+  score beats a bar that counts every live look by every paper strategy.
+- **Why checkpoints?** Re-testing after every trade and stopping at the
+  first pass is a reliable way to find an edge in noise.
+- **Demoted** if a checkpoint no longer clears the bar, or if its trades
+  since promotion average zero R or worse. It keeps paper trading and can
+  earn the label back later.
+- **Retired** if its live record is significantly negative.
+
+## Who may add ideas
+
+The maintenance agent may add **at most one idea a week**, with at most 8
+settings, a new permanent name and a plain-language reason. It may never
+edit an idea that has already been tested, and never resubmit a rejected
+idea with tweaked settings under a new name, because that is a search for
+a lucky setting disguised as a new idea. Every new idea raises the bar for
+every idea after it, which is exactly why ideas are added sparingly.
+
+### What this means for you
+
+- A **recommended** plan on the Lab page would be rare and earned live.
+  Today there are none, and that is the honest state of things.
+- For your own testing: if you have tried 30 indicator settings, your best
+  one's backtest is inflated. Keep a written list of everything you tried,
+  not just what worked.
+""".strip(),
+    ),
+)
+
+_HONEST_OPS = (
+    Lesson(
+        slug="keeping-honest/running-unattended",
+        module_id="keeping-honest",
+        order_in_module=9,
+        title="Running unattended: reports, alerts and the maintenance agent",
+        summary=(
+            "How the system tells you what it has been doing, in plain words, and how an "
+            "automated maintainer fixes its code one careful change at a time."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "self-report",
+            "Telegram alerts",
+            "maintenance agent",
+            "fix day",
+            "improve day",
+        ),
+        figures=(
+            Figure(
+                key="autonomy-loop",
+                caption=(
+                    "The app reports on itself, the agent reads the report and makes at most "
+                    "one change, and the server decides whether that change ships."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="It's Tuesday and the report is all green. What does the agent do?",
+                options=(
+                    "Looks for something to improve anyway",
+                    "Retrains the models",
+                    "Changes nothing and writes a log entry saying so: doing nothing is a "
+                    "valid run",
+                ),
+                correct_index=2,
+                explanation=(
+                    "Tuesday is a fix day, and there is nothing to fix. Every change carries "
+                    "risk, so an unnecessary one is a cost, not a contribution."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "What does each problem in the self-report carry, so tomorrow's reader can "
+                    "tell an old problem from a new one?"
+                ),
+                options=(
+                    "A stable issue code",
+                    "A random number",
+                    "The time of day it was noticed",
+                ),
+                correct_index=0,
+                explanation=(
+                    "The same problem always gets the same code, so 'still broken since "
+                    "Monday' and 'new today' can be told apart without guesswork."
+                ),
+            ),
+        ),
+        body_md="""
+Trade Mentor is meant to run for months without anyone touching it. That
+takes three layers:
+
+1. **The app looks after its models**: it fetches prices, predicts,
+   grades, retrains, promotes and demotes models, and corrects its own
+   confidence (the earlier lessons in this module).
+2. **A maintenance agent looks after the code.** That's this lesson.
+3. **The server's safety net** decides whether any code change actually
+   goes live. That's the next lesson.
+
+---
+
+## The self-report: the system's own weekly check-up
+
+Every **Saturday at 06:00 UTC** the system writes a report on itself. A
+live version is always available at the public address
+`/api/v1/health/report`. It contains only summary numbers, never secrets.
+It covers:
+
+- **health checks**: is the price feed fresh, are predictions being graded,
+  is retraining happening, is alerting set up?
+- each forecast's **independent live record against its own breakeven**,
+  with the plain verdict sentence;
+- week-on-week accuracy, and what each retrain decided and why;
+- progress toward the first live confidence correction;
+- jobs that are failing and warnings that keep recurring;
+- the strategy lab's status;
+- what the server did with the latest code changes.
+
+Every problem gets a **stable code**, so whoever reads it next, human or
+agent, can tell "still broken since Monday" from "new today". The report
+opens with a one-line headline; on a good week it reads *"Everything ran
+and nothing needs attention."*
+
+## Telegram alerts in plain words
+
+You get a short Telegram summary of the weekly report, plus an alert
+whenever something notable happens. In October 2026 every message was
+rewritten in three parts:
+
+1. a **headline** saying what happened;
+2. a line or two of **why**, in everyday words;
+3. a final 👉 line saying **what, if anything, you should do**.
+
+Forecast alerts give the chance of the predicted direction, so a 31%
+chance of "up" reads as a **69% chance of down**, with the horizon in hours
+or trading days. No error scores, codes, commit numbers or file paths.
+
+## The daily maintenance agent
+
+A scheduled AI agent runs once a day at **06:30 UTC**. It reads the
+report, its own log of past runs, and the code.
+
+- **Fix days (Sunday to Friday):** it only fixes what the report says is
+  broken, in priority order: failures first, then failing jobs and
+  recurring errors, then warnings. If nothing is broken, it changes
+  nothing.
+- **Improve day (Saturday):** it may make **one** small, evidence-backed
+  improvement, such as a test for untested code, a sturdier data
+  connection, clearer wording, or a new *candidate* clue for the models
+  (the promotion gate, not the agent, decides whether it is ever used). At
+  most once a week, that improvement may be one new strategy-lab idea.
+
+Its rules include:
+
+- **one theme per run**, and every change must point at evidence: an issue
+  in the report, a failing check, a test that exposes a bug. "Seemed
+  cleaner" doesn't count;
+- **all checks must pass** before it pushes anything, and no test may be
+  skipped, deleted or watered down;
+- **never** place trades or talk to a broker; never handle passwords or
+  keys; never delete data;
+- **never loosen an honesty threshold** (the next lesson explains why);
+- if the server rolled back its last change, find out why and fix or
+  revert it. **Never push the same change again.**
+- **always write the log**: an entry in `ops/autonomy/LOG.md`, newest
+  first, even when it changed nothing.
+
+A real entry from 14 October: a fix day, report all green, so *"no code
+change"*. It also noted that the 24-hour win rate's jump that morning came
+from the re-grade (lesson 6), *"not new evidence of skill"*. That's the
+tone it is held to.
+
+### What this means for you
+
+- Your weekly check can be one message: the Saturday summary. If its
+  headline says nothing needs attention, nothing does.
+- If an alert's 👉 line says no action is needed, you can believe it.
+- To see what changed and why, read `ops/autonomy/LOG.md`.
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/the-safety-net",
+        module_id="keeping-honest",
+        order_in_module=10,
+        title="The safety net: auto-deploy, rollback and protected thresholds",
+        summary=(
+            "The server checks every change before and after it goes live, undoes bad ones by "
+            "itself, and refuses any attempt to lower the honesty bars."
+        ),
+        est_minutes=8,
+        key_concepts=(
+            "auto-deploy",
+            "rollback",
+            "watchdog",
+            "protected thresholds",
+            "secrets in logs",
+        ),
+        figures=(
+            Figure(
+                key="deploy-gate",
+                caption=(
+                    "Every 10 minutes: refuse protected changes, back up, build, prove it "
+                    "healthy, or roll back. You hear about it either way."
+                ),
+            ),
+            Figure(
+                key="protected-thresholds",
+                caption=(
+                    "The numbers only a human may change: the bars that stop the system "
+                    "flattering itself. Two locks guard them."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt=(
+                    "A change deploys, but the report page doesn't answer within five minutes. "
+                    "What happens?"
+                ),
+                options=(
+                    "The server rolls back to the previous version and tells you on Telegram",
+                    "It stays live until someone notices",
+                    "The server deletes the database and starts again",
+                ),
+                correct_index=0,
+                explanation=(
+                    "A new version has to prove itself healthy. If it can't, the server puts "
+                    "the last good version back by itself and messages you."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "The agent tries to lower the 30-result floor to 15 'to get verdicts "
+                    "sooner'. What happens?"
+                ),
+                options=(
+                    "It deploys like any other change",
+                    "The server refuses it: it is a protected threshold, and lowering it would "
+                    "let noise pass as proof",
+                    "It deploys and is reviewed a week later",
+                ),
+                correct_index=1,
+                explanation=(
+                    "Lowering a bar makes the numbers look better without making anything "
+                    "better. Only a human can change these, deliberately."
+                ),
+            ),
+            QuizQuestion(
+                prompt=(
+                    "Why does the copy of the deploy program that actually runs live outside "
+                    "the code repository?"
+                ),
+                options=(
+                    "It runs faster there",
+                    "GitHub doesn't allow it",
+                    "So a bad change can't disable the very thing that undoes bad changes",
+                ),
+                correct_index=2,
+                explanation=(
+                    "If the safety net could be edited by the changes it guards against, one "
+                    "bad push could switch it off. Keeping it outside the repository prevents "
+                    "that."
+                ),
+            ),
+        ),
+        body_md="""
+An automated maintainer is only safe if something it can't control checks
+its work. That is the server's job.
+
+---
+
+## Auto-deploy, every 10 minutes
+
+A program on the server checks for new code every 10 minutes. When it
+finds some, it:
+
+1. **Refuses** the change if it touches a protected file, changes a
+   protected threshold, adds a skipped test, or deletes a test file.
+2. **Backs up the database** first if the change alters its structure.
+3. **Builds and starts** the new version.
+4. **Demands proof of health**: the health page and the report page must
+   answer within five minutes, and the logs must show no crash once
+   startup has settled.
+5. **Rolls back** to the previous version by itself if any of that fails.
+6. **Tells you on Telegram** in every case, and records the outcome in the
+   self-report so the agent learns what happened to its change (and is
+   forbidden to push the same change again).
+
+Between deploys it acts as a **watchdog**: if the app stops answering for
+about 30 minutes (three checks in a row), it restarts it.
+
+The copy of this program that actually runs is **installed outside the
+code repository**, so a bad change can't disable the thing that undoes bad
+changes. When a human deliberately wants to change something protected,
+they run the deploy by hand on the server with an explicit override. The
+automatic schedule never uses it.
+
+## The protected thresholds, and why they're locked
+
+These are the numbers that stop the system from flattering itself:
+
+- the **promotion margin** (0.002) and the **coin-flip** and
+  **breakeven** floors;
+- the **15% coverage** floor and the **minimum-gain** rules;
+- **demotion after 3** failed re-checks;
+- the **30-result** verdict floor and the **95%** confidence level;
+- the minimum number of windows needed to measure the breakeven;
+- the **cost model**: 0.8-pip spread and 0.2-pip slippage;
+- the **COT publication lag**;
+- the strategy lab's walk-forward blocks, minimum trades, **held-out
+  dates**, 30-trade checkpoints, and the code that applies its bar.
+
+Why lock them? Tell an automated maintainer to "improve the numbers" and
+sooner or later it will discover that lowering a bar improves them. Drop
+the 30-result floor to 10, and a lucky streak gets announced as a proven
+edge. Set the cost to zero, and the breakeven falls to 50%, so the 51%
+model from lesson 1 suddenly "makes money". The dashboard looks better and
+nothing is better.
+
+So the thresholds have **two locks**: a test that fails if any of them
+changes, and the server's tripwire that refuses any change that edits
+them. Only a human can change them, deliberately.
+
+## Keeping secrets out of the logs
+
+A review of the live logs in October found the Twelve Data API key written
+in plain text on every hourly price fetch, and the Telegram bot token on
+every alert. Both services put the key in the web address, and the
+networking library logged every address it called.
+
+The fix had two parts. Routine per-request logging was turned down, and a
+redaction filter now runs over everything that reaches a log, replacing
+any key or token with `***`, including inside error messages. The agent's
+rules forbid it from handling secrets or weakening that filter, and the
+deploy program reads the Telegram credentials from the server's own
+settings without ever printing them.
+
+### What this means for you
+
+- A **"rolled back"** message on Telegram means the safety net worked:
+  the last good version is running.
+- A **"refused"** message means a change tried to touch something only you
+  may change.
+- If you ever change a threshold yourself, ask one question first: does
+  this make the system more honest, or just make its numbers look better?
+""".strip(),
+    ),
+    Lesson(
+        slug="keeping-honest/what-it-can-and-cannot-do",
+        module_id="keeping-honest",
+        order_in_module=11,
+        title="What the mentor can and cannot do, honestly",
+        summary=(
+            "Its real strengths are measuring risk and refusing to fool itself. Its record on "
+            "direction is unproven. How to use it accordingly."
+        ),
+        est_minutes=5,
+        key_concepts=(
+            "proven vs unproven",
+            "volatility forecast",
+            "honesty machinery",
+            "decision support",
+        ),
+        figures=(
+            Figure(
+                key="honest-scorecard",
+                caption=(
+                    "Strong: risk sizing and honesty checks. Unproven: direction. Never "
+                    "offered: guarantees or automatic trading."
+                ),
+            ),
+        ),
+        quiz=(
+            QuizQuestion(
+                prompt="Which part of the system stands on the firmest ground?",
+                options=(
+                    "The 24-hour direction call",
+                    "The volatility forecast and risk sizing, plus the honesty checks",
+                    "The strategy lab's recommended plans",
+                ),
+                correct_index=1,
+                explanation=(
+                    "How far price is likely to move is far more predictable than which way. "
+                    "The direction record is still unproven, and the lab has recommended "
+                    "nothing."
+                ),
+            ),
+            QuizQuestion(
+                prompt="The direction forecast says 62% up. How should you use it?",
+                options=(
+                    "Trade it at maximum size",
+                    "Ignore everything else on the screen",
+                    "As one input: size from your stop, and remember its record isn't proven",
+                ),
+                correct_index=2,
+                explanation=(
+                    "A probability is not a promise, and this one comes from a record that "
+                    "can't yet be told apart from breakeven. The sizing from your stop is "
+                    "the part you can rely on."
+                ),
+            ),
+        ),
+        body_md="""
+After everything in this module, here is the plain summary.
+
+---
+
+## What it does well
+
+- **Measuring risk.** How *far* EUR/USD is likely to move is genuinely
+  more predictable than which *way*: calm tends to follow calm and storms
+  follow storms. The volatility forecast sets the stop distance, which
+  sets the position size and the expected move on the trade ticket, and it
+  has been audited against what price actually did.
+- **Refusing to fool itself.** The cost hurdle, independent windows, the
+  30-result floor, held-out tests, the rising bar in the strategy lab, and
+  thresholds that only a human can change. None of this makes money. It
+  stops you losing money to self-deception, which is the most common way
+  traders lose it.
+- **The risk engine and the journal**, which size every trade from the
+  stop and keep you honest about your own behaviour.
+
+## What is not proven
+
+- **Direction.** In mid-October 2026 the 24-hour champion's live record was
+  79 independent windows with a plausible range that still includes
+  breakeven; it needs about 161 to tell. The 5-day forecast has no trained
+  model that has earned the job, so a simple baseline rule makes its calls.
+- **Trading plans.** The strategy lab has tested 8 ideas and rejected all
+  8. Nothing is recommended.
+- **Positioning data.** COT has so far shown no measurable help.
+
+## What it will never do
+
+- Place a trade or connect to a broker. It advises; you act.
+- Promise returns. "62% up" means *probably*, under the conditions it was
+  measured in, never *certainly*.
+
+### What this means for you
+
+- Treat the direction forecast as **one input**, never the only reason for
+  a trade. Treat **stand aside** as a good reason not to trade.
+- **Size every trade from the stop** with the risk engine. That is the part
+  on the firmest ground.
+- Read the **verdict sentences**, not single numbers, in the weekly report
+  and on the Loop page.
+- If a forecast's verdict ever says it is **distinguishable from
+  breakeven** after well over a hundred independent windows, that will be
+  real news. Until then, treat its direction as unproven.
+""".strip(),
     ),
 )
 
@@ -4801,6 +6618,16 @@ CATALOG: Final[tuple[Module, ...]] = (
             "Every data source, prediction method, and watchdog the system uses, with diagrams."
         ),
         lessons=_UNDER_THE_HOOD + _UNDER_THE_HOOD_EXT + _UNDER_THE_HOOD_EXT2,
+    ),
+    Module(
+        id="keeping-honest",
+        order=18,
+        title="How the mentor keeps itself honest",
+        summary=(
+            "Everything added since July 2026: the cost hurdle, honest win rates, clean prices, "
+            "the strategy lab, and how the system runs and repairs itself unattended."
+        ),
+        lessons=_HONEST_EVIDENCE + _HONEST_LAB + _HONEST_OPS,
     ),
 )
 
