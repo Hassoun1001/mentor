@@ -12,15 +12,27 @@ const loginResponse = z.object({
 });
 export type LoginResponse = z.infer<typeof loginResponse>;
 
-const statusResponse = z.object({ auth_enabled: z.boolean() });
+const statusResponse = z.object({
+  auth_enabled: z.boolean(),
+  // Optional so a page loaded before this field existed still parses.
+  remember_me_days: z.number().int().positive().optional(),
+});
 export type StatusResponse = z.infer<typeof statusResponse>;
 
 export async function getAuthStatus(): Promise<StatusResponse> {
   return apiGet('/auth/status', statusResponse);
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  return apiPost('/auth/login', { username, password }, loginResponse);
+export async function login(
+  username: string,
+  password: string,
+  rememberMe: boolean
+): Promise<LoginResponse> {
+  return apiPost(
+    '/auth/login',
+    { username, password, remember_me: rememberMe },
+    loginResponse
+  );
 }
 
 // ---------- me / privileges ----------

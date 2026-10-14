@@ -15,6 +15,8 @@ export function useAuth(): AuthState {
   );
   return {
     hasToken: snapshot,
-    logout: clearToken,
+    // Wrapped: passed straight to onClick, clearToken would get the event
+    // as its reason.
+    logout: () => clearToken('signed-out'),
   };
 }

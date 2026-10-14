@@ -1,4 +1,5 @@
 from mentor.application.auth.service import (
+    JWT_REMEMBER_TTL_MAX_DAYS,
     AuthError,
     AuthService,
     Credentials,
@@ -9,6 +10,7 @@ from mentor.application.auth.service import (
 )
 
 __all__ = [
+    "JWT_REMEMBER_TTL_MAX_DAYS",
     "AuthError",
     "AuthService",
     "Credentials",

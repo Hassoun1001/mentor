@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getAuthStatus, getMe } from './api/auth';
 import { AppShell } from './components/AppShell';
@@ -52,6 +52,16 @@ export function App() {
   // every interactive screen is the login form. The status endpoint is
   // open (whitelisted in the middleware), so this resolves on first load.
   const needsLogin = Boolean(status.data?.auth_enabled && !hasToken);
+
+  // Signed out or expired: drop everything fetched under the old token, so
+  // the next sign-in (possibly another account) starts clean instead of
+  // showing stale data or the 401 errors that ended the session.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (needsLogin) {
+      queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth-status' });
+    }
+  }, [needsLogin, queryClient]);
 
   // Tab privileges: if this account can't see the current page, hop to the
   // first page it can see (settings is always allowed).

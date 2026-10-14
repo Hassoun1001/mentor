@@ -72,19 +72,17 @@ async function apiRequest<TResp>(
   const text = await response.text();
   const json = text ? JSON.parse(text) : null;
 
-  if (response.status === 401) {
-    clearToken();
-    throw new ApiError(
-      401,
-      'unauthorized',
-      typeof json?.message === 'string'
-        ? json.message
-        : 'session expired — sign in again'
-    );
+  // Only the auth middleware's 401 means "your sign-in is no longer valid";
+  // it answers `{error: "unauthorized"}`. Endpoint 401s — a wrong password
+  // at login, a wrong current password on Settings — are ordinary errors
+  // and must not sign the user out.
+  const structured = errorBody.safeParse(json);
+  if (response.status === 401 && structured.success && structured.data.error === 'unauthorized') {
+    clearToken(token ? 'expired' : 'signed-out');
+    throw new ApiError(401, 'unauthorized', 'Your sign-in has expired — please sign in again.');
   }
 
   if (!response.ok) {
-    const structured = errorBody.safeParse(json);
     if (structured.success) {
       throw new ApiError(
         response.status,

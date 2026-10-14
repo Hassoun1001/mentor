@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     auth_password_hash: str = ""
     jwt_secret: SecretStr = SecretStr("please-generate-a-32-byte-secret")
     jwt_ttl_hours: int = 12
+    # "Remember me" sign-ins on the owner's own device. Clamped to
+    # JWT_REMEMBER_TTL_MAX_DAYS in AuthService, so a typo in the env can't
+    # mint a year-long token. Signing out everywhere = rotate jwt_secret.
+    jwt_remember_ttl_days: int = Field(default=30, ge=1)
 
     model_store_dir: str = "models"
 

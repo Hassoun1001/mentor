@@ -123,6 +123,8 @@ def _user_tabs(user: UserORM) -> tuple[str, ...] | None:
 class LoginRequest(BaseModel):
     username: str
     password: str
+    # Long-lived sign-in for the owner's own device; off unless asked for.
+    remember_me: bool = False
 
 
 class LoginResponse(BaseModel):
@@ -136,6 +138,8 @@ class LoginResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     auth_enabled: bool
+    # How long a "Remember me" sign-in lasts, so the login form can say so.
+    remember_me_days: int
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -158,7 +162,9 @@ async def login(
     await session.commit()  # persist the seed row if this was first login
 
     tabs = _user_tabs(user)
-    token = AuthService(settings).issue_token(user.username, is_admin=user.is_admin, tabs=tabs)
+    token = AuthService(settings).issue_token(
+        user.username, is_admin=user.is_admin, tabs=tabs, remember_me=body.remember_me
+    )
     return LoginResponse(
         access_token=token.access_token,
         token_type=token.token_type,
@@ -171,7 +177,10 @@ async def login(
 
 @router.get("/status", response_model=StatusResponse)
 async def status(settings: SettingsDep) -> StatusResponse:
-    return StatusResponse(auth_enabled=bool(settings.auth_password_hash))
+    return StatusResponse(
+        auth_enabled=bool(settings.auth_password_hash),
+        remember_me_days=AuthService(settings).token_lifetime(remember_me=True).days,
+    )
 
 
 class MeResponse(BaseModel):

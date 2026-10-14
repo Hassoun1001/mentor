@@ -9,7 +9,9 @@ The plan calls out exactly this shape in §6.I and §14:
 Implementation:
 
 - Username + password verified against a bcrypt hash from settings.
-- On success we mint a signed JWT (HS256) with a fixed TTL.
+- On success we mint a signed JWT (HS256). Lifetime is `jwt_ttl_hours`,
+  or `jwt_remember_ttl_days` (capped at JWT_REMEMBER_TTL_MAX_DAYS) when the
+  user ticks "Remember me" on their own device.
 - Middleware verifies the JWT on every protected request.
 
 The constant-time string compare on the username is deliberate. A
@@ -33,6 +35,11 @@ from mentor.config import Settings
 
 _ALGO: Final = "HS256"
 _ISSUER: Final = "mentor"
+
+# Hard ceiling on a "Remember me" token, whatever the env says. Tokens are
+# stateless (no server-side revocation list), so this bounds how long a
+# leaked token stays useful; rotating MENTOR_JWT_SECRET signs out everyone.
+JWT_REMEMBER_TTL_MAX_DAYS: Final = 90
 
 
 def _prehash(password: str) -> bytes:
@@ -146,10 +153,11 @@ class AuthService:
         *,
         is_admin: bool = True,
         tabs: tuple[str, ...] | None = None,
+        remember_me: bool = False,
     ) -> IssuedToken:
         """Mint a JWT carrying the user's privileges (tabs=None → all)."""
         now = datetime.now(UTC)
-        expires_at = now + timedelta(hours=self._settings.jwt_ttl_hours)
+        expires_at = now + self.token_lifetime(remember_me=remember_me)
         payload = {
             "iss": _ISSUER,
             "sub": username,
@@ -164,6 +172,12 @@ class AuthService:
             algorithm=_ALGO,
         )
         return IssuedToken(access_token=token, expires_at=expires_at)
+
+    def token_lifetime(self, *, remember_me: bool) -> timedelta:
+        if remember_me:
+            days = min(self._settings.jwt_remember_ttl_days, JWT_REMEMBER_TTL_MAX_DAYS)
+            return timedelta(days=days)
+        return timedelta(hours=self._settings.jwt_ttl_hours)
 
     def _issue_token(self) -> IssuedToken:
         return self.issue_token(self._settings.auth_username, is_admin=True, tabs=None)
