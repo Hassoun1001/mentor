@@ -11,6 +11,26 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-15 — All clear after four owner deploys; no change
+- **Report:** fetched at 06:42 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty. Live is `b295edd` (`deployed`, the
+  owner's "Pin every runtime dependency"), matching `main`; the owner's
+  `9b9383f`, `77971a1` and `4578b2a` also deployed (one earlier attempt of
+  `9b9383f` was `refused_protected` for `ops/autodeploy.sh`, then deployed
+  without it). H1 champion `auto_eurusd_1h_20261006_115233`: 80 independent
+  windows at 58.8% vs 51.77% breakeven, CI [47.8%, 68.9%], not yet
+  significant; weekly Brier 0.223 (prev 0.235). Live calibration 7/30. D1
+  still on the baseline rule (14 windows, 57.1%); challenger hit rate 48.9%
+  misses the 50.71% floor. Strategy lab: 8 evaluated, all rejected; 74
+  trials ever, bar now 4.38.
+- **Decision:** fix day (Thu) with no fail/warn issues, failing jobs,
+  recurring errors or refusals/rollbacks of agent commits, so no code
+  change. The H1 figures are stable since the re-grade: 47/79 → 47/80, one
+  new losing window, no silent jump.
+- **Change:** this log entry only.
+- **Watch next:** first live-calibration check at 30; D1 challenger vs
+  floors; any `recurring` warnings after the dependency pinning deploy.
+
 ## 2026-10-14 — All clear after the owner's re-grade deploy; no change
 - **Report:** fetched at 06:32 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `d94ffc2` (`deployed`, the
