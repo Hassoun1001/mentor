@@ -11,6 +11,28 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-16 — All clear; no change
+- **Report:** fetched at 06:42 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty (none after the dependency-pinning
+  deploy). Live is `4748f6a` (`deployed_docs`, yesterday's log entry),
+  matching `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 81 independent windows at 56.8% vs
+  51.77% breakeven, CI [45.9%, 67.0%], not significant; weekly Brier 0.242
+  (prev 0.245); last challenger (technical) 0.2686 lost to 0.2393. Live
+  calibration 8/30. D1 still on the baseline rule (14 windows, 42.9%, was
+  57.1%); challenger 48.9% still under the 50.71% floor. Strategy lab: 8
+  evaluated, all rejected; 74 trials ever, bar 4.38.
+- **Decision:** fix day (Fri) with nothing at fail/warn, so no code change.
+  H1 moved 47/80 → 46/81, and D1's rate fell with the window count still
+  at 14. Both are expected: `select_independent` walks from the newest
+  call backwards, so each new resolved call can re-pick the whole chain of
+  kept windows. That is overlap collapsing working as designed, not a
+  regression.
+- **Change:** this log entry only.
+- **Watch next:** first live-calibration check at 30 (8 now); D1 challenger
+  vs floors; Saturday is the improve day, and a strategy-lab candidate is
+  still allowed this week.
+
 ## 2026-10-15 — All clear after four owner deploys; no change
 - **Report:** fetched at 06:42 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `b295edd` (`deployed`, the
