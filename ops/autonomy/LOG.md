@@ -11,6 +11,38 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-17 — H1 weekly Brier crossed the alarm; model signal, no code change
+- **Report:** fetched at 06:43 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.271 over 210 calls vs
+  the 0.27 alarm (prev week 0.228; trend 0.200 → 0.217 → 0.223 → 0.242 →
+  0.245 → 0.271 across recent runs). No `failing_jobs`, `recurring` empty.
+  Live is `47644ec` (`deployed_docs`), matching `main`; no refusals or
+  rollbacks. H1 champion `auto_eurusd_1h_20261006_115233`: 82 independent
+  windows at 56.1% vs 51.77% breakeven, CI [45.3%, 66.3%], not
+  significant; `floor_failures` 0; latest retrain kept it (challenger
+  0.2699 vs champion 0.2447 re-graded on the same fresh window). Live
+  calibration 10/30. D1 baseline rule, 14 windows at 50.0%; challenger
+  48.9% still under the 50.71% floor. Strategy lab: 8 evaluated, all
+  rejected; 74 trials ever, bar 4.38.
+- **Decision:** improve day (Sat), but the one warning comes first and it
+  is not a code defect. The weekly Brier is a plain mean over 210 hourly
+  calls whose 24-hour windows overlap — about five independent days — so
+  it is a noisy model-quality signal, and the computation
+  (`_brier(_outcome_pairs(week))` in `self_report.py`) is correct. The
+  system's own guards own model quality: the fresh-window re-check (the
+  champion passed it at 0.2447), demotion after repeated floor failures,
+  and live calibration at 30 outcomes. Raising the 0.27 alarm or touching
+  the model to clear the warning would be lowering a bar. AGENT.md allows
+  a strategy-lab candidate only when no warning needs the run, so none
+  this week; no other improvement either, to keep this week's change
+  attributable.
+- **Change:** this log entry only.
+- **Watch next:** whether `h1.calibration_week` persists next week, and
+  especially whether the champion starts failing its re-check
+  (`h1.champion_failing`) — that is the real signal; live calibration
+  10/30; if the warning clears, a strategy candidate is fair game next
+  Saturday.
+
 ## 2026-10-16 — All clear; no change
 - **Report:** fetched at 06:42 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty (none after the dependency-pinning
