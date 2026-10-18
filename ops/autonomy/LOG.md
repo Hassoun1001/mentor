@@ -11,6 +11,26 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-18 — H1 calibration warning cleared; all clear, no change
+- **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty. Live is `9e49c52` (`deployed_docs`,
+  yesterday's log entry), matching `main`; no refusals or rollbacks. H1
+  champion `auto_eurusd_1h_20261006_115233`: 83 independent windows at
+  57.8% vs 51.77% breakeven, CI [47.1%, 67.9%], not significant;
+  `floor_failures` 0; weekly Brier 0.235 over 263 calls (prev 0.223), back
+  under the 0.27 alarm, so `h1.calibration_week` cleared on its own. Live
+  calibration 10/30. D1 baseline rule, 14 windows at 50.0%; challenger
+  48.9% still under the 50.71% floor. Strategy lab: 8 evaluated, all
+  rejected; 74 trials ever, bar 4.38.
+- **Decision:** fix day (Sun) with no fail/warn issues, failing jobs,
+  recurring errors or refusals/rollbacks, so no code change. Yesterday's
+  call holds: the Brier spike was noise over overlapping windows, not a
+  defect.
+- **Change:** this log entry only.
+- **Watch next:** `h1.champion_failing` or a returning
+  `h1.calibration_week`; live calibration 10/30; next Saturday (a new
+  calendar week) a strategy-lab candidate is allowed if nothing outranks it.
+
 ## 2026-10-17 — H1 weekly Brier crossed the alarm; model signal, no code change
 - **Report:** fetched at 06:43 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — H1 weekly Brier 0.271 over 210 calls vs
