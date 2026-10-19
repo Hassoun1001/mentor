@@ -11,6 +11,24 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-19 — All clear; no change
+- **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty. Live is `11cf92a` (`deployed_docs`,
+  yesterday's log entry), matching `main`; no refusals or rollbacks. H1
+  champion `auto_eurusd_1h_20261006_115233`: 84 independent windows at
+  58.3% vs 51.77% breakeven, CI [47.7%, 68.3%], not significant;
+  `floor_failures` 0; weekly Brier 0.225 over 263 calls (prev 0.228);
+  latest retrain kept the champion (challenger 0.3042 vs 0.2452). Live
+  calibration 11/30. D1 baseline rule, 14 windows at 50.0%; challenger
+  48.9% still under the 50.71% floor. Strategy lab: 74 trials ever, bar
+  4.38, no `strategies.*` issues.
+- **Decision:** fix day (Mon) with no fail/warn issues, failing jobs,
+  recurring errors or refusals/rollbacks, so no code change.
+- **Change:** this log entry only.
+- **Watch next:** `h1.champion_failing` or a returning
+  `h1.calibration_week`; live calibration 11/30; Saturday (new calendar
+  week) a strategy-lab candidate is allowed if nothing outranks it.
+
 ## 2026-10-18 — H1 calibration warning cleared; all clear, no change
 - **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `9e49c52` (`deployed_docs`,
