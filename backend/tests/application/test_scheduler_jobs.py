@@ -10,8 +10,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from mentor.application.scheduler import service
+from mentor.application.scheduler.drift import DriftVerdict
 from mentor.application.scheduler.service import LoopScheduler, _next_boundary
 from mentor.config import Settings
 from mentor.infrastructure.locks import try_exclusive
@@ -100,3 +104,56 @@ async def test_a_lane_already_retraining_is_not_retrained_twice(tmp_path: Path) 
         assert held
         result = await scheduler.run_retrain_once()
     assert result.startswith("skipped: another retrain")
+
+
+def _drifting(scheduler: LoopScheduler, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Make the drift watch fire, with a retrain that records it ran."""
+    repo = MagicMock()
+    repo.list_resolved = AsyncMock(return_value=[])
+    monkeypatch.setattr(service, "PredictionRepository", lambda _session: repo)
+    monkeypatch.setattr(
+        service,
+        "assess_drift",
+        lambda *_a, **_k: DriftVerdict(
+            retrain=True, live_brier=0.3, threshold=0.27, samples=30, reason="drift"
+        ),
+    )
+    ran: list[str] = []
+
+    async def retrain() -> str:
+        ran.append("retrain")
+        return "kept"
+
+    monkeypatch.setattr(scheduler, "run_retrain_once", retrain)
+    return ran
+
+
+async def test_drift_retrain_runs_as_its_own_job_not_inside_resolve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: an hour-long retrain awaited inside the 15-minute resolve
+    job made APScheduler skip resolve ticks ("maximum number of running
+    instances reached"). The resolve pass must hand it off and return."""
+    settings = Settings(loop_enabled=False, db_password="x", model_store_dir=str(tmp_path))
+    scheduler = LoopScheduler(settings=settings, session_factory=MagicMock())
+    ran = _drifting(scheduler, monkeypatch)
+    scheduler._scheduler.start(paused=True)
+    try:
+        await scheduler._maybe_retrain_on_drift()
+        assert ran == []  # not awaited inline
+        job = scheduler._scheduler.get_job("drift_retrain")
+        assert job is not None
+        assert job.func == scheduler._run_drift_retrain
+    finally:
+        scheduler.shutdown()
+
+
+async def test_drift_retrain_runs_inline_when_no_scheduler_is_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On-demand cycles (the API's run-once) have no scheduler to hand off to."""
+    settings = Settings(loop_enabled=False, db_password="x", model_store_dir=str(tmp_path))
+    scheduler = LoopScheduler(settings=settings, session_factory=MagicMock())
+    ran = _drifting(scheduler, monkeypatch)
+    await scheduler._maybe_retrain_on_drift()
+    assert ran == ["retrain"]

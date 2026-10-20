@@ -565,6 +565,22 @@ class LoopScheduler:
         self._health.event("drift_detected", verdict.reason)
         await self._alert(msg.rough_patch(lane="h1"))
         self._last_drift_retrain = now
+        if self._scheduler.running:
+            # A retrain costs about an hour; awaited here it would hold the
+            # 15-minute resolve job hostage and APScheduler would skip ~4 of
+            # its ticks. Run it as its own job so resolution keeps its cadence.
+            self._scheduler.add_job(
+                self._run_drift_retrain,
+                "date",
+                run_date=now,
+                id="drift_retrain",
+                replace_existing=True,
+                misfire_grace_time=None,
+            )
+            return
+        await self._run_drift_retrain()
+
+    async def _run_drift_retrain(self) -> None:
         reason = await self.run_retrain_once()
         log.info("loop.drift_retrain_done", outcome=reason)
 
