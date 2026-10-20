@@ -11,6 +11,38 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-20 — Drift retrains no longer stall the resolve job
+- **Report:** fetched at 06:37 UTC. Status `warn`, one issue: recurring
+  `apscheduler ... skipped: maximum number of running instances reached`
+  (12× since 2026-10-14 11:38). No `failing_jobs`; live is `04aecf1`
+  (`deployed_docs`), matching `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 85 independent windows at 58.8% vs
+  51.78% breakeven, CI [48.2%, 68.7%], not significant; weekly Brier 0.231
+  (prev 0.218); 5 retrains this week, champion kept. Live calibration
+  12/30. D1 baseline rule, 15 windows at 53.3%. Strategy lab: 74 trials
+  ever, bar 4.38, all 8 rejected.
+- **Decision:** fix day (Tue), acting on the warn. The tally keys on the
+  template, so the job name isn't in the report, but the code shows it:
+  `run_resolve_once` (every 15 min) awaited `_maybe_retrain_on_drift`, which
+  ran the roughly hour-long retrain inline. That skips about 4 resolve ticks
+  per drift retrain, and 5 H1 retrains in a week against a weekly cadence
+  means drift retrains happened. 12 skips fits about 3 of them. Resolution
+  also stalled while each one ran.
+- **Change:** `b8bfa4f`: when the scheduler is running, the drift retrain
+  now runs as its own one-shot `drift_retrain` job, so resolve returns at
+  once. On-demand cycles with no scheduler still run it inline. Drift
+  thresholds, cooldown and the retrain lock are unchanged. Two regression
+  tests in `tests/application/test_scheduler_jobs.py`. Gates: mypy clean,
+  816 passed. ruff passes at 0.15.0 but **fails on untouched `main` code
+  with ruff >=0.16** (new PLR0917 in `vol_audit.py`, `simulator.py`,
+  `test_scoring.py`), because dev deps are unpinned (`ruff>=0.7`).
+  Also: `python3` here is 3.11 and the package needs >=3.12, so I used
+  `python3.12`.
+- **Watch next:** the `maximum number of running instances` warning should
+  stop growing after this deploys (the tally resets on restart). If it comes
+  back, another job is the cause. Confirm `b8bfa4f` shows as `deployed`.
+  The ruff drift needs its own run: pin ruff or fix the 3 PLR0917 sites.
+
 ## 2026-10-19 — All clear; no change
 - **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `11cf92a` (`deployed_docs`,
