@@ -11,6 +11,30 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-21 — Max-instances warning gone after the drift-retrain fix; no change
+- **Report:** fetched at 06:36 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty (tally since 2026-10-20 07:00, the
+  restart after the deploy). So the apscheduler `maximum number of running
+  instances` warning has not come back in about 23.5 hours. Live is
+  `dcf9a18` (`deployed`, with `b8bfa4f`), matching `main`; no refusals or
+  rollbacks. H1 champion `auto_eurusd_1h_20261006_115233`: 86 independent
+  windows at 58.1% vs 51.78% breakeven, CI [47.6%, 68.0%], not
+  significant; `floor_failures` 0; weekly Brier 0.238 over 262 calls (prev
+  0.200); 4 retrains this week, champion kept (challenger 0.2591 vs
+  0.2433). Live calibration 12/30. D1 baseline rule, 15 windows at 40.0%
+  vs 50.71% breakeven, not significant. Strategy lab: 74 trials ever, bar
+  4.38, all 8 rejected, no `strategies.*` issues.
+- **Decision:** fix day (Wed) with no fail/warn issues, failing jobs,
+  recurring errors or refusals/rollbacks, so no code change. The ruff
+  >=0.16 PLR0917 drift from yesterday is a latent gate problem, not a
+  report issue, so it waits for an improve day.
+- **Change:** this log entry only.
+- **Watch next:** the max-instances warning should stay out of `recurring`.
+  Also watch for `h1.calibration_week` (the Brier is rising again, 0.238)
+  and `h1.champion_failing`. Saturday: the ruff pin / PLR0917 fix is the
+  first improve-day item. A strategy-lab candidate is allowed only if
+  nothing outranks it.
+
 ## 2026-10-20 — Drift retrains no longer stall the resolve job
 - **Report:** fetched at 06:37 UTC. Status `warn`, one issue: recurring
   `apscheduler ... skipped: maximum number of running instances reached`
