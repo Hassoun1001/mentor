@@ -11,6 +11,27 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-23 — All clear; no change
+- **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty (tally since 2026-10-20 07:00), so the
+  apscheduler max-instances warning is still gone. Live is `d1603f3`
+  (`deployed_docs`), matching `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 88 independent windows at 58.0% vs
+  51.78% breakeven, CI [47.5%, 67.7%], not significant; `floor_failures`
+  0; weekly Brier 0.209 over 227 calls (prev 0.243); 5 retrains this week,
+  champion kept (challenger 0.2549 vs 0.2444). Live calibration 15/30. D1
+  baseline rule, 15 windows at 53.3% vs 50.72% breakeven, not significant.
+  Strategy lab: 74 trials ever, bar 4.38, all 8 rejected, no
+  `strategies.*` issues. Digest: feed, resolution, retrain and alerting
+  all `ok`.
+- **Decision:** fix day (Fri). No fail/warn issues, failing jobs,
+  recurring errors or refusals/rollbacks, so no code change.
+- **Change:** this log entry only.
+- **Watch next:** the max-instances warning should stay out of
+  `recurring`; H1 hit rate recovered to 58.0% and the weekly Brier
+  improved, but keep an eye on `h1.champion_failing`. Tomorrow is the
+  improve day: the ruff pin / PLR0917 fix is still the first item.
+
 ## 2026-10-22 — All clear; no change
 - **Report:** fetched at 06:36 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty, so the apscheduler max-instances
