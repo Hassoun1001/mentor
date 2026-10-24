@@ -11,6 +11,36 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-24 — Lint gate fixed for ruff >=0.16 (PLR0917)
+- **Report:** fetched at about 06:40 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty. Live is `58a6b43` (`deployed_docs`),
+  matching `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 89 independent windows at 58.4% vs
+  51.78% breakeven, CI [48.0%, 68.1%], not significant; `floor_failures`
+  0; weekly Brier 0.187 over 225 calls (prev 0.272); 4 retrains, champion
+  kept (challenger 0.2549 vs 0.2444). Live calibration 15/30. D1 baseline
+  rule, 15 windows at 46.7% vs 50.72% breakeven, not significant.
+  Strategy lab: 74 trials ever, bar 4.38, all 8 rejected, nothing waiting
+  or changed.
+- **Decision:** improve day (Sat), with nothing to fix. I used the week's
+  one improvement on the lint-gate drift flagged since 2026-10-20: with
+  ruff 0.17.2, which `ruff>=0.7` resolves to today, `ruff check .` fails
+  on untouched `main` with 3 PLR0917 errors. I fixed the code instead of
+  pinning ruff. No strategy-lab candidate this week.
+- **Change:** `cfe5283`. `vol_audit._overall_verdict` and
+  `PlanBook._consider` (`strategy_lab/simulator.py`) now take their
+  trailing arguments by keyword, like `PlanBook.on_bar`. Their callers
+  were updated, and behaviour is unchanged. The `_outcome` helper in
+  `tests/domain/tips/test_scoring.py` now takes `*prices` and is typed,
+  which removes its `type: ignore`. Gates: ruff 0.17.2 clean, mypy clean,
+  816 passed. No test added because nothing behaves differently.
+  (`ruff format --check` reports differences that already existed in both
+  files; it is not a gate, and I left them alone.)
+- **Watch next:** confirm `cfe5283` shows as `deployed` with no rollback.
+  A later ruff release may add rules again, and a dev-dep upper bound
+  would stop that drift if it recurs. Keep watching `h1.champion_failing`
+  and the D1 hit rate (down to 46.7%).
+
 ## 2026-10-23 — All clear; no change
 - **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty (tally since 2026-10-20 07:00), so the
