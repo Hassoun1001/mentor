@@ -151,7 +151,9 @@ class PlanBook:
         events: list[BookEvent] = []
         self._fill(series, i, friction, events)
         self._exit(series, i, exits, friction, events)
-        self._consider(series, i, signal, atr, exits, friction, events)
+        self._consider(
+            series, i, signal=signal, atr=atr, exits=exits, friction=friction, events=events
+        )
         return events
 
     # ---- the three steps ----
@@ -244,6 +246,7 @@ class PlanBook:
         self,
         series: BarSeries,
         i: int,
+        *,
         signal: Signal | None,
         atr: float | None,
         exits: ExitRules,

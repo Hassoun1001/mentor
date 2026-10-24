@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from mentor.domain.tips.scoring import build_outcome, build_scorecard
+from mentor.domain.tips.scoring import TipOutcome, build_outcome, build_scorecard
 
 
-def _outcome(ticker, category, action, mention, current, lo, hi):  # type: ignore[no-untyped-def]
+def _outcome(ticker: str, category: str, action: str, *prices: str) -> TipOutcome:
+    """``prices`` are the mention, current, lowest and highest price since."""
+    mention, current, lo, hi = prices
     return build_outcome(
         ticker=ticker,
         category=category,

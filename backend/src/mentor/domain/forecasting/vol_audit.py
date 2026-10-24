@@ -252,13 +252,21 @@ def audit_vol_forecasts(
         mae_pips=mae,
         benchmark_mae_pips=bench_mae,
         beats_benchmarks=beats,
-        verdict=_overall_verdict(one_sigma, band, median_ratio, mae, bench_mae, beats),
+        verdict=_overall_verdict(
+            one_sigma,
+            band,
+            median_ratio=median_ratio,
+            mae=mae,
+            bench_mae=bench_mae,
+            beats=beats,
+        ),
     )
 
 
 def _overall_verdict(
     one_sigma: RateCheck,
     band: RateCheck | None,
+    *,
     median_ratio: float,
     mae: float,
     bench_mae: dict[str, float],
