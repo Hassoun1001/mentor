@@ -11,6 +11,25 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-28 — All clear; no change
+- **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
+  `failing_jobs`, `recurring` empty. Live is `2121d6c` (`deployed_docs`),
+  matching `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 93 independent windows at 57.0% vs
+  51.79% breakeven, CI [46.8%, 66.6%], not significant; `floor_failures`
+  0; weekly Brier 0.236 over 169 calls (prev 0.237); 5 retrains, champion
+  kept (challenger 0.2539 vs 0.2388). Live calibration 20/30. D1 baseline
+  rule, 15 windows at 46.7% vs 50.72% breakeven, not significant; weekly
+  Brier 0.252 (prev 0.216) over 6 calls. Strategy lab: 74 trials ever,
+  bar 4.38, all 8 rejected, nothing waiting or changed. Digest: feed,
+  resolution, retrain and alerting all `ok`.
+- **Decision:** fix day (Wed). No fail/warn issues, failing jobs,
+  recurring errors, refusals or rollbacks, so no code change.
+- **Change:** this log entry only.
+- **Watch next:** H1 hit rate has drifted down for a third day (58.7% ->
+  57.0%), CI lower bound now 46.8%; watch for `h1.champion_failing`. D1
+  still 46.7% on a tiny sample. Ruff drift may recur with a future release.
+
 ## 2026-10-27 — All clear; no change
 - **Report:** fetched at 06:36 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `def91e1` (`deployed_docs`),
