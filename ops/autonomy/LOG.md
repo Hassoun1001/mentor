@@ -11,6 +11,39 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-10-31 — H1 weekly Brier over the alarm again; model signal, no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.271 over 167 calls
+  (prev week 0.187; same alarm fired on 2026-10-17 at 0.270 and cleared
+  the week after). No `failing_jobs`, `recurring` empty. Live is
+  `ea48e08` (`deployed_docs`), matching `main`; no refusals or rollbacks.
+  H1 champion `auto_eurusd_1h_20261006_115233`: 96 independent windows at
+  58.3% vs 51.79% breakeven, CI [48.3%, 67.7%], not significant;
+  `floor_failures` 0; 6 retrains this week, champion kept (challenger
+  0.2451 vs 0.2391 on the same fresh window). Live calibration 23/30. D1
+  baseline rule, 16 windows at 50.0% vs 50.72% breakeven; challenger
+  0.2576 still misses the 0.248 coin-flip floor. Strategy lab: 74 trials
+  ever, bar 4.38, all 8 rejected, nothing waiting or changed. Digest:
+  feed, resolution, retrain and alerting all `ok`.
+- **Decision:** improve day (Sat), but the warning comes first, and as on
+  2026-10-17 it is not a code defect. 167 hourly calls with overlapping
+  24-hour windows are about seven independent days, so the weekly Brier
+  swings (0.270 → 0.187 → 0.271 over three weeks) while the long-run
+  record holds steady at ~58%. Model quality is owned by the system's own
+  guards: the fresh-window re-check (passed, 0.2391), demotion on floor
+  failures (0), and live calibration once 30 outcomes exist (23 now).
+  Raising the alarm or touching the model to clear it would be lowering a
+  bar. Per AGENT.md no strategy-lab candidate while a warning is open, and
+  no other improvement this week. Checked the gates on untouched `main`
+  (Python 3.12, ruff 0.16.9): ruff clean, mypy clean, 816 passed.
+- **Change:** this log entry only.
+- **Watch next:** if `h1.calibration_week` fires a third time in four
+  weeks or `floor_failures` rises, look at whether the champion has gone
+  stale (it dates from 2026-10-06), but only through the existing gates.
+  Live calibration reaches 30 outcomes in ~7 more; check that its first
+  correction applies cleanly. Note for runners: the default `python3` in
+  the agent container is 3.11, and the backend needs `python3.12`.
+
 ## 2026-10-30 — All clear; no change
 - **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `8403e81` (`deployed_docs`),
