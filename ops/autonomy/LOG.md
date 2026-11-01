@@ -11,6 +11,32 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-01 — H1 weekly Brier warning persists; model signal, no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.277 over 169 calls
+  (prev week 0.211); the same rolling-week alarm as yesterday (0.271), not
+  a new occurrence. No `failing_jobs`, `recurring` empty. Live is
+  `b29b78e` (`deployed_docs`), matching `main`; no refusals or rollbacks.
+  H1 champion `auto_eurusd_1h_20261006_115233`: 97 independent windows at
+  57.7% vs 51.79% breakeven, CI [47.8%, 67.1%], not significant;
+  `floor_failures` 0; 6 retrains, champion kept (challenger 0.2647 vs
+  0.2419 on the same fresh window). Live calibration 24/30. D1 baseline
+  rule, 16 windows at 50.0% vs 50.72% breakeven; challenger 0.2576 still
+  misses the 0.248 coin-flip floor. Strategy lab: 74 trials ever, bar
+  4.38, all 8 rejected, nothing waiting or changed. Digest: feed,
+  resolution, retrain and alerting all `ok`.
+- **Decision:** fix day (Sun). The only issue is the same model-quality
+  signal analysed on 2026-10-31: ~seven independent days of overlapping
+  24-hour windows, long-run record steady, fresh-window re-check passed,
+  no floor failures. It is owned by the system's own guards, not by code;
+  changing the alarm or the model to clear it would be lowering a bar. No
+  code change.
+- **Change:** this log entry only.
+- **Watch next:** whether `h1.calibration_week` clears as the rolling week
+  moves on; a distinct re-fire in the next two weeks (third in four weeks)
+  or any rise in `floor_failures` means looking at champion staleness
+  through the existing gates. Live calibration needs ~6 more outcomes.
+
 ## 2026-10-31 — H1 weekly Brier over the alarm again; model signal, no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — H1 weekly Brier 0.271 over 167 calls
