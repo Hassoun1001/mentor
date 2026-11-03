@@ -11,6 +11,37 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-03 — H1 weekly Brier warning back after one clear day; model signal, no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.275 over 169 calls
+  (prev week 0.225). It cleared yesterday at 0.254 and is back today; the
+  rolling week is hovering at the alarm line, so this is the same
+  late-October episode, not a new one. No `failing_jobs`, `recurring`
+  empty. Live is `d0956bd` (`deployed_docs`), matching `main`; no
+  refusals or rollbacks. H1 champion `auto_eurusd_1h_20261006_115233`:
+  99 independent windows at 57.6% vs 51.79% breakeven, CI [47.7%, 66.8%],
+  not significant; `floor_failures` 0; 6 retrains, champion kept
+  (challenger 0.2612 vs champion 0.2421 on the same fresh window). Live
+  calibration 27/30. D1 baseline rule, 17 windows at 47.1% vs 50.72%
+  breakeven; challenger 0.2576 still misses the 0.248 coin-flip floor.
+  Strategy lab: 74 trials ever, bar 4.38, all 8 rejected, nothing
+  waiting or changed. Digest: feed, resolution, retrain and alerting all
+  `ok`.
+- **Decision:** fix day (Tue). The champion-staleness check from earlier
+  watch notes is already answered by the existing gates: today's
+  fresh-window re-grade puts the champion at 0.2421, under the coin flip
+  and well ahead of a freshly trained challenger (0.2612), with no floor
+  failures. A live week at 0.275 next to a fresh-window 0.242 fits
+  sampling noise from about seven independent days of overlapping
+  24-hour calls. Nothing here is a code defect, and moving the alarm or
+  the model to clear it would be lowering a bar. No code change.
+- **Change:** this log entry only.
+- **Watch next:** live calibration needs 3 more outcomes and should
+  apply its first correction within days. Check that it applies cleanly
+  and shows up in the lane's `calibration` text. Escalate only if
+  `floor_failures` rises, the fresh-window re-grade goes above 0.250, or
+  the weekly Brier stays above the alarm through ~2026-11-10.
+
 ## 2026-11-02 — H1 weekly Brier warning cleared; all clear, no change
 - **Report:** fetched at 06:37 UTC. Status `ok`, `issues` empty, no
   `failing_jobs`, `recurring` empty. Live is `9711c43` (`deployed_docs`),
