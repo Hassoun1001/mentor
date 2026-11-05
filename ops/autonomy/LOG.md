@@ -11,6 +11,36 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-05 — H1 weekly Brier warning persists (0.287); model signal, no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.287 over 173 calls
+  (prev week 0.232), up from 0.275 on 2026-11-03; same late-October
+  episode, still hovering above the alarm. No `failing_jobs`, `recurring`
+  empty, `notes` empty. Live is `853e3e1` (`deployed_docs`), matching
+  `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 101 independent windows at 57.4% vs
+  51.80% breakeven, CI [47.7%, 66.6%], not significant; `floor_failures`
+  0; 5 retrains, champion kept (challenger 0.2435 vs champion 0.2412 on
+  the same fresh window). Live calibration 28/30. D1 baseline rule, 17
+  windows at 47.1% vs 50.72% breakeven; challenger 0.2560 still misses
+  the 0.248 coin-flip floor. Strategy lab: 74 trials ever, bar 4.38, all
+  8 rejected, nothing waiting or changed. Digest: feed, resolution,
+  retrain and alerting all `ok`. There is no 2026-11-04 entry; that
+  run did not happen (no commit, no deploy event), so this is a
+  scheduling gap, not a system fault.
+- **Decision:** fix day (Thu). None of the escalation triggers from
+  2026-11-03 has fired: `floor_failures` is still 0 and the fresh-window
+  re-grade (0.2412) is under 0.250 and beats a freshly trained
+  challenger. The live week is weak but the existing guards own model
+  quality, and moving the alarm or the model to clear it would be
+  lowering a bar. No code defect, so no code change.
+- **Change:** this log entry only.
+- **Watch next:** live calibration is 2 outcomes from its first check;
+  confirm it applies cleanly and shows in the lane's `calibration` text.
+  Escalate only if `floor_failures` rises, the fresh-window re-grade goes
+  above 0.250, or the weekly Brier is still above the alarm on
+  ~2026-11-10.
+
 ## 2026-11-03 — H1 weekly Brier warning back after one clear day; model signal, no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — H1 weekly Brier 0.275 over 169 calls
