@@ -11,6 +11,50 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-07 — Recurring `loop.drift_detected` (11×); same late-October model signal, no code change
+- **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
+  `log.warning.loop.drift_detected` (warn) — 11 drift detections in the
+  log tally since the process started on 2026-10-24. `h1.calibration_week`
+  has cleared: H1 weekly Brier 0.260 over 181 calls (prev week 0.271). No
+  `failing_jobs`, `notes` empty. Live is `ce60460` (`deployed_docs`),
+  matching `main`; no refusals or rollbacks. H1 champion
+  `auto_eurusd_1h_20261006_115233`: 103 independent windows at 57.3% vs
+  51.79% breakeven, CI [47.6%, 66.4%], not significant; `floor_failures`
+  0; 6 retrains, champion kept (challenger 0.2564 vs champion 0.2449 on
+  the same fresh window). Live calibration has applied its first
+  correction cleanly (slope 0.00 cut Brier on the newer 15 outcomes from
+  0.2627 to 0.2500, gain 0.0127 >= 0.002) and it shows in the lane's
+  `calibration` text, which closes that watch item. D1 baseline rule, 17
+  windows at 47.1% vs 50.72% breakeven; challenger 0.2560 still misses
+  the 0.248 coin-flip floor. Strategy lab: 74 trials ever, bar 4.38, all
+  8 rejected, nothing waiting or changed. Digest: feed, resolution,
+  retrain and alerting all `ok`.
+- **Decision:** improve day (Sat), but the warning comes first. I read
+  `_maybe_retrain_on_drift` (`application/scheduler/service.py`) and
+  `assess_drift` (`drift.py`). The watch compares live Brier over the
+  last 30 independent H1 calls with the champion's promotion-time test
+  Brier + 0.02, and is rate-limited to once per 24 h. The tally counts
+  for the process lifetime (by design, `LogTally`), so 11 over 14 days
+  means it fired about daily through the late-October rough patch that
+  `h1.calibration_week` already showed. Each fire did what it should: a
+  retrain that re-graded the champion on a fresh window and kept it,
+  since a fresh challenger was worse. The 30-call window lags, so it can
+  keep firing for a while after the weekly Brier has recovered. This is
+  not a code defect. Raising the drift margin, lengthening the cooldown
+  or downgrading the log level would hide the signal or slow
+  adaptation, with no evidence to justify it. Following the 2026-10-31
+  precedent, I made no improvement and added no strategy-lab candidate
+  while a warning is open. Gates on untouched `main` (Python 3.12, ruff
+  0.17.4): ruff clean, mypy clean, 816 passed.
+- **Change:** this log entry only.
+- **Watch next:** the count keeps rising only while drift keeps
+  firing, and it resets on the next rebuild. If drift is still firing
+  daily on ~2026-11-14 while the weekly Brier is under 0.27, compare
+  the champion's promotion-time `test_brier` with its fresh-window
+  re-grade. A stale baseline there would be a real finding, but only
+  for the existing gates to act on. Escalate if `floor_failures` rises
+  or the fresh-window re-grade goes above 0.250.
+
 ## 2026-11-05 — H1 weekly Brier warning persists (0.287); model signal, no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — H1 weekly Brier 0.287 over 173 calls
