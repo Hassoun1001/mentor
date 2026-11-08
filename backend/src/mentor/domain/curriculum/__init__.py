@@ -11,19 +11,33 @@ whole curriculum, no migration step required.
 
 from mentor.domain.curriculum.catalog import (
     CATALOG,
-    Lesson,
-    Module,
+    SearchHit,
     get_lesson,
+    lessons_in_part,
     list_modules,
+    list_parts,
+    search_lessons,
 )
+from mentor.domain.curriculum.glossary import GLOSSARY, GlossaryTerm
+from mentor.domain.curriculum.model import Lesson, Module, Part
 from mentor.domain.curriculum.progress import LessonProgress, LessonStatus
+from mentor.domain.curriculum.sources import SOURCES, Source
 
 __all__ = [
     "CATALOG",
+    "GLOSSARY",
+    "SOURCES",
+    "GlossaryTerm",
     "Lesson",
     "LessonProgress",
     "LessonStatus",
     "Module",
+    "Part",
+    "SearchHit",
+    "Source",
     "get_lesson",
+    "lessons_in_part",
     "list_modules",
+    "list_parts",
+    "search_lessons",
 ]

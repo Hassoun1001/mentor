@@ -9,6 +9,7 @@ from mentor.domain.curriculum import (
     Lesson,
     Module,
     get_lesson,
+    lessons_in_part,
     list_modules,
 )
 from mentor.domain.curriculum.progress import LessonProgress, LessonStatus
@@ -61,6 +62,13 @@ class CurriculumService:
                 )
             )
         return out
+
+    async def lessons_in_part(self, part_id: str) -> list[LessonWithProgress]:
+        progress = {p.lesson_slug: p for p in await self._progress.all()}
+        return [
+            LessonWithProgress(lesson=lesson, progress=progress.get(lesson.slug))
+            for lesson in lessons_in_part(part_id)
+        ]
 
     async def get(self, slug: str) -> LessonWithProgress:
         lesson = get_lesson(slug)

@@ -223,3 +223,36 @@
     @apply text-xs font-medium text-mentor-muted;
   }
 }
+
+/* The book's "save as PDF" view: print only the book, always on a white page. */
+@media print {
+  .dark {
+    --mentor-bg: 255 255 255;
+    --mentor-panel: 255 255 255;
+    --mentor-panelLight: 244 246 250;
+    --mentor-fg: 17 24 39;
+    --mentor-muted: 71 85 105;
+    --mentor-accent: 79 70 229;
+    --mentor-accentHover: 67 56 202;
+    --mentor-accentSoft: 5 150 105;
+    --mentor-warn: 180 83 9;
+    --mentor-danger: 185 28 28;
+    --mentor-border: 203 213 225;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #book-print,
+  #book-print * {
+    visibility: visible;
+  }
+
+  #book-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
