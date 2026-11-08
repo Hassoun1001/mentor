@@ -25,6 +25,7 @@ __all__ = [
     "Module",
     "Path",
     "Q",
+    "QuizQuestion",
     "Segment",
     "Series",
     "Verdict",
