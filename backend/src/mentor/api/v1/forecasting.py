@@ -46,6 +46,7 @@ from mentor.domain.forecasting.volatility import (
 )
 from mentor.domain.instruments import get_instrument
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.market.hours import fx_market_open
 from mentor.domain.market.settlement import closes_at
 from mentor.domain.money import Money, Percent
 from mentor.domain.risk import Direction as RiskDirection
@@ -1335,6 +1336,10 @@ _PLAN_DISCLAIMER = (
     "This is a decision aid generated from a probabilistic model, not financial advice. "
     "The edge on any single call is small; the discipline around it is where accounts survive."
 )
+_PLAN_MARKET_CLOSED_HEADLINE = (
+    "Stand aside — the FX market is closed (Friday about 22:00 UTC to Sunday about 22:00 UTC). "
+    "There is no price you could actually trade, so no levels are shown until it reopens."
+)
 
 
 def _stand_aside(
@@ -1347,6 +1352,7 @@ def _stand_aside(
     warnings: list[str],
     age_minutes: int,
     data_stale: bool,
+    market_closed: bool = False,
 ) -> TradePlanResponse:
     """The honest no-trade ticket.
 
@@ -1354,7 +1360,9 @@ def _stand_aside(
     fell inside the band where it measured no edge — a different and more
     informative reason than simply being near a coin flip.
     """
-    if learned_margin is not None:
+    if market_closed:
+        headline = _PLAN_MARKET_CLOSED_HEADLINE
+    elif learned_margin is not None:
         headline = (
             f"Stand aside — the model reads {float(fc.p_up) * 100:.0f}% P(up), inside the "
             f"±{float(learned_margin) * 100:.0f}pp band where it learned it has no edge. "
@@ -1455,7 +1463,26 @@ async def trade_plan(
     # from. One interval is the wait for the next bar to settle and be
     # fetched. Beyond two, the feed has actually stopped and the levels
     # below are not tradeable.
-    age_minutes = int((datetime.now(UTC) - closes_at(fc.asof, timeframe)).total_seconds() // 60)
+    now = datetime.now(UTC)
+    age_minutes = int((now - closes_at(fc.asof, timeframe)).total_seconds() // 60)
+
+    # While the market is shut no broker will fill these levels, and the
+    # vendor keeps printing thin indicative quotes that look like live
+    # prices, so a fresh bar proves nothing. A quiet feed here is not stale
+    # either: nothing is supposed to be arriving.
+    if not fx_market_open(now):
+        return _stand_aside(
+            fc=fc,
+            vol=vol,
+            guidance=guidance,
+            timeframe=timeframe,
+            learned_margin=None,
+            warnings=[],
+            age_minutes=age_minutes,
+            data_stale=False,
+            market_closed=True,
+        )
+
     stale_after = settings.loop_ingest_interval_minutes * 2
     data_stale = age_minutes > stale_after
 
