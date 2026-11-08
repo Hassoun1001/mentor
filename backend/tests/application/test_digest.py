@@ -199,3 +199,26 @@ def test_both_telegram_settings_read_unprefixed_env_vars(
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert settings.telegram_bot_token.get_secret_value() == "123:abc"
     assert settings.telegram_chat_id == "987654"
+
+
+def _feed_level(newest: datetime, now: datetime) -> Level:
+    d = _digest(newest_bar=newest, now=now)
+    return next(c.level for c in d.checks if c.key == "feed")
+
+
+def test_a_closed_market_is_not_a_dead_feed() -> None:
+    friday_close = datetime(2026, 11, 6, 22, 0, tzinfo=UTC)
+    sunday = datetime(2026, 11, 8, 12, 0, tzinfo=UTC)
+    assert _feed_level(friday_close, sunday) is Level.OK
+
+
+def test_the_hour_after_the_reopen_is_not_a_dead_feed() -> None:
+    friday_close = datetime(2026, 11, 6, 22, 0, tzinfo=UTC)
+    just_after_reopen = datetime(2026, 11, 8, 22, 30, tzinfo=UTC)
+    assert _feed_level(friday_close, just_after_reopen) is Level.OK
+
+
+def test_a_feed_that_died_before_the_weekend_still_fails_after_the_reopen() -> None:
+    friday_morning = datetime(2026, 11, 6, 8, 0, tzinfo=UTC)
+    monday = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
+    assert _feed_level(friday_morning, monday) is Level.FAIL

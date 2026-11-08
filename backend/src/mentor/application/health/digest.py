@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
+from mentor.domain.market.hours import fx_market_open, market_open_minutes
+
 
 class Level(StrEnum):
     OK = "ok"
@@ -69,7 +71,18 @@ def _feed_check(newest_bar: datetime | None, interval_minutes: int, now: datetim
             level=Level.FAIL,
             detail="No bars stored at all — nothing can run.",
         )
-    age = (now - newest_bar).total_seconds() / 60
+    if not fx_market_open(now):
+        return Check(
+            key="feed",
+            label="Price feed",
+            level=Level.OK,
+            detail=(
+                "The market is closed, so no new prices are expected. The latest real "
+                f"price is {(now - newest_bar).total_seconds() / 3600:.0f} hours old."
+            ),
+        )
+    # Only time the market was open counts: a closure is not a late feed.
+    age = float(market_open_minutes(newest_bar, now))
     # ``newest_bar`` is when the newest stored bar's data ends (its close).
     # Up to one interval is the wait for the next bar to settle and be
     # fetched. Beyond three, ingestion has stopped.

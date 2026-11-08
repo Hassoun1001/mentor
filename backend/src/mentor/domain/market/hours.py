@@ -16,7 +16,7 @@ self-report first.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 _NEW_YORK = ZoneInfo("America/New_York")
@@ -24,6 +24,7 @@ _FRIDAY = 4
 _SATURDAY = 5
 _SUNDAY = 6
 _CLOSE_OPEN_HOUR_NY = 17
+_SAMPLE_MINUTES = 5
 
 
 def fx_market_open(now: datetime) -> bool:
@@ -34,3 +35,15 @@ def fx_market_open(now: datetime) -> bool:
     if ts.weekday() == _FRIDAY and ts.hour >= _CLOSE_OPEN_HOUR_NY:
         return False
     return not (ts.weekday() == _SUNDAY and ts.hour < _CLOSE_OPEN_HOUR_NY)
+
+
+def market_open_minutes(start: datetime, end: datetime) -> int:
+    """Minutes between two instants the market was open, to five minutes."""
+    step = timedelta(minutes=_SAMPLE_MINUTES)
+    minutes = 0
+    cursor = start
+    while cursor < end:
+        if fx_market_open(cursor):
+            minutes += _SAMPLE_MINUTES
+        cursor += step
+    return minutes
