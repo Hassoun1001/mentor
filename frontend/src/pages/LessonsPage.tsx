@@ -16,10 +16,13 @@ import {
   searchLessons,
 } from '../api/curriculum';
 import { LessonBody } from '../components/lessons/LessonView';
+import { type AtlasState, EMPTY_ATLAS } from '../components/lessons/atlasState';
+import { MethodsAtlas } from '../components/lessons/MethodsAtlas';
 
 type View =
   | { name: 'home' }
-  | { name: 'lesson'; slug: string }
+  | { name: 'lesson'; slug: string; fromAtlas?: boolean }
+  | { name: 'atlas' }
   | { name: 'glossary' }
   | { name: 'sources' }
   | { name: 'print'; partId: string };
@@ -38,9 +41,19 @@ export function LessonsPage() {
   const parts = useQuery({ queryKey: ['curriculum', 'parts'], queryFn: getParts, staleTime: Infinity });
   const lessons = useMemo(() => flatten(overview.data ?? []), [overview.data]);
 
+  // The Atlas keeps its filters, open cards and scroll position, so going to a
+  // lesson and coming back does not lose the reader's place in 150 cards.
+  const [atlasState, setAtlasState] = useState<AtlasState>(EMPTY_ATLAS);
+  const atlasScroll = useRef(0);
+
   useEffect(() => {
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: view.name === 'atlas' ? atlasScroll.current : 0 });
   }, [view]);
+
+  const openFromAtlas = (slug: string) => {
+    atlasScroll.current = window.scrollY;
+    setView({ name: 'lesson', slug, fromAtlas: true });
+  };
 
   if (view.name === 'lesson') {
     return (
@@ -50,6 +63,20 @@ export function LessonsPage() {
         lessons={lessons}
         onOpen={(slug) => setView({ name: 'lesson', slug })}
         onHome={() => setView({ name: 'home' })}
+        onBackToAtlas={view.fromAtlas ? () => setView({ name: 'atlas' }) : undefined}
+      />
+    );
+  }
+  if (view.name === 'atlas') {
+    return (
+      <MethodsAtlas
+        state={atlasState}
+        onChange={setAtlasState}
+        onOpenLesson={openFromAtlas}
+        onHome={() => {
+          atlasScroll.current = 0;
+          setView({ name: 'home' });
+        }}
       />
     );
   }
@@ -136,6 +163,18 @@ function Home({
       </div>
 
       <SearchBox onOpen={openLesson} />
+
+      <button
+        type="button"
+        onClick={() => onView({ name: 'atlas' })}
+        className="w-full rounded-xl border border-mentor-accent/40 bg-mentor-accent/5 p-4 text-left hover:bg-mentor-accent/10"
+      >
+        <div className="text-base font-medium text-mentor-fg">Methods Atlas →</div>
+        <p className="mt-0.5 text-sm leading-snug text-mentor-muted">
+          150 trading methods on one page. Who uses each one, when it suits, and whether it has
+          been shown to work.
+        </p>
+      </button>
 
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-ghost" onClick={() => onView({ name: 'glossary' })}>
@@ -322,11 +361,13 @@ function Reader({
   lessons,
   onOpen,
   onHome,
+  onBackToAtlas,
 }: {
   slug: string;
   lessons: Flat[];
   onOpen: (slug: string) => void;
   onHome: () => void;
+  onBackToAtlas?: () => void;
 }) {
   const queryClient = useQueryClient();
   const lesson = useQuery({
@@ -357,8 +398,12 @@ function Reader({
     <div className="mx-auto max-w-2xl">
       <div className="sticky top-14 z-20 -mx-3 lg:top-0 border-b border-mentor-border bg-mentor-bg/95 px-3 py-2 backdrop-blur print:hidden sm:mx-0 sm:rounded-b-lg sm:px-4">
         <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={onHome} className="text-sm text-mentor-muted hover:text-mentor-fg">
-            ← All lessons
+          <button
+            type="button"
+            onClick={onBackToAtlas ?? onHome}
+            className="text-sm text-mentor-muted hover:text-mentor-fg"
+          >
+            {onBackToAtlas ? '← Methods Atlas' : '← All lessons'}
           </button>
           {index >= 0 && (
             <span className="font-mono text-xs text-mentor-muted">

@@ -156,6 +156,40 @@ const source = z.object({
 });
 export type BookSource = z.infer<typeof source>;
 
+const atlasMethod = z.object({
+  slug: z.string(),
+  name: z.string(),
+  what: z.string(),
+  users: z.array(z.string()),
+  usage: z.string(),
+  usage_why: z.string(),
+  when_to_use: z.string(),
+  when_not: z.string(),
+  markets: z.array(z.string()),
+  tools: z.string(),
+  access: z.string(),
+  verdict: z.string(),
+  evidence: z.string(),
+  lesson_slug: z.string().nullable(),
+  lesson_title: z.string().nullable(),
+  sources: z.array(z.string()),
+});
+export type AtlasMethod = z.infer<typeof atlasMethod>;
+
+const atlasGroup = z.object({
+  letter: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  methods: z.array(atlasMethod),
+});
+export type AtlasGroup = z.infer<typeof atlasGroup>;
+
+const atlas = z.object({ usage_note: z.string(), groups: z.array(atlasGroup) });
+
+export async function getAtlas(): Promise<z.infer<typeof atlas>> {
+  return apiGet('/curriculum/atlas', atlas);
+}
+
 export async function getOverview(): Promise<ModuleSummary[]> {
   return apiGet('/curriculum/overview', z.array(moduleSummary));
 }

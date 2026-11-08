@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mentor.domain.curriculum.book import more_fundamentals
 from mentor.domain.curriculum.book._kit import (
     Bar,
     Chart,
@@ -757,14 +758,34 @@ CHAPTERS = (
         "macro",
         "what-moves-markets",
         "What moves markets",
-        "The forces behind prices, from central banks to crowd mood.",
-        (_SCHOOLS, _WHAT_MOVES, _CB, _DATA_TYPES, _RISK_ON),
+        "The forces behind prices, from central banks and the yield curve to cycles and crowd mood.",
+        (
+            _SCHOOLS,
+            _WHAT_MOVES,
+            _CB,
+            _DATA_TYPES,
+            more_fundamentals.YIELD_CURVE,
+            _RISK_ON,
+            more_fundamentals.INTERMARKET,
+            more_fundamentals.CYCLES,
+        ),
     ),
     chapter(
         "macro",
         "using-the-data",
         "Using the data",
-        "Calendars, positioning data and how to handle a release.",
-        (_DATA_CAL, _COT, _READ_RELEASE),
+        "Calendars, positioning data, who holds what, and how to handle a release.",
+        (_DATA_CAL, _COT, more_fundamentals.POSITIONS, _READ_RELEASE),
+    ),
+    chapter(
+        "macro",
+        "company-numbers",
+        "Company numbers",
+        "Financial statements, valuation and earnings season.",
+        (
+            more_fundamentals.STATEMENTS,
+            more_fundamentals.DCF,
+            more_fundamentals.EARNINGS,
+        ),
     ),
 )

@@ -10,7 +10,16 @@ from pydantic import BaseModel
 from mentor.api.deps import SessionDep
 from mentor.application.curriculum import CurriculumService
 from mentor.application.curriculum.service import LessonWithProgress
-from mentor.domain.curriculum import GLOSSARY, SOURCES, list_parts, search_lessons
+from mentor.domain.curriculum import (
+    ATLAS,
+    GLOSSARY,
+    SOURCES,
+    USAGE_NOTE,
+    list_parts,
+    search_lessons,
+)
+from mentor.domain.curriculum import get_lesson as find_lesson
+from mentor.domain.curriculum.atlas.model import Method
 from mentor.domain.curriculum.charts import Chart
 from mentor.domain.curriculum.progress import LessonStatus
 from mentor.domain.errors import ValidationError
@@ -118,6 +127,37 @@ class SourceDTO(BaseModel):
     checked: bool
 
 
+class AtlasMethodDTO(BaseModel):
+    slug: str
+    name: str
+    what: str
+    users: list[str]
+    usage: str
+    usage_why: str
+    when_to_use: str
+    when_not: str
+    markets: list[str]
+    tools: str
+    access: str
+    verdict: str
+    evidence: str
+    lesson_slug: str | None
+    lesson_title: str | None
+    sources: list[str]
+
+
+class AtlasGroupDTO(BaseModel):
+    letter: str
+    title: str
+    summary: str
+    methods: list[AtlasMethodDTO]
+
+
+class AtlasDTO(BaseModel):
+    usage_note: str
+    groups: list[AtlasGroupDTO]
+
+
 def _service(session: SessionDep) -> CurriculumService:
     return CurriculumService(LessonProgressRepository(session))
 
@@ -195,6 +235,43 @@ async def sources() -> list[SourceDTO]:
         )
         for s in SOURCES
     ]
+
+
+def _atlas_method(method: Method) -> AtlasMethodDTO:
+    return AtlasMethodDTO(
+        slug=method.slug,
+        name=method.name,
+        what=method.what,
+        users=[user.value for user in method.users],
+        usage=method.usage.value,
+        usage_why=method.why,
+        when_to_use=method.when,
+        when_not=method.avoid,
+        markets=[market.value for market in method.markets],
+        tools=method.tools,
+        access=method.access.value,
+        verdict=method.verdict.value,
+        evidence=method.evidence,
+        lesson_slug=method.lesson or None,
+        lesson_title=find_lesson(method.lesson).title if method.lesson else None,
+        sources=list(method.sources),
+    )
+
+
+@router.get("/atlas", response_model=AtlasDTO)
+async def atlas() -> AtlasDTO:
+    return AtlasDTO(
+        usage_note=USAGE_NOTE,
+        groups=[
+            AtlasGroupDTO(
+                letter=group.letter,
+                title=group.title,
+                summary=group.summary,
+                methods=[_atlas_method(method) for method in group.methods],
+            )
+            for group in ATLAS
+        ],
+    )
 
 
 @router.get("/parts/{part_id}/lessons", response_model=list[LessonResponse])

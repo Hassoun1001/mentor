@@ -82,6 +82,8 @@ How to survive. Learn this before any strategy.
 - Drawdown limits (`risk/drawdown-limits`)
 - Correlation and portfolio risk (`risk/correlation-and-portfolio-heat`)
 - The Kelly formula, and why not to use it in full (`risk/kelly-and-why-not-full-kelly`)
+- Value at Risk and Expected Shortfall (`risk/value-at-risk-and-expected-shortfall`)
+- Beta: how much is just the market? (`risk/beta`)
 
 ## Stage 5: Technical analysis
 
@@ -100,20 +102,29 @@ Levels, patterns, indicators and theories, each tested honestly.
 
 - Reversal patterns: head and shoulders, double tops and more (`ta/chart-patterns-reversal`)
 - Continuation patterns: flags, triangles and ranges (`ta/chart-patterns-continuation`)
+- Harmonic patterns: Gartley and friends (`ta/harmonic-patterns`)
 
 ### Indicators
 
 - Moving averages and why they lag (`indicators/moving-averages`)
 - RSI and the overbought trap (`indicators/rsi-and-the-overbought-trap`)
+- The Stochastic oscillator (`ta/stochastic`)
 - MACD (`ta/macd`)
 - Bollinger Bands (`ta/bollinger-bands`)
 - ATR and volatility-aware stops (`indicators/atr-and-volatility`)
+- ADX: is there a trend at all? (`ta/adx`)
+- Donchian channels: the plain breakout rule (`ta/donchian-channels`)
+- OBV and MFI: indicators that use volume (`ta/obv-and-mfi`)
 - VWAP (`ta/vwap`)
+- Anchored VWAP (`ta/anchored-vwap`)
 
 ### Volume and order flow
 
 - Volume, delta and the volume profile (`candles-volume/volume-and-profile`)
 - Order flow basics (`ta/order-flow`)
+- Market Profile and Auction Market Theory (`flow/market-profile-and-auction-theory`)
+- Delta, CVD and footprint charts (`flow/cvd-and-footprint`)
+- Tape reading and depth of market (`flow/tape-reading-and-dom`)
 
 ### Market structure and retail theories
 
@@ -121,10 +132,12 @@ Levels, patterns, indicators and theories, each tested honestly.
 - Smart Money Concepts: the honest introduction (`smart-money/what-smc-is`)
 - Liquidity, sweeps and stop hunts (`smart-money/liquidity-sweeps-stophunts`)
 - Order blocks, fair value gaps and premium/discount (`smart-money/blocks-fvg-premium`)
+- ICT words in plain English (`smart-money/ict-terms`)
 - Wyckoff: accumulation and distribution (`ta/wyckoff`)
 
 ### Grand theories
 
+- Dow Theory: where trend reading began (`ta/dow-theory`)
 - Elliott Wave (`ta/elliott-wave`)
 - Ichimoku (`ta/ichimoku`)
 
@@ -143,13 +156,23 @@ Central banks, data and the forces that move whole markets.
 - What really moves prices (`macro/what-moves-prices`)
 - Central banks and interest rates (`macro/central-banks-and-rates`)
 - Inflation, jobs and growth (`macro/inflation-jobs-growth`)
+- The yield curve (`macro/yield-curve`)
 - Risk-on and risk-off (`macro/risk-on-risk-off`)
+- Intermarket analysis and the dollar index (`macro/intermarket-analysis`)
+- Business cycles and liquidity cycles (`macro/business-and-liquidity-cycles`)
 
 ### Using the data
 
 - Data and economic calendars (`toolkit/data-and-calendars`)
 - Positioning and the COT report (`macro/positioning-and-cot`)
+- Short interest, insiders and fund flows (`macro/short-interest-insiders-flows`)
 - How to read a data release (`macro/how-to-read-a-release`)
+
+### Company numbers
+
+- Reading financial statements (`fundamentals/financial-statements`)
+- DCF and relative valuation (`fundamentals/dcf-and-relative-valuation`)
+- Earnings surprises and the drift after them (`fundamentals/earnings-and-the-drift`)
 
 ## Stage 7: Trading plans
 
@@ -196,6 +219,14 @@ How forex, stocks, futures, gold, bonds, options and crypto differ.
 - Options (`every-market/options`)
 - Crypto (`every-market/crypto`)
 - Adapting a plan to a new market (`every-market/adapting-a-plan`)
+
+### Options in depth
+
+- Implied and historical volatility (`options/implied-vs-historical-volatility`)
+- Straddles and strangles (`options/straddles-and-strangles`)
+- Vertical and calendar spreads (`options/vertical-and-calendar-spreads`)
+- Delta hedging, gamma and dealer flows (`options/delta-hedging-and-gamma`)
+- Volatility skew and the surface (`options/volatility-skew-and-surface`)
 
 ## Stage 9: Psychology and journaling
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mentor.domain.curriculum.book import more_flow, more_technical
 from mentor.domain.curriculum.book._kit import (
     Bar,
     Chart,
@@ -2500,36 +2501,48 @@ CHAPTERS = (
         "technical",
         "chart-patterns",
         "Chart patterns",
-        "Reversal and continuation shapes, and what is actually known about them.",
-        (_REVERSAL, _CONTINUATION),
+        "Reversal, continuation and harmonic shapes, and what is actually known about them.",
+        (_REVERSAL, _CONTINUATION, more_technical.HARMONIC),
     ),
     chapter(
         "technical",
         "indicators",
         "Indicators",
-        "Moving averages, RSI, MACD, Bollinger, ATR and VWAP.",
-        (_MA, _RSI, _MACD, _BOLLINGER, _ATR, _VWAP),
+        "Moving averages, RSI, Stochastic, MACD, Bollinger, ATR, ADX, Donchian, volume tools and VWAP.",
+        (
+            _MA,
+            _RSI,
+            more_technical.STOCHASTIC,
+            _MACD,
+            _BOLLINGER,
+            _ATR,
+            more_technical.ADX,
+            more_technical.DONCHIAN,
+            more_technical.OBV_MFI,
+            _VWAP,
+            more_technical.ANCHORED_VWAP,
+        ),
     ),
     chapter(
         "technical",
         "volume-and-flow",
         "Volume and order flow",
-        "How much traded, where it traded, and who pressed the buttons.",
-        (_VOLUME, _FLOW),
+        "How much traded, where it traded, who pressed the buttons, and how to read the tape.",
+        (_VOLUME, _FLOW, more_flow.MARKET_PROFILE, more_flow.CVD_FOOTPRINT, more_flow.TAPE_DOM),
     ),
     chapter(
         "technical",
         "market-structure",
         "Market structure and retail theories",
-        "Swings, Smart Money Concepts and Wyckoff.",
-        (_STRUCTURE, _SMC, _SWEEP, _BLOCKS, _WYCKOFF),
+        "Swings, Smart Money Concepts, ICT terms and Wyckoff.",
+        (_STRUCTURE, _SMC, _SWEEP, _BLOCKS, more_technical.ICT, _WYCKOFF),
     ),
     chapter(
         "technical",
         "grand-theories",
         "Grand theories",
-        "Elliott Wave and Ichimoku.",
-        (_ELLIOTT, _ICHIMOKU),
+        "Dow Theory, Elliott Wave and Ichimoku.",
+        (more_technical.DOW, _ELLIOTT, _ICHIMOKU),
     ),
     chapter(
         "technical",

@@ -9,6 +9,7 @@ This makes lessons trivially reproducible: clone the repo and you have the
 whole curriculum, no migration step required.
 """
 
+from mentor.domain.curriculum.atlas import ATLAS, USAGE_NOTE
 from mentor.domain.curriculum.catalog import (
     CATALOG,
     SearchHit,
@@ -24,9 +25,11 @@ from mentor.domain.curriculum.progress import LessonProgress, LessonStatus
 from mentor.domain.curriculum.sources import SOURCES, Source
 
 __all__ = [
+    "ATLAS",
     "CATALOG",
     "GLOSSARY",
     "SOURCES",
+    "USAGE_NOTE",
     "GlossaryTerm",
     "Lesson",
     "LessonProgress",

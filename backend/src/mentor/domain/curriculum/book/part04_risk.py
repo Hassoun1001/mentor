@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+from mentor.domain.curriculum.book import more_risk
 from mentor.domain.curriculum.book._kit import (
     Bar,
     Chart,
@@ -1396,7 +1397,7 @@ CHAPTERS = (
         "risk",
         "maths-of-survival",
         "The maths of survival",
-        "Expectancy, R, risk of ruin, drawdown, correlation and Kelly.",
-        (_MATH, _R, _LOW_WIN, _RUIN, _DRAWDOWN, _CORRELATION, _KELLY),
+        "Expectancy, R, risk of ruin, drawdown, correlation, Kelly, VaR and beta.",
+        (_MATH, _R, _LOW_WIN, _RUIN, _DRAWDOWN, _CORRELATION, _KELLY, more_risk.VAR_ES, more_risk.BETA),
     ),
 )

@@ -93,6 +93,7 @@ extend-immutable-calls = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "PLR2004"]
+"src/mentor/domain/curriculum/atlas/*" = ["E501"]
 "src/mentor/domain/curriculum/book/*" = ["E501"]
 "src/mentor/domain/curriculum/glossary.py" = ["E501"]
 # Seeded for repeatable teaching charts, not for anything secret.

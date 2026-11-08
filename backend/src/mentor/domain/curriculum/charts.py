@@ -338,6 +338,219 @@ def equity_paths(
     return tuple(out)
 
 
+# ---------------------------------------------------------------------------
+# More indicators, computed the same way: on the chart's own candles
+# ---------------------------------------------------------------------------
+
+
+def stochastic(p: Path, n: int = 14, smooth: int = 3) -> tuple[tuple[Num, ...], tuple[Num, ...]]:
+    """%K (where the close sits in the recent high-low range) and %D (its average)."""
+    k: list[Num] = []
+    for i, (_, _, _, close) in enumerate(p.candles):
+        if i + 1 < n:
+            k.append(None)
+            continue
+        high = max(p.highs[i + 1 - n : i + 1])
+        low = min(p.lows[i + 1 - n : i + 1])
+        k.append(50.0 if high == low else 100.0 * (close - low) / (high - low))
+    start = n - 1
+    known = [v for v in k[start:] if v is not None]
+    d: tuple[Num, ...] = (None,) * start + sma(known, smooth)
+    return tuple(k), d
+
+
+def adx(p: Path, n: int = 14) -> tuple[tuple[Num, ...], tuple[Num, ...], tuple[Num, ...]]:
+    """Wilder's ADX with its +DI and -DI lines."""
+    size = len(p.candles)
+    tr = [0.0] * size
+    plus_dm = [0.0] * size
+    minus_dm = [0.0] * size
+    for i in range(1, size):
+        high, low = p.highs[i], p.lows[i]
+        prev_close = p.closes[i - 1]
+        up = high - p.highs[i - 1]
+        down = p.lows[i - 1] - low
+        tr[i] = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        plus_dm[i] = up if up > down and up > 0 else 0.0
+        minus_dm[i] = down if down > up and down > 0 else 0.0
+
+    plus: list[Num] = [None] * size
+    minus: list[Num] = [None] * size
+    dx: list[float] = [0.0] * size
+    atr_n = sum(tr[1 : n + 1])
+    plus_n = sum(plus_dm[1 : n + 1])
+    minus_n = sum(minus_dm[1 : n + 1])
+    for i in range(n, size):
+        if i > n:
+            atr_n += tr[i] - atr_n / n
+            plus_n += plus_dm[i] - plus_n / n
+            minus_n += minus_dm[i] - minus_n / n
+        plus_di = 100.0 * plus_n / atr_n if atr_n else 0.0
+        minus_di = 100.0 * minus_n / atr_n if atr_n else 0.0
+        plus[i], minus[i] = plus_di, minus_di
+        total = plus_di + minus_di
+        dx[i] = 100.0 * abs(plus_di - minus_di) / total if total else 0.0
+
+    line: list[Num] = [None] * size
+    first = n * 2 - 1
+    if first < size:
+        current = sum(dx[n : first + 1]) / n
+        line[first] = current
+        for i in range(first + 1, size):
+            current = (current * (n - 1) + dx[i]) / n
+            line[i] = current
+    return tuple(line), tuple(plus), tuple(minus)
+
+
+def donchian(p: Path, n: int = 20) -> tuple[tuple[Num, ...], tuple[Num, ...]]:
+    """Highest high and lowest low of the ``n`` candles *before* each candle.
+
+    The current candle is left out on purpose: a close above this line is a real
+    new high, and the line never moves because of the candle being judged.
+    """
+    upper: list[Num] = [None] * len(p.candles)
+    lower: list[Num] = [None] * len(p.candles)
+    for i in range(n, len(p.candles)):
+        upper[i] = max(p.highs[i - n : i])
+        lower[i] = min(p.lows[i - n : i])
+    return tuple(upper), tuple(lower)
+
+
+def obv(p: Path) -> tuple[Num, ...]:
+    """On-balance volume: add the volume on up closes, subtract it on down closes."""
+    total = 0.0
+    out: list[Num] = [0.0]
+    for i in range(1, len(p.candles)):
+        change = p.closes[i] - p.closes[i - 1]
+        total += p.volume[i] if change > 0 else -p.volume[i] if change < 0 else 0.0
+        out.append(total)
+    return tuple(out)
+
+
+def mfi(p: Path, n: int = 14) -> tuple[Num, ...]:
+    """Money Flow Index: an RSI-style 0-100 reading that also uses volume."""
+    typical = [(h + low + c) / 3 for _, h, low, c in p.candles]
+    flows = [t * v for t, v in zip(typical, p.volume, strict=True)]
+    out: list[Num] = [None] * len(typical)
+    for i in range(n, len(typical)):
+        up = sum(flows[j] for j in range(i + 1 - n, i + 1) if typical[j] > typical[j - 1])
+        down = sum(flows[j] for j in range(i + 1 - n, i + 1) if typical[j] < typical[j - 1])
+        out[i] = 100.0 if down == 0 else 100.0 - 100.0 / (1.0 + up / down)
+    return tuple(out)
+
+
+def anchored_vwap(p: Path, anchor: int) -> tuple[Num, ...]:
+    """VWAP that starts counting at candle ``anchor`` instead of the session open."""
+    total_value = 0.0
+    total_volume = 0.0
+    out: list[Num] = [None] * len(p.candles)
+    for i in range(anchor, len(p.candles)):
+        _, high, low, close = p.candles[i]
+        total_value += (high + low + close) / 3 * p.volume[i]
+        total_volume += p.volume[i]
+        out[i] = total_value / total_volume
+    return tuple(out)
+
+
+def bar_delta(p: Path) -> tuple[float, ...]:
+    """A rough per-candle delta: the share of the range the body covers, times volume.
+
+    Real delta needs every trade labelled buy or sell. Lessons that use this say
+    so: it only draws the idea of delta on made-up candles.
+    """
+    out: list[float] = []
+    for (open_, high, low, close), vol in zip(p.candles, p.volume, strict=True):
+        span = high - low
+        out.append(0.0 if span == 0 else round((close - open_) / span * vol, 1))
+    return tuple(out)
+
+
+def cumulative(values: Sequence[float]) -> tuple[Num, ...]:
+    total = 0.0
+    out: list[Num] = []
+    for value in values:
+        total += value
+        out.append(round(total, 3))
+    return tuple(out)
+
+
+# ---------------------------------------------------------------------------
+# Option maths: the standard Black-Scholes formulas, with no dividends
+# ---------------------------------------------------------------------------
+
+
+def _norm_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def _norm_pdf(x: float) -> float:
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
+def _d1(spot: float, strike: float, vol: float, years: float, rate: float) -> float:
+    return (math.log(spot / strike) + (rate + 0.5 * vol * vol) * years) / (vol * math.sqrt(years))
+
+
+def call_price(spot: float, strike: float, vol: float, years: float, rate: float = 0.0) -> float:
+    d1 = _d1(spot, strike, vol, years, rate)
+    d2 = d1 - vol * math.sqrt(years)
+    return spot * _norm_cdf(d1) - strike * math.exp(-rate * years) * _norm_cdf(d2)
+
+
+def put_price(spot: float, strike: float, vol: float, years: float, rate: float = 0.0) -> float:
+    call = call_price(spot, strike, vol, years, rate)
+    return call - spot + strike * math.exp(-rate * years)
+
+
+def call_delta(spot: float, strike: float, vol: float, years: float, rate: float = 0.0) -> float:
+    return _norm_cdf(_d1(spot, strike, vol, years, rate))
+
+
+def option_gamma(spot: float, strike: float, vol: float, years: float, rate: float = 0.0) -> float:
+    return _norm_pdf(_d1(spot, strike, vol, years, rate)) / (spot * vol * math.sqrt(years))
+
+
+# ---------------------------------------------------------------------------
+# Shape data for the distribution charts
+# ---------------------------------------------------------------------------
+
+
+def histogram(values: Sequence[float], edges: Sequence[float]) -> tuple[int, ...]:
+    """Counts of ``values`` in each ``[edges[i], edges[i + 1])`` bucket."""
+    counts = [0] * (len(edges) - 1)
+    for value in values:
+        for i in range(len(counts)):
+            if edges[i] <= value < edges[i + 1]:
+                counts[i] += 1
+                break
+    return tuple(counts)
+
+
+def beta_paths(n: int, *, seed: int, betas: Sequence[float]) -> tuple[tuple[Num, ...], ...]:
+    """One seeded daily market move, applied to each path scaled by its beta (start = 100)."""
+    rng = random.Random(seed)
+    moves = [rng.gauss(0.05, 1.0) for _ in range(n)]
+    out: list[tuple[Num, ...]] = []
+    for beta in betas:
+        value = 100.0
+        path_values: list[Num] = [value]
+        for move in moves:
+            value *= 1 + beta * move / 100
+            path_values.append(round(value, 2))
+        out.append(tuple(path_values))
+    return tuple(out)
+
+
+def fat_tailed_returns(n: int, *, seed: int, scale: float = 1.0) -> tuple[float, ...]:
+    """Seeded daily returns: mostly calm days, with a few rare and much larger moves."""
+    rng = random.Random(seed)
+    out: list[float] = []
+    for _ in range(n):
+        vol = scale * (3.5 if rng.random() < 0.04 else 1.0)
+        out.append(rng.gauss(0.03, vol))
+    return tuple(out)
+
+
 def pivots(values: Sequence[float], *, width: int = 3) -> tuple[list[int], list[int]]:
     """Indexes of swing highs and swing lows (local extremes over +/- ``width``)."""
     highs: list[int] = []

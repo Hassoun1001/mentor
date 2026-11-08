@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mentor.domain.curriculum import CATALOG, SOURCES, list_parts
+from mentor.domain.curriculum import ATLAS, CATALOG, SOURCES, USAGE_NOTE, list_parts
 from mentor.domain.curriculum.book.first_edition import FIRST_EDITION_SLUGS
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "learn"
@@ -65,11 +65,24 @@ def _sources() -> str:
     return "\n".join(lines)
 
 
+def _atlas() -> str:
+    lines = ["# Methods Atlas", "", USAGE_NOTE, ""]
+    for group in ATLAS:
+        lines += [f"## {group.letter}. {group.title}", "", group.summary, ""]
+        lines += ["| Method | Usage label | Evidence label | Full lesson |", "|---|---|---|---|"]
+        for m in group.methods:
+            lesson = f"`{m.lesson}`" if m.lesson else "card only"
+            lines.append(f"| {m.name} | {m.usage.value} | {m.verdict.value} | {lesson} |")
+        lines += [""]
+    return "\n".join(lines)
+
+
 def main() -> None:
     DOCS.mkdir(parents=True, exist_ok=True)
     (DOCS / "TABLE_OF_CONTENTS.md").write_text(_table_of_contents(), encoding="utf-8")
     (DOCS / "LESSON_MAP.md").write_text(_lesson_map(), encoding="utf-8")
     (DOCS / "SOURCES.md").write_text(_sources(), encoding="utf-8")
+    (DOCS / "METHODS_ATLAS.md").write_text(_atlas(), encoding="utf-8")
 
 
 if __name__ == "__main__":

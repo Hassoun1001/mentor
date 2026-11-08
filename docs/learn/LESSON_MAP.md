@@ -45,6 +45,8 @@ The first-edition lessons below keep their slug, so progress carries over.
 | risk/drawdown-limits | new | Stage 4: Risk and position sizing | The maths of survival |
 | risk/correlation-and-portfolio-heat | new | Stage 4: Risk and position sizing | The maths of survival |
 | risk/kelly-and-why-not-full-kelly | new | Stage 4: Risk and position sizing | The maths of survival |
+| risk/value-at-risk-and-expected-shortfall | new | Stage 4: Risk and position sizing | The maths of survival |
+| risk/beta | new | Stage 4: Risk and position sizing | The maths of survival |
 | reading-charts/support-resistance | first edition, rewritten | Stage 5: Technical analysis | Levels and lines |
 | ta/trendlines-and-channels | new | Stage 5: Technical analysis | Levels and lines |
 | chart-language/fibonacci-and-levels | first edition, rewritten | Stage 5: Technical analysis | Levels and lines |
@@ -53,19 +55,30 @@ The first-edition lessons below keep their slug, so progress carries over.
 | ta/pivot-points | new | Stage 5: Technical analysis | Levels and lines |
 | ta/chart-patterns-reversal | new | Stage 5: Technical analysis | Chart patterns |
 | ta/chart-patterns-continuation | new | Stage 5: Technical analysis | Chart patterns |
+| ta/harmonic-patterns | new | Stage 5: Technical analysis | Chart patterns |
 | indicators/moving-averages | first edition, rewritten | Stage 5: Technical analysis | Indicators |
 | indicators/rsi-and-the-overbought-trap | first edition, rewritten | Stage 5: Technical analysis | Indicators |
+| ta/stochastic | new | Stage 5: Technical analysis | Indicators |
 | ta/macd | new | Stage 5: Technical analysis | Indicators |
 | ta/bollinger-bands | new | Stage 5: Technical analysis | Indicators |
 | indicators/atr-and-volatility | first edition, rewritten | Stage 5: Technical analysis | Indicators |
+| ta/adx | new | Stage 5: Technical analysis | Indicators |
+| ta/donchian-channels | new | Stage 5: Technical analysis | Indicators |
+| ta/obv-and-mfi | new | Stage 5: Technical analysis | Indicators |
 | ta/vwap | new | Stage 5: Technical analysis | Indicators |
+| ta/anchored-vwap | new | Stage 5: Technical analysis | Indicators |
 | candles-volume/volume-and-profile | first edition, rewritten | Stage 5: Technical analysis | Volume and order flow |
 | ta/order-flow | new | Stage 5: Technical analysis | Volume and order flow |
+| flow/market-profile-and-auction-theory | new | Stage 5: Technical analysis | Volume and order flow |
+| flow/cvd-and-footprint | new | Stage 5: Technical analysis | Volume and order flow |
+| flow/tape-reading-and-dom | new | Stage 5: Technical analysis | Volume and order flow |
 | market-structure/swings-bos-choch | first edition, rewritten | Stage 5: Technical analysis | Market structure and retail theories |
 | smart-money/what-smc-is | first edition, rewritten | Stage 5: Technical analysis | Market structure and retail theories |
 | smart-money/liquidity-sweeps-stophunts | first edition, rewritten | Stage 5: Technical analysis | Market structure and retail theories |
 | smart-money/blocks-fvg-premium | first edition, rewritten | Stage 5: Technical analysis | Market structure and retail theories |
+| smart-money/ict-terms | new | Stage 5: Technical analysis | Market structure and retail theories |
 | ta/wyckoff | new | Stage 5: Technical analysis | Market structure and retail theories |
+| ta/dow-theory | new | Stage 5: Technical analysis | Grand theories |
 | ta/elliott-wave | new | Stage 5: Technical analysis | Grand theories |
 | ta/ichimoku | new | Stage 5: Technical analysis | Grand theories |
 | orders-conditions/market-conditions | first edition, rewritten | Stage 5: Technical analysis | Putting it together |
@@ -74,10 +87,17 @@ The first-edition lessons below keep their slug, so progress carries over.
 | macro/what-moves-prices | new | Stage 6: Fundamentals and macro | What moves markets |
 | macro/central-banks-and-rates | new | Stage 6: Fundamentals and macro | What moves markets |
 | macro/inflation-jobs-growth | new | Stage 6: Fundamentals and macro | What moves markets |
+| macro/yield-curve | new | Stage 6: Fundamentals and macro | What moves markets |
 | macro/risk-on-risk-off | new | Stage 6: Fundamentals and macro | What moves markets |
+| macro/intermarket-analysis | new | Stage 6: Fundamentals and macro | What moves markets |
+| macro/business-and-liquidity-cycles | new | Stage 6: Fundamentals and macro | What moves markets |
 | toolkit/data-and-calendars | first edition, rewritten | Stage 6: Fundamentals and macro | Using the data |
 | macro/positioning-and-cot | new | Stage 6: Fundamentals and macro | Using the data |
+| macro/short-interest-insiders-flows | new | Stage 6: Fundamentals and macro | Using the data |
 | macro/how-to-read-a-release | new | Stage 6: Fundamentals and macro | Using the data |
+| fundamentals/financial-statements | new | Stage 6: Fundamentals and macro | Company numbers |
+| fundamentals/dcf-and-relative-valuation | new | Stage 6: Fundamentals and macro | Company numbers |
+| fundamentals/earnings-and-the-drift | new | Stage 6: Fundamentals and macro | Company numbers |
 | becoming-pro/the-trading-plan | first edition, rewritten | Stage 7: Trading plans | Building a plan |
 | plans/choosing-a-style | new | Stage 7: Trading plans | Building a plan |
 | plans/scalping | new | Stage 7: Trading plans | Styles |
@@ -104,6 +124,11 @@ The first-edition lessons below keep their slug, so progress carries over.
 | every-market/options | new | Stage 8: Market by market | Every market |
 | every-market/crypto | new | Stage 8: Market by market | Every market |
 | every-market/adapting-a-plan | new | Stage 8: Market by market | Every market |
+| options/implied-vs-historical-volatility | new | Stage 8: Market by market | Options in depth |
+| options/straddles-and-strangles | new | Stage 8: Market by market | Options in depth |
+| options/vertical-and-calendar-spreads | new | Stage 8: Market by market | Options in depth |
+| options/delta-hedging-and-gamma | new | Stage 8: Market by market | Options in depth |
+| options/volatility-skew-and-surface | new | Stage 8: Market by market | Options in depth |
 | mind/biases-that-cost-money | new | Stage 9: Psychology and journaling | Mind and habits |
 | psychology/journaling-beats-memory | first edition, rewritten | Stage 9: Psychology and journaling | Mind and habits |
 | psychology/tilt | first edition, rewritten | Stage 9: Psychology and journaling | Mind and habits |

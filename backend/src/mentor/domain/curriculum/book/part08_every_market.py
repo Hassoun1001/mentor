@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mentor.domain.curriculum.book import more_options
 from mentor.domain.curriculum.book._kit import (
     Bar,
     Chart,
@@ -786,5 +787,18 @@ CHAPTERS = (
         "Every market",
         "How each market trades, what moves it, and how your plan must change.",
         (_FOREX, _STOCKS, _INDICES, _FUTURES, _COMMOD, _BONDS, _OPTIONS, _CRYPTO, _ADAPT),
+    ),
+    chapter(
+        "every-market",
+        "options-in-depth",
+        "Options in depth",
+        "Volatility, straddles, spreads, hedging and skew.",
+        (
+            more_options.IV_VS_HV,
+            more_options.STRADDLE,
+            more_options.SPREADS,
+            more_options.DELTA_GAMMA,
+            more_options.SKEW,
+        ),
     ),
 )
