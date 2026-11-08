@@ -9,6 +9,7 @@ from mentor.domain.curriculum.book import (
     part02_markets,
     part03_charts,
     part04_risk,
+    part05_technical,
 )
 from mentor.domain.curriculum.model import Module, Part
 
@@ -105,4 +106,5 @@ BOOK_MODULES: Final[tuple[Module, ...]] = (
     *part02_markets.CHAPTERS,
     *part03_charts.CHAPTERS,
     *part04_risk.CHAPTERS,
+    *part05_technical.CHAPTERS,
 )

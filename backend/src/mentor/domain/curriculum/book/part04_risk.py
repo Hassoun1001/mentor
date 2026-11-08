@@ -444,7 +444,7 @@ If the setup worked, you missed one trade. If you are the kind of person who ove
         """
 Limits like these are standard in professional risk management and prop firm rules. There is little direct research showing a particular daily limit is best. The main support comes from behavioural research, such as Odean's work on investors holding losers, showing that people make worse decisions after losses.
 
-Kaminski and Lo's work on stop-loss rules, which is not reviewed in depth in this book, suggests stops are not always beneficial. The benefit depends on how markets behave. Here, the limit's job is mostly to stop emotional trading, and that is a behavioural claim rather than a statistical one.
+Whether stops add value depends on how a market behaves, and that research is not reviewed in depth here. The job of these limits is mostly to stop emotional trading, which is a behavioural claim rather than a statistical one.
 """.strip(),
     ),
     try_it="Write your three limits for your demo account, and the rule for what you do when you hit one.",
@@ -548,9 +548,9 @@ Now imagine the trade had gone to 1.1020 and then back to the stop. Without Rule
     evidence=Evidence(
         Verdict.MIXED,
         """
-These are management rules rather than tested edges. Partial exits and break-even stops change the *shape* of your results more than the average. Backtests in the Strategy Lab show that break-even stops often reduce both losses and profits, so you should test them on your own strategy.
+These are management rules rather than tested edges. Partial exits and break-even stops mainly change the *shape* of your results, such as how often you win and how large the wins are. They need testing on your own strategy before you assume they help.
 
-The behavioural argument for Rule 5 is strong: Odean's research found investors tend to hold losers and sell winners, and a stop moved further away is exactly that bias. A key study of stop-loss rules also found they do not always add value in every market, so a stop's main job here is to protect you, not to create profit.
+The behavioural argument for Rule 5 is strong: Odean's research found investors tend to hold losers and sell winners, and a stop moved further away is exactly that bias. Separately, research on stop-loss rules suggests they do not always add value in every market (we did not review this in depth here), so a stop's main job is to protect you, not to create profit.
 """.strip(),
     ),
     try_it="Write your five rules in your own words for your demo account, and print them next to your screen. Check them against your last three trades.",

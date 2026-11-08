@@ -757,7 +757,7 @@ The market explored both sides and went nowhere. That is what the candle said. I
     evidence=Evidence(
         Verdict.WEAK,
         """
-Studies of candlestick patterns have been mostly negative after costs. Marshall, Young and Rose found little value in US stocks. A study of the Stock Exchange of Thailand found most reversal patterns earned mean returns not statistically different from zero. A separate study of Taiwanese stocks found results that depended strongly on the exit rule used.
+Studies of candlestick patterns have been mostly negative after costs. Later researchers summarise the US and Japanese evidence, including Marshall, Young and Rose's work, as finding little value. A study of the Stock Exchange of Thailand found most reversal patterns earned mean returns not statistically different from zero. A separate study of Taiwanese stocks found results that depended strongly on the exit rule used.
 
 So candles are good for describing what happened. As stand-alone predictors, the evidence is weak.
 """.strip(),
@@ -975,7 +975,7 @@ That is not nothing. But with so little remaining, a slightly wider spread or a 
     evidence=Evidence(
         Verdict.WEAK,
         """
-Academic results are mostly negative. A Thai study found most patterns earned returns not different from zero. Marshall, Young and Rose found no value in US stocks after accounting for risk and data mining.
+Academic results are mostly negative. A Thai study found most patterns earned returns not different from zero, and later researchers describe the US evidence as similarly unconvincing.
 
 Be careful with practitioner statistics that quote high success rates. They often come from small samples, or from choosing the time period after seeing the data.
 
