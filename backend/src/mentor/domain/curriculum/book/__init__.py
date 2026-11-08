@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Final
 
-from mentor.domain.curriculum.book import part01_start, part02_markets, part03_charts
+from mentor.domain.curriculum.book import (
+    part01_start,
+    part02_markets,
+    part03_charts,
+    part04_risk,
+)
 from mentor.domain.curriculum.model import Module, Part
 
 PARTS: Final[tuple[Part, ...]] = (
@@ -99,4 +104,5 @@ BOOK_MODULES: Final[tuple[Module, ...]] = (
     *part01_start.CHAPTERS,
     *part02_markets.CHAPTERS,
     *part03_charts.CHAPTERS,
+    *part04_risk.CHAPTERS,
 )
