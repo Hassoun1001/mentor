@@ -45,6 +45,7 @@ from mentor.application.forecasting.promotion import PromotionService
 from mentor.application.forecasting.resolver import resolve_pending_predictions
 from mentor.application.health.self_report import ReportStore, collect_self_report, report_url
 from mentor.application.macro.cot_ingest import CotIngestService
+from mentor.application.macro.ingest import MacroIngestService
 from mentor.application.market import IngestionService
 from mentor.application.market.quality import scan_quality
 from mentor.application.news.tone_ingest import ToneIngestService
@@ -57,6 +58,7 @@ from mentor.application.strategy_lab.store import sql_bar_loader
 from mentor.config import Settings
 from mentor.domain.errors import DomainError
 from mentor.domain.market.bars import Timeframe
+from mentor.domain.market.hours import fx_market_open
 from mentor.domain.strategy_lab.library import find_candidate
 from mentor.infrastructure.adapters import FailoverMarketDataAdapter
 from mentor.infrastructure.adapters.factory import build_sources, close_sources
@@ -84,6 +86,9 @@ _TONE_REFRESH_HOURS = 6
 # COT is weekly; a daily poll catches the Friday report within a day without
 # hammering CFTC, and is idempotent so re-runs are free.
 _COT_REFRESH_HOURS = 24
+_FRED_REFRESH_HOURS = 24
+# Upserts are idempotent, so a wide window closes any gap a failed run left.
+_FRED_REFRESH_WINDOW = timedelta(days=180)
 _TONE_REFRESH_DAYS = 14
 
 # APScheduler interval jobs first fire one whole interval AFTER registration,
@@ -332,6 +337,27 @@ class LoopScheduler:
             self._health.event("cot_error", f"COT positioning refresh failed: {exc}")
             return 0
 
+    async def run_fred_once(self) -> int:
+        """Refresh the FRED macro series the +macro models read.
+
+        Without this they froze: nothing scheduled ever refreshed them, and
+        from July 2026 every +macro model read four-month-old rates. A
+        failure degrades a feature rather than the loop, but it must show.
+        """
+        now = datetime.now(UTC)
+        try:
+            async with self._sessions() as session:
+                service = MacroIngestService(repo=MacroSeriesRepository(session))
+                result = await service.backfill(start=now - _FRED_REFRESH_WINDOW, end=now)
+                await session.commit()
+        except (DomainError, OSError) as exc:
+            log.warning("loop.fred_failed", error=str(exc))
+            self._health.beat("fred", ok=False, note=str(exc))
+            self._health.event("fred_error", f"FRED macro refresh failed: {exc}")
+            return 0
+        self._health.beat("fred", ok=True, note=f"{result.rows_written} rows refreshed")
+        return result.rows_written
+
     async def run_report_once(self) -> str:
         """Write the weekly self-report and send its summary to Telegram.
 
@@ -429,6 +455,10 @@ class LoopScheduler:
         self, *, tf: Timeframe, horizon_bars: int, lane: str, job: str
     ) -> str | None:
         s = self._settings
+
+        if not fx_market_open(datetime.now(UTC)):
+            self._health.beat(job, ok=True, note="market closed: no forecast")
+            return None
 
         predict_ok, quality_reason = await self._quality_check(tf)
         if not predict_ok:
@@ -733,6 +763,15 @@ class LoopScheduler:
             "interval",
             hours=_COT_REFRESH_HOURS,
             id="cot",
+            next_run_time=_soon(),
+            max_instances=1,
+            coalesce=True,
+        )
+        self._scheduler.add_job(
+            self.run_fred_once,
+            "interval",
+            hours=_FRED_REFRESH_HOURS,
+            id="fred",
             next_run_time=_soon(),
             max_instances=1,
             coalesce=True,

@@ -11,10 +11,15 @@ median stored hourly bar held 23% of the hour's real range, and 774 were
 more than five pips off. Every model trained since then, every back-test
 and every outcome graded off those rows read prices that never closed.
 
+A vendor can also keep printing while the market is shut: Twelve Data
+returns hourly and daily EUR/USD bars all weekend, with ranges no broker
+ever filled. Those rows are never stored (audit, 2026-11-08).
+
 Three rules, all pure, so ingestion and the one-off repair share them:
 
-1. Only a **settled, aligned** bar is stored. Settled: its period has
-   fully elapsed. Aligned: it is stamped on its timeframe's boundary.
+1. Only a **settled, aligned, in-hours** bar is stored. Settled: its period
+   has fully elapsed. Aligned: it is stamped on its timeframe's boundary.
+   In-hours: the market was open for it (`in_market_hours`).
    Yahoo labels its live hourly bar with the last trade's time (10:29:05),
    which put 275 extra rows between real hours.
 2. A stored bar written before its period closed is **provisional**. The
@@ -39,6 +44,9 @@ from decimal import Decimal
 from typing import Protocol
 
 from mentor.domain.market.bars import PriceBar, Timeframe
+from mentor.domain.market.hours import fx_market_open
+
+_SATURDAY = 5
 
 
 def closes_at(ts: datetime, timeframe: Timeframe) -> datetime:
@@ -58,6 +66,19 @@ def is_aligned(ts: datetime, timeframe: Timeframe) -> bool:
     a daily bar must be stamped at UTC midnight.
     """
     return ts.timestamp() % timeframe.seconds == 0
+
+
+def in_market_hours(ts: datetime, timeframe: Timeframe) -> bool:
+    """True when a bar stamped ``ts`` covers time the market was open.
+
+    A daily bar is stamped at UTC midnight, so it is judged by its day:
+    Saturday and Sunday are dropped. The two hours of real trading after
+    Sunday's reopen are given up on the daily lane, which matches the Yahoo
+    history the older bars came from.
+    """
+    if timeframe is Timeframe.D1:
+        return ts.weekday() < _SATURDAY
+    return fx_market_open(ts)
 
 
 def was_stored_provisional(ts: datetime, timeframe: Timeframe, ingested_at: datetime) -> bool:
@@ -97,20 +118,23 @@ class Screened:
     settled: tuple[PriceBar, ...]
     forming: int
     misaligned: int
+    closed: int = 0
 
 
 def screen(bars: Iterable[PriceBar], *, now: datetime) -> Screened:
     """Keep the bars that are safe to store; count the rest so it is visible."""
     kept: list[PriceBar] = []
-    forming = misaligned = 0
+    forming = misaligned = closed = 0
     for bar in bars:
         if not is_aligned(bar.ts, bar.timeframe):
             misaligned += 1
         elif not is_settled(bar.ts, bar.timeframe, now):
             forming += 1
+        elif not in_market_hours(bar.ts, bar.timeframe):
+            closed += 1
         else:
             kept.append(bar)
-    return Screened(settled=tuple(kept), forming=forming, misaligned=misaligned)
+    return Screened(settled=tuple(kept), forming=forming, misaligned=misaligned, closed=closed)
 
 
 @dataclass(frozen=True, slots=True)

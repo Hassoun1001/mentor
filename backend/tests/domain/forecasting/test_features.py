@@ -76,7 +76,7 @@ def test_features_are_point_in_time() -> None:
 def test_label_drops_tail() -> None:
     closes = [Decimal(str(1.08 + i * 0.001)) for i in range(20)]
     ts = [datetime(2026, 1, 1, tzinfo=UTC) + timedelta(hours=i) for i in range(20)]
-    labels = build_labels(closes, timestamps=ts, horizon_bars=5)
+    labels = build_labels(closes, timestamps=ts, horizon_bars=5, bar_seconds=3600)
     assert len(labels) == 15  # 20 - 5
     # On a rising series every label should be 1
     assert all(label == 1 for _, label in labels)

@@ -34,6 +34,7 @@ from mentor.domain.market.bars import PriceBar, Timeframe
 from mentor.domain.market.settlement import (
     BarCorrection,
     StoredBar,
+    in_market_hours,
     is_aligned,
     plan_corrections,
     screen,
@@ -50,6 +51,8 @@ REPAIR_CORRECTION_REASON = (
 )
 REPAIR_MISALIGNED_REASON = "repair: not on a bar boundary (a feed's live tick)"
 REPAIR_UNMATCHED_REASON = "repair: stored before its period closed; no settled bar exists"
+REPAIR_CLOSED_REASON = "repair: printed while the market was closed; no broker could fill it"
+_ALL_HISTORY_START = datetime(2000, 1, 1, tzinfo=UTC)
 
 
 class RepairStore(BarStore, Protocol):
@@ -65,6 +68,10 @@ class RepairStore(BarStore, Protocol):
     ) -> int: ...
 
     async def revert(self, *, batch_id: str, now: datetime) -> tuple[int, int]: ...
+
+    async def range(
+        self, *, symbol: str, timeframe: Timeframe, start: datetime, end: datetime
+    ) -> Sequence[StoredBar]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +198,31 @@ class BarRepairService:
             removed_unmatched=removed_unmatched,
         )
         return RepairOutcome(batch_id, corrected, removed_misaligned, removed_unmatched)
+
+    async def closed_market_bars(
+        self, *, symbol: str, timeframe: Timeframe, now: datetime
+    ) -> tuple[StoredBar, ...]:
+        """Read-only: every stored bar printed while the market was shut."""
+        rows = await self._repo.range(
+            symbol=symbol, timeframe=timeframe, start=_ALL_HISTORY_START, end=now
+        )
+        return tuple(r for r in rows if not in_market_hours(r.ts, timeframe))
+
+    async def remove_closed_market_bars(
+        self, rows: Sequence[StoredBar], *, timeframe: Timeframe, now: datetime
+    ) -> tuple[str, int]:
+        """Remove them under one batch id; ``revert`` restores every row."""
+        batch_id = f"closed:{timeframe.value}:{now.astimezone(UTC):%Y%m%dT%H%M%SZ}"
+        removed = await self._repo.remove(
+            rows, batch_id=batch_id, reason=REPAIR_CLOSED_REASON, now=now
+        )
+        log.warning(
+            "bars.closed_market_removed",
+            batch_id=batch_id,
+            timeframe=timeframe.value,
+            removed=removed,
+        )
+        return batch_id, removed
 
     async def revert(self, *, batch_id: str, now: datetime) -> tuple[int, int]:
         restored, skipped = await self._repo.revert(batch_id=batch_id, now=now)

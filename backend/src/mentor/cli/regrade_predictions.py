@@ -5,6 +5,8 @@ Usage (inside the app container):
     python -m mentor.cli.regrade_predictions plan                 # read-only report
     python -m mentor.cli.regrade_predictions apply --confirm
     python -m mentor.cli.regrade_predictions revert --batch regrade:20261014T060000Z
+    python -m mentor.cli.regrade_predictions closed-plan            # after removing closed bars
+    python -m mentor.cli.regrade_predictions closed-apply --confirm
 
 Only ``realised_close`` and ``realised_outcome`` change; every change is
 logged to ``prediction_regrades`` with the values it replaced. See
@@ -17,7 +19,11 @@ import argparse
 import asyncio
 from datetime import UTC, datetime
 
-from mentor.application.forecasting.regrade import PredictionRegradeService
+from mentor.application.forecasting.regrade import (
+    REGRADE_CLOSED_MARKET_REASON,
+    ClosedMarketVoidService,
+    PredictionRegradeService,
+)
 from mentor.config import get_settings
 from mentor.infrastructure.db import build_engine, build_session_factory, session_scope
 from mentor.infrastructure.repositories.predictions import PredictionRepository
@@ -40,8 +46,19 @@ async def _run(args: argparse.Namespace) -> str:
             if args.command == "revert":
                 restored, skipped = await service.revert(batch_id=args.batch, now=now)
                 return f"{args.batch}: restored {restored}; {skipped} skipped (changed since)"
+            voids = ClosedMarketVoidService(predictions=PredictionRepository(session))
+            out: list[str] = []
+            if args.command.startswith("closed-"):
+                closed = await voids.plan()
+                out.append(f"{len(closed)} call(s) were made from a closed-market bar")
+                if args.command == "closed-apply":
+                    done_void = await voids.apply(closed, now=now)
+                    out.append(f"APPLIED batch {done_void.batch_id}: {done_void.changed} voided")
             plan = await service.plan(now=now)
-            out = [plan.describe()]
+            out.append(plan.describe())
+            if args.command == "closed-apply":
+                done = await service.apply(plan, now=now, reason=REGRADE_CLOSED_MARKET_REASON)
+                out.append(f"APPLIED batch {done.batch_id}: {done.changed} call(s) re-graded")
             if args.command == "apply":
                 done = await service.apply(plan, now=now)
                 out.append(f"APPLIED batch {done.batch_id}: {done.changed} call(s) re-graded")
@@ -52,11 +69,11 @@ async def _run(args: argparse.Namespace) -> str:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Re-grade resolved calls on their own finished bars.")
-    p.add_argument("command", choices=["plan", "apply", "revert"])
+    p.add_argument("command", choices=["plan", "apply", "revert", "closed-plan", "closed-apply"])
     p.add_argument("--confirm", action="store_true", help="required for apply")
     p.add_argument("--batch", help="batch id to revert")
     args = p.parse_args()
-    if args.command == "apply" and not args.confirm:
+    if args.command in ("apply", "closed-apply") and not args.confirm:
         p.error("apply changes the graded track record; run plan first, then pass --confirm")
     if args.command == "revert" and not args.batch:
         p.error("revert needs --batch")

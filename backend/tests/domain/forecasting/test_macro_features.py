@@ -27,7 +27,8 @@ def test_point_in_time_only_uses_past() -> None:
     points = [MacroPoint("DGS2", _day(i), 4.0 + i * 0.1) for i in range(6)]
     points.append(MacroPoint("DGS2", _day(20), 9.9))  # far future spike
     series = MacroSeries(points)
-    feats = series.features_asof(_day(5))
+    # Day 5 is a Tuesday: posted Wednesday, so readable from Thursday, day 7.
+    feats = series.features_asof(_day(7))
     # 5-day change = value@day5 (4.5) - value@day0 (4.0) = 0.5
     assert abs(feats["us2y_chg_5"] - 0.5) < 1e-9
 
@@ -38,7 +39,8 @@ def test_spread_level_and_dxy_return_and_vix() -> None:
         *[MacroPoint("DTWEXBGS", _day(i), 100.0 + i) for i in range(6)],  # 100..105
         *[MacroPoint("VIXCLS", _day(i), 15.0 + i) for i in range(6)],  # 15..20
     ]
-    feats = MacroSeries(points).features_asof(_day(5))
+    # The dollar index is weekly: day 5's value arrives with the next release.
+    feats = MacroSeries(points).features_asof(_day(12))
     assert abs(feats["us_2s10s"] - 0.35) < 1e-9
     # dxy_ret_5 = (105 - 100) / 100 = 0.05
     assert abs(feats["dxy_ret_5"] - 0.05) < 1e-9

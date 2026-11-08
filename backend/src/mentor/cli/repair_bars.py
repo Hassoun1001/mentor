@@ -6,6 +6,8 @@ Usage (inside the app container):
     python -m mentor.cli.repair_bars apply --confirm          # correct + remove misaligned
     python -m mentor.cli.repair_bars apply --confirm --remove-unmatched
     python -m mentor.cli.repair_bars revert --batch repair:1h:20261013T180000Z
+    python -m mentor.cli.repair_bars closed-plan              # bars printed while shut
+    python -m mentor.cli.repair_bars closed-apply --confirm   # remove them (revert restores)
 
 ``plan`` writes nothing. ``apply`` prints one batch id per timeframe; every
 change in it is logged to ``price_bar_revisions`` with the values it
@@ -58,6 +60,16 @@ async def _run(args: argparse.Namespace) -> str:
                 service = BarRepairService(
                     adapter=adapter, repo=PriceBarRepository(session), pip=pip
                 )
+                if args.command.startswith("closed-"):
+                    rows = await service.closed_market_bars(symbol=symbol, timeframe=tf, now=now)
+                    span = f"{rows[0].ts:%Y-%m-%d} to {rows[-1].ts:%Y-%m-%d}" if rows else "none"
+                    out.append(f"{tf.value}: {len(rows)} closed-market bar(s) ({span})")
+                    if args.command == "closed-apply":
+                        batch, removed = await service.remove_closed_market_bars(
+                            rows, timeframe=tf, now=now
+                        )
+                        out.append(f"  APPLIED batch {batch}: removed {removed}")
+                    continue
                 plan = await service.plan(symbol=symbol, timeframe=tf, now=now)
                 out.append(plan.describe())
                 if args.command == "apply":
@@ -77,7 +89,7 @@ async def _run(args: argparse.Namespace) -> str:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Repair bars stored before their period closed.")
-    p.add_argument("command", choices=["plan", "apply", "revert"])
+    p.add_argument("command", choices=["plan", "apply", "revert", "closed-plan", "closed-apply"])
     p.add_argument("--confirm", action="store_true", help="required for apply")
     p.add_argument(
         "--remove-unmatched",
@@ -86,7 +98,7 @@ def main() -> None:
     )
     p.add_argument("--batch", help="batch id to revert")
     args = p.parse_args()
-    if args.command == "apply" and not args.confirm:
+    if args.command in ("apply", "closed-apply") and not args.confirm:
         p.error("apply changes stored prices; run plan first, then pass --confirm")
     if args.command == "revert" and not args.batch:
         p.error("revert needs --batch")

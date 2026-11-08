@@ -291,7 +291,13 @@ def _assemble_samples(
     closes = [b.close for b in bars]
     timestamps = [b.ts for b in bars]
     label_by_ts: dict[datetime, int] = {
-        ts: y for ts, y in build_labels(closes, timestamps=timestamps, horizon_bars=horizon_bars)
+        ts: y
+        for ts, y in build_labels(
+            closes,
+            timestamps=timestamps,
+            horizon_bars=horizon_bars,
+            bar_seconds=bars[0].timeframe.seconds if bars else 3600,
+        )
     }
 
     news_names: tuple[str, ...] = NEWS_FEATURE_NAMES if news_by_ts is not None else ()
@@ -336,7 +342,13 @@ def _tail_samples(
     closes = [b.close for b in bars]
     timestamps = [b.ts for b in bars]
     label_by_ts: dict[datetime, int] = {
-        ts: y for ts, y in build_labels(closes, timestamps=timestamps, horizon_bars=horizon_bars)
+        ts: y
+        for ts, y in build_labels(
+            closes,
+            timestamps=timestamps,
+            horizon_bars=horizon_bars,
+            bar_seconds=bars[0].timeframe.seconds if bars else 3600,
+        )
     }
 
     samples: list[tuple[list[float], int]] = []

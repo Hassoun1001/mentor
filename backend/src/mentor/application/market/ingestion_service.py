@@ -70,6 +70,7 @@ class IngestionResult:
     corrected: int = 0  # provisional rows replaced by their settled bar
     skipped_forming: int = 0  # period not over yet — fetched again next time
     skipped_misaligned: int = 0  # not on a bar boundary (a feed's live tick)
+    skipped_closed: int = 0  # printed while the market was shut — never stored
 
 
 def correction_batch_id(timeframe: Timeframe, now: datetime) -> str:
@@ -132,6 +133,7 @@ class IngestionService:
             corrected=corrected,
             skipped_forming=screened.forming,
             skipped_misaligned=screened.misaligned,
+            skipped_closed=screened.closed,
             source=self._adapter.name,
         )
 
@@ -145,4 +147,5 @@ class IngestionService:
             corrected=corrected,
             skipped_forming=screened.forming,
             skipped_misaligned=screened.misaligned,
+            skipped_closed=screened.closed,
         )

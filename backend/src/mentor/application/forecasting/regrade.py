@@ -31,12 +31,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Protocol
+from typing import Any, Protocol
 
 from mentor.application.forecasting.resolver import MAX_RESOLUTION_LAG, outcome_bar
-from mentor.domain.forecasting.outcome import OutcomeRegrade
+from mentor.domain.forecasting.outcome import VOID_CLOSED_MARKET_REASON, OutcomeRegrade
 from mentor.domain.market.bars import Timeframe
-from mentor.domain.market.settlement import StoredBar
+from mentor.domain.market.settlement import StoredBar, in_market_hours
 from mentor.logging import get_logger
 
 log = get_logger("mentor.forecasting.regrade")
@@ -44,6 +44,9 @@ log = get_logger("mentor.forecasting.regrade")
 REGRADE_REASON = (
     "re-graded on its own finished horizon bar (was graded on the bar before it, "
     "captured mid-period)"
+)
+REGRADE_CLOSED_MARKET_REASON = (
+    "re-graded after closed-market bars were removed: first real price at or after the horizon"
 )
 
 
@@ -200,10 +203,12 @@ class PredictionRegradeService:
                 regrades.append(g)
         return RegradePlan(tuple(regrades), tuple(unavailable), dict(lanes))
 
-    async def apply(self, plan: RegradePlan, *, now: datetime) -> RegradeOutcome:
+    async def apply(
+        self, plan: RegradePlan, *, now: datetime, reason: str = REGRADE_REASON
+    ) -> RegradeOutcome:
         batch_id = regrade_batch_id(now)
         changed = await self._predictions.apply_regrades(
-            plan.regrades, batch_id=batch_id, reason=REGRADE_REASON, now=now
+            plan.regrades, batch_id=batch_id, reason=reason, now=now
         )
         log.warning(
             "predictions.regraded",
@@ -220,6 +225,48 @@ class PredictionRegradeService:
             "predictions.regrade_reverted", batch_id=batch_id, restored=restored, skipped=skipped
         )
         return restored, skipped
+
+
+class LiveCall(Protocol):
+    @property
+    def timeframe(self) -> str: ...
+    @property
+    def asof(self) -> datetime: ...
+
+
+class VoidStore(Protocol):
+    async def live_calls(self) -> Sequence[LiveCall]: ...
+
+    async def void_calls(
+        self, calls: Sequence[Any], *, batch_id: str, reason: str, now: datetime
+    ) -> int: ...
+
+
+class ClosedMarketVoidService:
+    """Take calls made from a closed-market bar off the live record.
+
+    Their starting price was never tradeable, so no outcome can make them
+    fair. They stay in the table, marked ``voided``, and ``revert`` puts
+    them back. A call made while the market was open and merely due during
+    the closure is not voided: it is re-graded on the reopen.
+    """
+
+    def __init__(self, *, predictions: VoidStore) -> None:
+        self._predictions = predictions
+
+    async def plan(self) -> tuple[LiveCall, ...]:
+        calls = await self._predictions.live_calls()
+        return tuple(
+            c for c in calls if not in_market_hours(c.asof, Timeframe(c.timeframe))
+        )
+
+    async def apply(self, calls: Sequence[LiveCall], *, now: datetime) -> RegradeOutcome:
+        batch_id = f"void:{now.astimezone(UTC):%Y%m%dT%H%M%SZ}"
+        changed = await self._predictions.void_calls(
+            calls, batch_id=batch_id, reason=VOID_CLOSED_MARKET_REASON, now=now
+        )
+        log.warning("predictions.voided", batch_id=batch_id, voided=changed, planned=len(calls))
+        return RegradeOutcome(batch_id, changed)
 
 
 def regrade_batch_id(now: datetime) -> str:

@@ -14,11 +14,11 @@ Sources (all from FRED, no key):
 - ``DTWEXBGS`` Broad USD index           -> ``dxy_ret_5`` (5-day return; $ momentum)
 - ``VIXCLS``   VIX                        -> ``vix_level`` (/100) + ``vix_chg_5``
 
-Point-in-time: at a daily bar closing end-of-day D we use only macro
-observations dated on or before D (``day <= asof``). Because FRED series
-publish with varying lags, "on or before" naturally falls back to the most
-recent value actually available — never a future one. When a series has no
-data on/before the as-of date its features are neutral zeros, same as news.
+Point-in-time: FRED dates a row by the day it describes, not the day it was
+published, so a row is read only from the UTC day after its release
+(`_fred_visible_from`). Reading it by its own date let an 08:00 bar see that
+evening's closing yield in training, which live scoring never can. When a
+series has no visible data its features are neutral zeros, same as news.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import bisect
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Final
 
 # The FRED series ids we ingest and consume.
@@ -51,6 +51,9 @@ MACRO_FEATURE_NAMES: Final[tuple[str, ...]] = (
     "cot_net_chg",
 )
 
+_DOLLAR_INDEX_SERIES_ID: Final = "DTWEXBGS"
+_SATURDAY = 5
+_WEEK_DAYS = 7
 _LOOKBACK = 5  # trading-day lookback for change/return features
 _NEUTRAL: Final[dict[str, float]] = dict.fromkeys(MACRO_FEATURE_NAMES, 0.0)
 
@@ -60,6 +63,31 @@ class MacroPoint:
     series_id: str
     day: datetime  # midnight UTC of the observation day
     value: float
+
+
+def _fred_visible_from(series_id: str, day: date) -> date:
+    """The first UTC day a FRED observation may be read.
+
+    Daily series post on the next business day, late in the US afternoon.
+    The broad dollar index is released weekly: each Monday's H.10 covers the
+    week before. US holidays can delay either by a day; the extra day here
+    absorbs most of that.
+    """
+    if series_id == _DOLLAR_INDEX_SERIES_ID:
+        return day + timedelta(days=_WEEK_DAYS - day.weekday() + 1)
+    released = day + timedelta(days=1)
+    while released.weekday() >= _SATURDAY:
+        released += timedelta(days=1)
+    return released + timedelta(days=1)
+
+
+def _visible_day(point: MacroPoint) -> date:
+    observed = point.day.date()
+    return (
+        _fred_visible_from(point.series_id, observed)
+        if point.series_id in FRED_SERIES_IDS
+        else observed  # COT rows are already dated by publication
+    )
 
 
 class MacroSeries:
@@ -80,7 +108,7 @@ class MacroSeries:
         for sid, pts in by_series.items():
             pts.sort(key=lambda p: p.day)
             self._values[sid] = [p.value for p in pts]
-            self._days[sid] = [p.day.date() for p in pts]
+            self._days[sid] = [_visible_day(p) for p in pts]
 
     @property
     def empty(self) -> bool:

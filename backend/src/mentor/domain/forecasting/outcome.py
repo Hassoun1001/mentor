@@ -13,6 +13,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+# Marks a prediction_regrades row as a void, so a revert knows to restore
+# the call to the record rather than to swap its outcome back.
+VOID_CLOSED_MARKET_REASON = "voided: made from a bar printed while the market was closed"
+
 
 def outcome_of(asof_close: Decimal, realised_close: Decimal) -> int:
     """1 when the realised close is above the call's starting price, else 0."""

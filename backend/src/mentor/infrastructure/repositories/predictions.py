@@ -13,7 +13,11 @@ from sqlalchemy import CursorResult, and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mentor.domain.forecasting.forecast import Forecast
-from mentor.domain.forecasting.outcome import OutcomeRegrade, outcome_of
+from mentor.domain.forecasting.outcome import (
+    VOID_CLOSED_MARKET_REASON,
+    OutcomeRegrade,
+    outcome_of,
+)
 from mentor.infrastructure.models import PredictionORM, PredictionRegradeORM
 
 
@@ -180,6 +184,7 @@ class PredictionRepository:
             and_(
                 PredictionORM.resolved_at.is_(None),
                 PredictionORM.horizon_at <= before,
+                PredictionORM.origin != "voided",
             )
         )
         result = await self._session.execute(stmt)
@@ -204,7 +209,7 @@ class PredictionRepository:
         """Every graded call, oldest horizon first — for a full re-grade."""
         stmt = (
             select(PredictionORM)
-            .where(PredictionORM.resolved_at.is_not(None))
+            .where(PredictionORM.resolved_at.is_not(None), PredictionORM.origin != "voided")
             .order_by(PredictionORM.horizon_at.asc())
         )
         result = await self._session.execute(stmt)
@@ -257,6 +262,55 @@ class PredictionRepository:
         await self._session.flush()
         return changed
 
+    async def live_calls(self) -> Sequence[PredictionORM]:
+        """Every call on the live record, graded or still pending."""
+        stmt = select(PredictionORM).where(PredictionORM.origin == "live")
+        return (await self._session.execute(stmt)).scalars().all()
+
+    async def void_calls(
+        self,
+        calls: Sequence[PredictionORM],
+        *,
+        batch_id: str,
+        reason: str,
+        now: datetime,
+    ) -> int:
+        """Mark calls ``voided``, logging each so the batch can be reverted.
+
+        A void changes no price or outcome, so the log's old and new values
+        match; a call still pending logs its own starting price.
+        """
+        voided = 0
+        for c in calls:
+            stmt = (
+                update(PredictionORM)
+                .where(PredictionORM.id == c.id, PredictionORM.origin == "live")
+                .values(origin="voided")
+                .execution_options(synchronize_session=False)
+            )
+            result = cast("CursorResult[Any]", await self._session.execute(stmt))
+            if not result.rowcount:
+                continue
+            close = c.realised_close if c.realised_close is not None else c.asof_close
+            outcome = int(c.realised_outcome or 0)
+            self._session.add(
+                PredictionRegradeORM(
+                    id=uuid.uuid4(),
+                    batch_id=batch_id,
+                    prediction_id=c.id,
+                    reason=reason,
+                    old_realised_close=close,
+                    old_realised_outcome=outcome,
+                    new_realised_close=close,
+                    new_realised_outcome=outcome,
+                    outcome_bar_ts=c.asof,
+                    regraded_at=now,
+                )
+            )
+            voided += 1
+        await self._session.flush()
+        return voided
+
     async def revert_regrades(self, *, batch_id: str, now: datetime) -> tuple[int, int]:
         """Restore every outcome a batch changed, unless it has changed again since."""
         stmt = select(PredictionRegradeORM).where(
@@ -267,6 +321,11 @@ class PredictionRepository:
         for rev in (await self._session.execute(stmt)).scalars().all():
             undo = (
                 update(PredictionORM)
+                .where(PredictionORM.id == rev.prediction_id, PredictionORM.origin == "voided")
+                .values(origin="live")
+                .execution_options(synchronize_session=False)
+                if rev.reason == VOID_CLOSED_MARKET_REASON
+                else update(PredictionORM)
                 .where(
                     PredictionORM.id == rev.prediction_id,
                     PredictionORM.realised_close == rev.new_realised_close,

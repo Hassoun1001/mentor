@@ -426,7 +426,7 @@ class PredictionORM(Base, _TimestampMixin):
             "p_up_model IS NULL OR (p_up_model >= 0 AND p_up_model <= 1)",
             name="ck_predictions_p_up_model",
         ),
-        CheckConstraint("origin IN ('live','replay')", name="ck_predictions_origin"),
+        CheckConstraint("origin IN ('live','replay','voided')", name="ck_predictions_origin"),
         Index("ix_predictions_symbol_asof", "symbol", asof.desc()),
         Index("ix_predictions_unresolved", "horizon_at", "resolved_at"),
     )
