@@ -152,6 +152,29 @@ class PredictionRepository:
         result = await self._session.execute(stmt)
         return result.first() is not None
 
+    async def id_at(
+        self, *, symbol: str, timeframe: str, asof: datetime, model_name: str
+    ) -> uuid.UUID | None:
+        """The logged call for this exact bar and model, if there is one.
+
+        A live call is preferred over a replay of the same bar ('live' sorts
+        before 'replay').
+        """
+        stmt = (
+            select(PredictionORM.id)
+            .where(
+                and_(
+                    PredictionORM.symbol == symbol.upper(),
+                    PredictionORM.timeframe == timeframe,
+                    PredictionORM.asof == asof,
+                    PredictionORM.model_name == model_name,
+                )
+            )
+            .order_by(PredictionORM.origin.asc())
+            .limit(1)
+        )
+        return (await self._session.execute(stmt)).scalars().first()
+
     async def unresolved_due_by(self, before: datetime) -> Sequence[PredictionORM]:
         stmt = select(PredictionORM).where(
             and_(

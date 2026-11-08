@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from mentor.api.deps import SessionDep
 from mentor.application.journal import TradeService
+from mentor.application.journal.system_comparison import SystemComparisonService
 from mentor.domain.errors import ValidationError
 from mentor.domain.journal.mistakes import (
     RootCauseBreakdown,
@@ -19,9 +20,14 @@ from mentor.domain.journal.mistakes import (
     mistake_catalog,
     normalise_tags,
 )
+from mentor.domain.journal.system_plan import PlanSnapshot, PlanStance, time_stop_deadline
 from mentor.domain.journal.trade import TradePlan, TradeStatus
+from mentor.domain.market.bars import Timeframe
 from mentor.domain.money import Money
 from mentor.domain.risk.position_sizing import Direction
+from mentor.infrastructure.repositories.plan_snapshots import PlanSnapshotRepository
+from mentor.infrastructure.repositories.predictions import PredictionRepository
+from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.infrastructure.repositories.trades import TradeRepository
 
 router = APIRouter(prefix="/trades", tags=["journal"])
@@ -56,6 +62,28 @@ class PlanTradeRequest(BaseModel):
     target: Annotated[Decimal | None, Field(gt=0)] = None
     initial_risk: MoneyDTO
     reason: str
+
+
+class PlanSnapshotRequest(BaseModel):
+    """The Trade plan as the page showed it. The deadline is worked out here."""
+
+    symbol: str
+    timeframe: Timeframe
+    asof: datetime
+    model_name: Annotated[str, Field(max_length=128)]
+    p_up: Annotated[Decimal, Field(ge=0, le=1)]
+    confidence: Annotated[Decimal, Field(ge=0, le=1)]
+    stance: PlanStance
+    horizon_bars: Annotated[int, Field(ge=1, le=500)]
+    entry: Annotated[Decimal | None, Field(gt=0)] = None
+    stop: Annotated[Decimal | None, Field(gt=0)] = None
+    target: Annotated[Decimal | None, Field(gt=0)] = None
+    reward_multiple: Annotated[Decimal | None, Field(gt=0)] = None
+
+
+class LogFromPlanRequest(BaseModel):
+    plan: PlanSnapshotRequest
+    trade: PlanTradeRequest
 
 
 class OpenTradeRequest(BaseModel):
@@ -139,6 +167,48 @@ async def plan_trade(body: PlanTradeRequest, session: SessionDep) -> TradeRespon
         reason=body.reason,
     )
     trade = await _service(session).plan(plan)
+    return _to_response(trade)
+
+
+@router.post("/from-plan", response_model=TradeResponse, status_code=status.HTTP_201_CREATED)
+async def log_trade_from_plan(body: LogFromPlanRequest, session: SessionDep) -> TradeResponse:
+    """Log a trade and freeze the plan it came from, so the two can be compared later."""
+    p = body.plan
+    snapshot = PlanSnapshot(
+        symbol=p.symbol.upper(),
+        timeframe=p.timeframe,
+        asof=p.asof,
+        model_name=p.model_name,
+        p_up=p.p_up,
+        confidence=p.confidence,
+        stance=p.stance,
+        horizon_bars=p.horizon_bars,
+        time_stop_deadline=time_stop_deadline(p.asof, p.horizon_bars, p.timeframe),
+        entry=p.entry,
+        stop=p.stop,
+        target=p.target,
+        reward_multiple=p.reward_multiple,
+    )
+    t = body.trade
+    service = SystemComparisonService(
+        trades=TradeRepository(session),
+        plans=PlanSnapshotRepository(session),
+        prices=PriceBarRepository(session),
+        predictions=PredictionRepository(session),
+    )
+    trade = await service.log_from_plan(
+        TradePlan(
+            symbol=t.symbol.upper(),
+            direction=t.direction,
+            size_lots=t.size_lots,
+            entry=t.entry,
+            stop=t.stop,
+            target=t.target,
+            initial_risk=Money(t.initial_risk.amount, t.initial_risk.currency),
+            reason=t.reason,
+        ),
+        snapshot,
+    )
     return _to_response(trade)
 
 

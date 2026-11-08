@@ -203,6 +203,46 @@ class JournalReflection(Base, _TimestampMixin):
     trade: Mapped[Trade] = relationship(back_populates="reflection")
 
 
+class TradePlanSnapshotORM(Base):
+    """The Trade plan as it was shown when a trade was logged from it.
+
+    Written once. A database trigger refuses updates, so nothing can rewrite
+    what the system said after the fact (see ``domain/journal/system_plan.py``).
+    Trades logged by hand simply have no row here.
+    """
+
+    __tablename__ = "trade_plan_snapshots"
+
+    trade_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("trades.id", ondelete="CASCADE"), primary_key=True
+    )
+    symbol: Mapped[str] = mapped_column(String(16), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    asof: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    p_up: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False)
+    stance: Mapped[str] = mapped_column(String(16), nullable=False)
+    entry: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    stop: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    target: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    reward_multiple: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    horizon_bars: Mapped[int] = mapped_column(nullable=False)
+    time_stop_deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # No foreign key, like the regrade log: this row must outlive anything
+    # that ever happens to the predictions table.
+    prediction_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "stance IN ('long','short','stand_aside')", name="ck_trade_plan_snapshots_stance"
+        ),
+    )
+
+
 # --- curriculum progress ----------------------------------------------------
 
 

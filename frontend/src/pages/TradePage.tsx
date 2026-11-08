@@ -7,6 +7,7 @@ import {
   type TradePlan,
   fetchTradePlan,
 } from '../api/tradePlan';
+import { LogTradeFromPlan } from '../components/LogTradeFromPlan';
 import { Metric } from '../components/Metric';
 
 export function TradePage() {
@@ -49,7 +50,9 @@ export function TradePage() {
           Usually this means price history hasn&apos;t been backfilled yet.
         </div>
       )}
-      {plan.data && <PlanView plan={plan.data} />}
+      {plan.data && (
+        <PlanView plan={plan.data} balance={balance} riskPercent={riskPercent} />
+      )}
     </section>
   );
 }
@@ -134,7 +137,16 @@ const STANCE_STYLE: Record<TradePlan['stance'], { label: string; cls: string; ar
   },
 };
 
-function PlanView({ plan }: { plan: TradePlan }) {
+function PlanView({
+  plan,
+  balance,
+  riskPercent,
+}: {
+  plan: TradePlan;
+  balance: number;
+  riskPercent: number;
+}) {
+  const [reason, setReason] = useState('');
   const s = STANCE_STYLE[plan.stance];
   const pUp = Number(plan.p_up) * 100;
   const conf = Number(plan.confidence) * 100;
@@ -243,6 +255,22 @@ function PlanView({ plan }: { plan: TradePlan }) {
           )}
         </div>
       )}
+
+      <LogTradeFromPlan
+        key={[
+          plan.asof,
+          plan.model_name,
+          plan.stance,
+          plan.levels?.stop,
+          plan.levels?.target,
+          plan.size?.lots,
+        ].join('|')}
+        plan={plan}
+        balance={balance}
+        riskPercent={riskPercent}
+        reason={reason}
+        onReason={setReason}
+      />
 
       {plan.realism && <RealismPanel r={plan.realism} />}
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -10,15 +12,20 @@ from pydantic import BaseModel, Field
 
 from mentor.api.deps import SessionDep
 from mentor.application.journal import TradeService
+from mentor.application.journal.system_comparison import SystemComparisonService
 from mentor.domain.journal import (
     PreTradeChecklist,
     evaluate_pre_trade_checklist,
 )
+from mentor.domain.journal.comparison import TradeComparison
 from mentor.domain.journal.trade import TradePlan, TradeStatus
 from mentor.domain.money import Money, Percent
 from mentor.domain.risk import GuardrailLimits, OpenPosition, check_guardrails
 from mentor.domain.risk.position_sizing import Direction
 from mentor.domain.stats.significance import assess_expectancy, assess_proportion
+from mentor.infrastructure.repositories.plan_snapshots import PlanSnapshotRepository
+from mentor.infrastructure.repositories.predictions import PredictionRepository
+from mentor.infrastructure.repositories.price_bars import PriceBarRepository
 from mentor.infrastructure.repositories.trades import TradeRepository
 
 router = APIRouter(tags=["journal"])
@@ -112,6 +119,145 @@ async def journal_analytics(session: SessionDep, symbol: str | None = None) -> A
         expectancy_high=exp.high,
         expectancy_significant=exp.significant,
         trades_needed=exp.n_needed,
+    )
+
+
+# -------- trade versus system -----------------------------------------------
+
+
+class SystemSideDTO(BaseModel):
+    status: str  # pending | finished | no_trade
+    entry_price: Decimal | None
+    exit_price: Decimal | None
+    exit_reason: str | None
+    exit_ts: datetime | None
+    pips: Decimal | None
+    r: Decimal | None
+
+
+class ActualSideDTO(BaseModel):
+    direction: Direction
+    entry_price: Decimal | None
+    exit_price: Decimal | None
+    exit_reason: str | None
+    exit_ts: datetime | None
+    pips: Decimal | None
+    r: Decimal | None
+
+
+class SavedPlanDTO(BaseModel):
+    stance: str
+    asof: datetime
+    timeframe: str
+    model_name: str
+    p_up: Decimal
+    confidence: Decimal
+    entry: Decimal | None
+    stop: Decimal | None
+    target: Decimal | None
+    reward_multiple: Decimal | None
+    horizon_bars: int
+    time_stop_deadline: datetime
+    prediction_id: uuid.UUID | None
+
+
+class TradeComparisonDTO(BaseModel):
+    trade_id: uuid.UUID
+    verdict: str | None  # match | partial | no_match | pending; None until closed
+    explanation: str
+    plan: SavedPlanDTO
+    system: SystemSideDTO
+    actual: ActualSideDTO
+    entry_slippage_pips: Decimal | None
+    r_difference: Decimal | None
+
+
+class ComparisonSummaryDTO(BaseModel):
+    matches: int
+    partials: int
+    no_matches: int
+    pending: int
+    unlinked: int
+    compared: int
+    system_r: Decimal
+    actual_r: Decimal
+    execution_r: Decimal
+    headline: str
+
+
+class SystemComparisonResponse(BaseModel):
+    summary: ComparisonSummaryDTO
+    trades: list[TradeComparisonDTO]
+
+
+def _comparison_dto(c: TradeComparison) -> TradeComparisonDTO:
+    plan, system = c.plan, c.system
+    return TradeComparisonDTO(
+        trade_id=c.trade_id,
+        verdict=c.verdict.value if c.verdict else None,
+        explanation=c.explanation,
+        plan=SavedPlanDTO(
+            stance=plan.stance.value,
+            asof=plan.asof,
+            timeframe=plan.timeframe.value,
+            model_name=plan.model_name,
+            p_up=plan.p_up,
+            confidence=plan.confidence,
+            entry=plan.entry,
+            stop=plan.stop,
+            target=plan.target,
+            reward_multiple=plan.reward_multiple,
+            horizon_bars=plan.horizon_bars,
+            time_stop_deadline=plan.time_stop_deadline,
+            prediction_id=plan.prediction_id,
+        ),
+        system=SystemSideDTO(
+            status=system.status.value,
+            entry_price=system.entry_price,
+            exit_price=system.exit_price,
+            exit_reason=system.exit_reason.value if system.exit_reason else None,
+            exit_ts=system.exit_ts,
+            pips=system.pips,
+            r=system.r,
+        ),
+        actual=ActualSideDTO(
+            direction=c.actual_direction,
+            entry_price=c.actual_entry,
+            exit_price=c.actual_exit,
+            exit_reason=c.actual_exit_reason.value if c.actual_exit_reason else None,
+            exit_ts=c.actual_exit_ts,
+            pips=c.actual_pips,
+            r=c.actual_r,
+        ),
+        entry_slippage_pips=c.entry_slippage_pips,
+        r_difference=c.r_difference,
+    )
+
+
+@router.get("/journal/system-comparison", response_model=SystemComparisonResponse)
+async def system_comparison(session: SessionDep) -> SystemComparisonResponse:
+    """Each trade logged from a plan, set beside what the plan itself did."""
+    review = await SystemComparisonService(
+        trades=TradeRepository(session),
+        plans=PlanSnapshotRepository(session),
+        prices=PriceBarRepository(session),
+        predictions=PredictionRepository(session),
+    ).review()
+    s = review.summary
+    return SystemComparisonResponse(
+        summary=ComparisonSummaryDTO(
+            matches=s.matches,
+            partials=s.partials,
+            no_matches=s.no_matches,
+            pending=s.pending,
+            unlinked=s.unlinked,
+            compared=s.compared,
+            system_r=s.system_r,
+            actual_r=s.actual_r,
+            execution_r=s.execution_r,
+            headline=s.headline,
+        ),
+        trades=[_comparison_dto(c) for c in review.comparisons],
     )
 
 

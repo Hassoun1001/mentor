@@ -57,7 +57,12 @@ export async function openTrade(id: string, fillPrice: string): Promise<Trade> {
 export async function closeTrade(
   id: string,
   exitPrice: string,
-  opts: { mistake_tags?: string[]; emotion?: string | null; notes?: string | null } = {}
+  opts: {
+    mistake_tags?: string[];
+    emotion?: string | null;
+    notes?: string | null;
+    at?: string | null;
+  } = {}
 ): Promise<Trade> {
   return apiPost(
     `/trades/${id}/close`,
@@ -68,6 +73,95 @@ export async function closeTrade(
 
 export async function cancelTrade(id: string): Promise<Trade> {
   return apiPost(`/trades/${id}/cancel`, {}, tradeSchema);
+}
+
+// ---------- trade versus system ----------
+
+export interface LogFromPlanRequest {
+  plan: {
+    symbol: string;
+    timeframe: string;
+    asof: string;
+    model_name: string;
+    p_up: string;
+    confidence: string;
+    stance: 'long' | 'short' | 'stand_aside';
+    horizon_bars: number;
+    entry: string | null;
+    stop: string | null;
+    target: string | null;
+    reward_multiple: string | null;
+  };
+  trade: PlanTradeRequest;
+}
+
+export async function logTradeFromPlan(body: LogFromPlanRequest): Promise<Trade> {
+  return apiPost('/trades/from-plan', body, tradeSchema);
+}
+
+const exitKind = z.enum(['stop', 'target', 'time', 'manual']);
+export type ExitKind = z.infer<typeof exitKind>;
+
+const verdict = z.enum(['match', 'partial', 'no_match', 'pending']);
+export type Verdict = z.infer<typeof verdict>;
+
+const side = {
+  entry_price: decimalStr.nullable(),
+  exit_price: decimalStr.nullable(),
+  exit_reason: exitKind.nullable(),
+  exit_ts: z.string().nullable(),
+  pips: decimalStr.nullable(),
+  r: decimalStr.nullable(),
+};
+
+const tradeComparison = z.object({
+  trade_id: z.string().uuid(),
+  verdict: verdict.nullable(),
+  explanation: z.string(),
+  plan: z.object({
+    stance: z.enum(['long', 'short', 'stand_aside']),
+    asof: z.string(),
+    timeframe: z.string(),
+    model_name: z.string(),
+    p_up: decimalStr,
+    confidence: decimalStr,
+    entry: decimalStr.nullable(),
+    stop: decimalStr.nullable(),
+    target: decimalStr.nullable(),
+    reward_multiple: decimalStr.nullable(),
+    horizon_bars: z.number(),
+    time_stop_deadline: z.string(),
+    prediction_id: z.string().nullable(),
+  }),
+  system: z.object({ status: z.enum(['pending', 'finished', 'no_trade']), ...side }),
+  actual: z.object({ direction, ...side }),
+  entry_slippage_pips: decimalStr.nullable(),
+  r_difference: decimalStr.nullable(),
+});
+export type TradeComparison = z.infer<typeof tradeComparison>;
+
+const comparisonSummary = z.object({
+  matches: z.number(),
+  partials: z.number(),
+  no_matches: z.number(),
+  pending: z.number(),
+  unlinked: z.number(),
+  compared: z.number(),
+  system_r: decimalStr,
+  actual_r: decimalStr,
+  execution_r: decimalStr,
+  headline: z.string(),
+});
+export type ComparisonSummary = z.infer<typeof comparisonSummary>;
+
+const systemComparison = z.object({
+  summary: comparisonSummary,
+  trades: z.array(tradeComparison),
+});
+export type SystemComparison = z.infer<typeof systemComparison>;
+
+export async function getSystemComparison(): Promise<SystemComparison> {
+  return apiGet('/journal/system-comparison', systemComparison);
 }
 
 // ---------- analytics ----------

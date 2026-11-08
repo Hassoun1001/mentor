@@ -5,12 +5,14 @@ import {
   type Analytics,
   type ChecklistResponse,
   type Trade,
+  type TradeComparison,
   cancelTrade,
   closeTrade,
   evaluateChecklist,
   getAnalytics,
   getMistakeCatalog,
   getRootCauseReview,
+  getSystemComparison,
   listTrades,
   openTrade,
   planTrade,
@@ -19,6 +21,7 @@ import { ApiError } from '../api/client';
 import { SignificanceNote } from '../components/SignificanceNote';
 import { Field } from '../components/Field';
 import { Metric } from '../components/Metric';
+import { SystemComparisonSummary, TradeVersusSystem } from '../components/SystemComparison';
 import { formatLots, formatMoney, formatNumber, formatPercent } from '../lib/format';
 
 interface NewTradeForm {
@@ -57,6 +60,14 @@ export function JournalPage() {
 
   const trades = useQuery({ queryKey: ['trades'], queryFn: () => listTrades() });
   const analytics = useQuery({ queryKey: ['analytics'], queryFn: () => getAnalytics() });
+  const comparison = useQuery({
+    queryKey: ['system-comparison'],
+    queryFn: getSystemComparison,
+  });
+  const comparisonByTrade = useMemo(
+    () => new Map((comparison.data?.trades ?? []).map((c) => [c.trade_id, c])),
+    [comparison.data]
+  );
 
   const checklist = useQuery<ChecklistResponse>({
     queryKey: ['checklist', form],
@@ -97,6 +108,7 @@ export function JournalPage() {
     queryClient.invalidateQueries({ queryKey: ['trades'] });
     queryClient.invalidateQueries({ queryKey: ['analytics'] });
     queryClient.invalidateQueries({ queryKey: ['root-causes'] });
+    queryClient.invalidateQueries({ queryKey: ['system-comparison'] });
   };
 
   const checklistPassed = checklist.data?.passed ?? false;
@@ -115,6 +127,10 @@ export function JournalPage() {
       <AnalyticsPanel data={analytics.data} loading={analytics.isLoading} />
 
       <RootCausePanel />
+
+      {comparison.data && comparison.data.trades.length > 0 && (
+        <SystemComparisonSummary summary={comparison.data.summary} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr,1fr]">
         <div className="panel-pad space-y-5">
@@ -287,6 +303,7 @@ export function JournalPage() {
           <TradesList
             trades={trades.data ?? []}
             loading={trades.isLoading}
+            comparisons={comparisonByTrade}
             onChanged={refresh}
           />
         </div>
@@ -454,10 +471,12 @@ function ChecklistFailures({ items }: { items: ChecklistResponse['items'] }) {
 function TradesList({
   trades,
   loading,
+  comparisons,
   onChanged,
 }: {
   trades: Trade[];
   loading: boolean;
+  comparisons: Map<string, TradeComparison>;
   onChanged: () => void;
 }) {
   if (loading) return <p className="text-sm text-mentor-muted">Loading…</p>;
@@ -471,14 +490,24 @@ function TradesList({
   return (
     <ul className="divide-y divide-mentor-border">
       {trades.map((t) => (
-        <TradeRow key={t.id} trade={t} onChanged={onChanged} />
+        <TradeRow key={t.id} trade={t} comparison={comparisons.get(t.id)} onChanged={onChanged} />
       ))}
     </ul>
   );
 }
 
-function TradeRow({ trade, onChanged }: { trade: Trade; onChanged: () => void }) {
+function TradeRow({
+  trade,
+  comparison,
+  onChanged,
+}: {
+  trade: Trade;
+  comparison?: TradeComparison;
+  onChanged: () => void;
+}) {
+  const [fillPrice, setFillPrice] = useState(trade.planned_entry);
   const [exitPrice, setExitPrice] = useState('');
+  const [closedAt, setClosedAt] = useState('');
   const [acting, setActing] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
 
@@ -550,12 +579,21 @@ function TradeRow({ trade, onChanged }: { trade: Trade; onChanged: () => void })
 
       {trade.status === 'planned' && (
         <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="number"
+            step="any"
+            aria-label="Fill price"
+            placeholder="Fill price"
+            value={fillPrice}
+            onChange={(e) => setFillPrice(e.target.value)}
+            className="input w-32"
+          />
           <button
-            disabled={acting}
-            onClick={() => handle(() => openTrade(trade.id, trade.planned_entry))}
-            className="rounded-md border border-mentor-border bg-mentor-panelLight px-3 py-1 text-xs hover:text-mentor-fg"
+            disabled={acting || !fillPrice}
+            onClick={() => handle(() => openTrade(trade.id, fillPrice))}
+            className="rounded-md border border-mentor-border bg-mentor-panelLight px-3 py-1 text-xs hover:text-mentor-fg disabled:opacity-50"
           >
-            Open at {trade.planned_entry}
+            Open at this fill price
           </button>
           <button
             disabled={acting}
@@ -572,7 +610,12 @@ function TradeRow({ trade, onChanged }: { trade: Trade; onChanged: () => void })
           onSubmit={(e) => {
             e.preventDefault();
             if (!exitPrice) return;
-            handle(() => closeTrade(trade.id, exitPrice, { mistake_tags: tags }));
+            handle(() =>
+              closeTrade(trade.id, exitPrice, {
+                mistake_tags: tags,
+                at: closedAt ? new Date(closedAt).toISOString() : null,
+              })
+            );
           }}
           className="space-y-3"
         >
@@ -584,6 +627,14 @@ function TradeRow({ trade, onChanged }: { trade: Trade; onChanged: () => void })
               value={exitPrice}
               onChange={(e) => setExitPrice(e.target.value)}
               className="input w-32"
+            />
+            <input
+              type="datetime-local"
+              aria-label="Closed at (your local time)"
+              title="When it actually closed, in your local time. Leave blank for now."
+              value={closedAt}
+              onChange={(e) => setClosedAt(e.target.value)}
+              className="input w-auto"
             />
             <button
               type="submit"
@@ -600,6 +651,14 @@ function TradeRow({ trade, onChanged }: { trade: Trade; onChanged: () => void })
           </div>
           {losing && <TagPicker selected={tags} onToggle={toggleTag} />}
         </form>
+      )}
+
+      {comparison ? (
+        <TradeVersusSystem c={comparison} />
+      ) : (
+        trade.status !== 'cancelled' && (
+          <p className="text-xs text-mentor-muted">No system plan linked.</p>
+        )
       )}
     </li>
   );
