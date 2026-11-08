@@ -11,6 +11,33 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-08 — Recurring `loop.drift_detected` still 11× (no new fires); H1 champion replaced; no code change
+- **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
+  `log.warning.loop.drift_detected` (warn), count unchanged at 11 since
+  yesterday, so drift has not fired again; the tally is process-lifetime
+  and clears on the next rebuild. No `failing_jobs`, no other issues.
+  Live is `bdc2212` (`deployed_docs`), matching `main`; no refusals or
+  rollbacks. H1: a challenger (regularized+macro) was promoted on
+  2026-11-07 06:59, Brier 0.2411 vs champion 0.2455 on the same fresh
+  window (margin 0.0044 >= 0.002, clears coin-flip floor). New champion
+  `auto_eurusd_1h_20261107_065435`; lane record 103 independent windows
+  at 56.3% vs 51.80% breakeven, CI [46.7%, 65.5%], not significant;
+  `floor_failures` 0; weekly Brier 0.259 (prev 0.278). D1 baseline rule,
+  18 windows at 50.0% vs 50.72%; challenger 0.2560 still misses the
+  0.248 floor. Strategy lab: 74 trials, bar 4.38, all 8 rejected,
+  nothing waiting or changed. Digest `ok` on all four checks.
+- **Decision:** fix day (Sun). The only issue is the stale lifetime
+  tally of the drift warning already analysed on 2026-11-07; it is a
+  model signal, the retrain path handled it, and the promotion gate has
+  now installed a better champion through its normal rules. Nothing to
+  fix in code, so no change.
+- **Change:** this log entry only.
+- **Watch next:** the new champion's drift baseline is its own
+  promotion-time test Brier; if `loop.drift_detected` fires again in the
+  next few days (count > 11) against this fresh champion, check its
+  fresh-window re-grade. Escalate if `floor_failures` rises or weekly H1
+  Brier goes back above 0.27.
+
 ## 2026-11-07 — Recurring `loop.drift_detected` (11×); same late-October model signal, no code change
 - **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
   `log.warning.loop.drift_detected` (warn) — 11 drift detections in the
