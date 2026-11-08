@@ -1,6 +1,5 @@
 /**
- * One lesson, drawn section by section in the book's fixed order. Lessons not yet
- * rewritten for the book have no `goal` and show their original text instead.
+ * One lesson, drawn section by section in the book's fixed order.
  */
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -95,8 +94,6 @@ export function LessonBody({
   lesson: LessonResponse;
   showQuizAnswers?: boolean;
 }) {
-  if (!lesson.goal) return <LegacyBody lesson={lesson} showQuizAnswers={showQuizAnswers} />;
-
   const explainCharts = lesson.charts.filter((c) => c.place === 'explain');
   const exampleCharts = lesson.charts.filter((c) => c.place === 'example');
   const verdict = lesson.evidence ? (VERDICT[lesson.evidence.verdict] ?? VERDICT.fact) : null;
@@ -198,40 +195,6 @@ export function LessonBody({
           ))}
         </ul>
       </Section>
-    </div>
-  );
-}
-
-function LegacyBody({
-  lesson,
-  showQuizAnswers,
-}: {
-  lesson: LessonResponse;
-  showQuizAnswers: boolean;
-}) {
-  return (
-    <div>
-      <div className="mt-5 rounded-lg border border-mentor-warn/40 bg-mentor-warn/5 px-3 py-2 text-xs text-mentor-muted">
-        This lesson is still in its earlier form and is being rewritten for the book.
-      </div>
-      {lesson.figures.map((figure) => (
-        <div key={figure.key} className="my-4">
-          <LessonFigure figureKey={figure.key} caption={figure.caption} />
-        </div>
-      ))}
-      <div className="mt-6">
-        <Prose>{lesson.body_md}</Prose>
-      </div>
-      {lesson.quiz.length > 0 && (
-        <Section title="Check yourself">
-          <div className="space-y-4 print:hidden">
-            {lesson.quiz.map((question, i) => (
-              <QuizItem key={i} question={question} index={i} />
-            ))}
-          </div>
-          {showQuizAnswers && <PrintedQuiz questions={lesson.quiz} />}
-        </Section>
-      )}
     </div>
   );
 }

@@ -14,26 +14,13 @@ from dataclasses import dataclass, replace
 from typing import Final
 
 from mentor.domain.curriculum.book import BOOK_MODULES, PARTS
-from mentor.domain.curriculum.legacy import LEGACY_MODULES
 from mentor.domain.curriculum.model import Lesson, Module, Part
 from mentor.domain.errors import ValidationError
 
-EARLIER_EDITION_PART: Final[Part] = Part(
-    id="earlier-edition",
-    order=99,
-    stage="Being rewritten",
-    title="Earlier edition",
-    summary=(
-        "Lessons from the first version of Learn that have not yet been rewritten for the "
-        "book. Your progress on them is safe."
-    ),
-)
-
 
 def _assemble() -> tuple[Module, ...]:
-    """Number the chapters in reading order and append anything not yet rewritten."""
-    book_slugs = {lesson.slug for module in BOOK_MODULES for lesson in module.lessons}
-    placed = [
+    """Number the chapters and lessons in reading order."""
+    return tuple(
         replace(
             module,
             order=number,
@@ -43,19 +30,7 @@ def _assemble() -> tuple[Module, ...]:
             ),
         )
         for number, module in enumerate(BOOK_MODULES, start=1)
-    ]
-    for module in LEGACY_MODULES:
-        waiting = tuple(lesson for lesson in module.lessons if lesson.slug not in book_slugs)
-        if waiting:
-            placed.append(
-                replace(
-                    module,
-                    order=len(placed) + 1,
-                    part_id=EARLIER_EDITION_PART.id,
-                    lessons=waiting,
-                )
-            )
-    return tuple(placed)
+    )
 
 
 CATALOG: Final[tuple[Module, ...]] = _assemble()
@@ -71,7 +46,7 @@ def list_modules() -> tuple[Module, ...]:
 
 def list_parts() -> tuple[Part, ...]:
     used = {module.part_id for module in CATALOG}
-    return tuple(part for part in (*PARTS, EARLIER_EDITION_PART) if part.id in used)
+    return tuple(part for part in PARTS if part.id in used)
 
 
 def get_lesson(slug: str) -> Lesson:

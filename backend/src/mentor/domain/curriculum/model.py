@@ -69,8 +69,8 @@ class Evidence:
 class Lesson:
     """One lesson. ``slug`` is permanent: reading progress is keyed by it.
 
-    Lessons written for the book fill every section. ``goal`` being empty marks
-    a lesson still in its earlier-edition form, which only has ``body_md``.
+    Every lesson fills the same sections, in the same order, so the book reads
+    the same way throughout.
     """
 
     slug: str

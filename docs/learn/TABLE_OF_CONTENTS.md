@@ -1,90 +1,312 @@
-# The trading book — table of contents
+# The trading book - table of contents
 
-The Learn section is being rebuilt from the first edition (18 modules, 88 lessons) into a staged
-book. Lesson slugs from the first edition are permanent, so progress carries across unchanged.
+## Stage 1: Absolute basics
 
-Every lesson follows the same format: goal, explained simply, step by step, worked example, chart,
-common mistakes, "Does it actually work?", try it yourself, quiz, key takeaways.
+What trading is, what you are buying, and the honest odds.
 
-Status legend: **(new)** = did not exist in the first edition. Slugs are shown where they differ
-from the title.
+### Start here
 
-## Stage 1 — Absolute basics
-**Start here:** what trading really is (new) · the honest odds: most retail traders lose (new) · how
-to use this book (new) · why charts look predictable even when they are not (new)
-**Your first numbers:** what you are actually trading · lots, pips and leverage · the spread is your
-first expense
+- What trading really is (`start/what-trading-is`)
+- The honest odds: most retail traders lose (`start/the-honest-odds`)
+- How to use this book (`start/how-to-use-this-book`)
+- Why charts look predictable even when they are not (`start/why-it-looks-predictable`)
 
-## Stage 2 — How markets and orders work
-**Who is on the other side:** who is on the other side of your trade (new) · exchanges, OTC and how
-your broker fits in (new)
-**Orders:** market, limit and stop orders · pips, lots, stops and order types · every order type and
-when to use it · the order book and slippage (new)
-**The clock and the bill:** the 24-hour market · what trading actually costs · leverage and margin ·
-choosing a broker and avoiding scams (new)
+### Your first numbers
 
-## Stage 3 — Charts and candles
-**Reading a chart:** timeframes and chart types (new) · bullish, bearish, long, short · trend, uptrend,
-downtrend, range · which way is the market going · breakout, pullback, reversal · trend and the
-fallacy of obvious patterns · how price actually moves
-**Candles:** candlesticks: what they show · candle words · the candlestick zoo
+- What you are actually trading (`market-basics/what-you-are-trading`)
+- Lots, pips and leverage (`market-basics/lots-pips-leverage`)
+- The spread is your first expense (`market-basics/spread-is-your-first-expense`)
 
-## Stage 4 — Risk and position sizing
-**Staying alive:** why risk beats prediction · the 1% rule · sizing from your stop · account guardrails
-· managing the open trade · sizing in any market (new)
-**The maths of survival:** the math of survival · R-multiples · why a 40%-win system can pay · risk of
-ruin (new) · drawdown limits (new) · correlation and portfolio risk (new) · Kelly, and why not to use
-full Kelly (new)
+## Stage 2: How markets and orders work
 
-## Stage 5 — Technical analysis
-**Levels and lines:** support and resistance · trendlines and channels (new) · Fibonacci, support,
-resistance and lines · Fibonacci retracements and how people trade them (new) · Fibonacci extensions
-(new) · pivot points (new)
-**Chart patterns:** reversal patterns (new) · continuation patterns (new)
-**Indicators:** moving averages · RSI and the overbought trap · MACD (new) · Bollinger Bands (new) ·
-ATR and volatility · VWAP (new)
-**Volume and order flow:** volume, delta and the volume profile · order flow basics (new)
-**Market structure and retail theories:** swings, HH/HL, BOS and CHoCH · Smart Money Concepts · liquidity,
-sweeps and stop hunts · order blocks, FVG, premium and discount · Wyckoff (new)
-**Grand theories:** Elliott Wave (new) · Ichimoku (new)
-**Putting it together:** market conditions · top-down analysis
+Who trades, how an order gets filled, and what it costs.
 
-## Stage 6 — Fundamentals and macro
-**What moves markets:** the four ways people read a market · what really moves prices (new) · central
-banks and interest rates (new) · inflation, jobs and growth (new) · risk-on and risk-off (new)
-**Using the data:** data and economic calendars · positioning and the COT report (new) · how to read a
-data release (new)
+### Who is on the other side
 
-## Stage 7 — Trading plans
-**Building a plan:** the written trading plan · choosing a style that fits your life (new)
-**Styles:** scalping · day trading · swing trading · position trading (all new)
-**Strategies:** trend following · breakout · pullback · mean reversion · range trading · carry · news
-and event trading · pairs and statistical arbitrage · seasonal · options income · options hedging (all
-new). Each has who it suits, exact rules, entry, stop, target, sizing, when it fails, a worked example.
+- Who is on the other side of your trade (`markets/who-is-on-the-other-side`)
+- Exchanges, OTC and where your broker fits in (`markets/exchanges-and-otc`)
 
-## Stage 8 — Market by market
-Forex · stocks and ETFs · indices · futures · commodities and gold · bonds and rates · options · crypto
-(all new) · adapting a plan to a new market (new). Each covers how it trades, hours, costs, leverage,
-what moves it and how to change your plan.
+### Orders
 
-## Stage 9 — Psychology and journaling
-Biases that cost money (new) · journaling beats memory · tilt · the cost of skipped reviews · process
-goals · learning from losses · risk and journaling tools · a review that teaches (new)
+- Market, limit and stop orders (`becoming-pro/order-types`)
+- Stop, target and reward: a whole trade in one sentence (`chart-language/units-and-orders`)
+- Every order type, and exactly when to use it (`orders-conditions/order-types-reference`)
+- The order book and slippage (`markets/order-book-and-slippage`)
 
-## Stage 10 — Testing and statistics
-Lookahead bias · overfitting · transaction costs · sample size and luck (new) · walk-forward testing
-(new) · multiple testing (new) · Monte Carlo (new) · building an edge · what actually predicts ·
-probabilistic thinking
+### The clock and the bill
 
-## Stage 11 — Algorithms and prediction
-How markets are forecast (new) · fundamental and macro models (new) · sentiment models (new) · regression
-(new) · tree models (new) · neural networks (new) · regime models (new) · execution algorithms: TWAP and
-VWAP (new) · screening and automation
+- The 24-hour market: sessions and when to trade (`becoming-pro/sessions-clock`)
+- What trading actually costs (`becoming-pro/costs-of-trading`)
+- Leverage and margin, explained properly (`becoming-pro/leverage-and-margin`)
+- Choosing a broker and avoiding scams (`markets/choosing-a-broker`)
 
-## Stage 12 — Running it as a professional
-Charts and platforms · a weekly workflow · a professional's day · from demo to real money · prop-firm
-challenges (new) · taxes and regulation (new) · running it like a business (new)
+## Stage 3: Charts and candles
 
-## Inside this app
-How the mentor works: every lesson from "Trading with Mentor", "Under the hood" and "How the mentor keeps
-itself honest", each rewritten into the book format.
+How to read what a chart is really telling you.
+
+### Reading a chart
+
+- Timeframes and chart types (`charts/timeframes-and-chart-types`)
+- Bullish, bearish, long, short (`chart-language/direction-words`)
+- Trend, uptrend, downtrend and range (`chart-language/trend-structure`)
+- Which way is the market going? (`market-structure/direction-and-trend`)
+- Breakout, pullback and reversal (`chart-language/moves-within-a-trend`)
+- Trend and the fallacy of obvious patterns (`reading-charts/trend-and-obvious-patterns`)
+- How price actually moves: the price-action words (`market-structure/price-action-moves`)
+
+### Candles
+
+- Candlesticks: what they show and what they do not (`reading-charts/candlesticks`)
+- Candle words: body, wick, doji, pin bar (`chart-language/candles-vocabulary`)
+- The candlestick zoo: every pattern that matters (`candles-volume/candlestick-zoo`)
+
+## Stage 4: Risk and position sizing
+
+How to survive. Learn this before any strategy.
+
+### Staying alive
+
+- Why risk management beats prediction (`risk-first/why-risk-beats-prediction`)
+- The 1% rule and where it comes from (`risk-first/the-one-percent-rule`)
+- Sizing from your stop, not your target (`risk-first/size-from-your-stop`)
+- Account guardrails (`risk-first/account-guardrails`)
+- Managing the trade after you are in (`risk-first/managing-the-open-trade`)
+- Sizing in any market (`risk/sizing-in-any-market`)
+
+### The maths of survival
+
+- The maths of survival: expectancy (`expectancy/the-math-of-survival`)
+- R-multiples: measuring every trade the same way (`expectancy/r-multiples`)
+- Why a 40%-win system can pay (`expectancy/why-low-win-rate-can-be-profitable`)
+- Risk of ruin (`risk/risk-of-ruin`)
+- Drawdown limits (`risk/drawdown-limits`)
+- Correlation and portfolio risk (`risk/correlation-and-portfolio-heat`)
+- The Kelly formula, and why not to use it in full (`risk/kelly-and-why-not-full-kelly`)
+
+## Stage 5: Technical analysis
+
+Levels, patterns, indicators and theories, each tested honestly.
+
+### Levels and lines
+
+- Support and resistance as memory, not magic (`reading-charts/support-resistance`)
+- Trendlines and channels (`ta/trendlines-and-channels`)
+- Fibonacci, levels and why traders watch them (`chart-language/fibonacci-and-levels`)
+- Fibonacci retracements: how people trade them (`ta/fibonacci-retracements`)
+- Fibonacci extensions and targets (`ta/fibonacci-extensions`)
+- Pivot points (`ta/pivot-points`)
+
+### Chart patterns
+
+- Reversal patterns: head and shoulders, double tops and more (`ta/chart-patterns-reversal`)
+- Continuation patterns: flags, triangles and ranges (`ta/chart-patterns-continuation`)
+
+### Indicators
+
+- Moving averages and why they lag (`indicators/moving-averages`)
+- RSI and the overbought trap (`indicators/rsi-and-the-overbought-trap`)
+- MACD (`ta/macd`)
+- Bollinger Bands (`ta/bollinger-bands`)
+- ATR and volatility-aware stops (`indicators/atr-and-volatility`)
+- VWAP (`ta/vwap`)
+
+### Volume and order flow
+
+- Volume, delta and the volume profile (`candles-volume/volume-and-profile`)
+- Order flow basics (`ta/order-flow`)
+
+### Market structure and retail theories
+
+- Market structure: swings, BOS and CHoCH (`market-structure/swings-bos-choch`)
+- Smart Money Concepts: the honest introduction (`smart-money/what-smc-is`)
+- Liquidity, sweeps and stop hunts (`smart-money/liquidity-sweeps-stophunts`)
+- Order blocks, fair value gaps and premium/discount (`smart-money/blocks-fvg-premium`)
+- Wyckoff: accumulation and distribution (`ta/wyckoff`)
+
+### Grand theories
+
+- Elliott Wave (`ta/elliott-wave`)
+- Ichimoku (`ta/ichimoku`)
+
+### Putting it together
+
+- Reading the weather: market conditions (`orders-conditions/market-conditions`)
+- Top-down: zoom out before you zoom in (`market-study/top-down-workflow`)
+
+## Stage 6: Fundamentals and macro
+
+Central banks, data and the forces that move whole markets.
+
+### What moves markets
+
+- The four ways people read a market (`market-study/schools-of-analysis`)
+- What really moves prices (`macro/what-moves-prices`)
+- Central banks and interest rates (`macro/central-banks-and-rates`)
+- Inflation, jobs and growth (`macro/inflation-jobs-growth`)
+- Risk-on and risk-off (`macro/risk-on-risk-off`)
+
+### Using the data
+
+- Data and economic calendars (`toolkit/data-and-calendars`)
+- Positioning and the COT report (`macro/positioning-and-cot`)
+- How to read a data release (`macro/how-to-read-a-release`)
+
+## Stage 7: Trading plans
+
+Every major way to trade, with full rules and when each one fails.
+
+### Building a plan
+
+- The written trading plan (`becoming-pro/the-trading-plan`)
+- Choosing a style that fits your life (`plans/choosing-a-style`)
+
+### Styles
+
+- Scalping (`plans/scalping`)
+- Day trading (`plans/day-trading`)
+- Swing trading (`plans/swing-trading`)
+- Position trading (`plans/position-trading`)
+
+### Strategies
+
+- Trend following (`plans/trend-following`)
+- Breakout trading (`plans/breakout`)
+- Pullback trading (`plans/pullback`)
+- Mean reversion (`plans/mean-reversion`)
+- Range trading (`plans/range-trading`)
+- Carry trade (`plans/carry-trade`)
+- News and event trading (`plans/news-and-events`)
+- Pairs trading and statistical arbitrage (`plans/pairs-and-stat-arb`)
+- Seasonal trading (`plans/seasonal`)
+- Options income: covered calls and cash-secured puts (`plans/options-income`)
+- Hedging with options (`plans/options-hedging`)
+
+## Stage 8: Market by market
+
+How forex, stocks, futures, gold, bonds, options and crypto differ.
+
+### Every market
+
+- Forex (`every-market/forex`)
+- Stocks and ETFs (`every-market/stocks-and-etfs`)
+- Indices (`every-market/indices`)
+- Futures (`every-market/futures`)
+- Commodities and gold (`every-market/commodities-and-gold`)
+- Bonds and rates (`every-market/bonds-and-rates`)
+- Options (`every-market/options`)
+- Crypto (`every-market/crypto`)
+- Adapting a plan to a new market (`every-market/adapting-a-plan`)
+
+## Stage 9: Psychology and journaling
+
+Your behaviour is the biggest risk in the whole system.
+
+### Mind and habits
+
+- Biases that cost money (`mind/biases-that-cost-money`)
+- Journaling beats memory (`psychology/journaling-beats-memory`)
+- Tilt and how to break it (`psychology/tilt`)
+- The cost of skipped reviews (`psychology/weekend-review`)
+- Process goals beat profit goals (`psychology/process-goals`)
+- Learning from losses without punishing yourself (`psychology/learning-from-losses`)
+- Risk and journaling tools (`toolkit/risk-and-journaling-tools`)
+- A review that teaches (`mind/a-review-that-teaches`)
+
+## Stage 10: Testing and statistics
+
+How to tell a real edge from luck.
+
+### Testing honestly
+
+- Lookahead bias: the subtlest fatal bug (`backtesting/lookahead-bias`)
+- Overfitting and how to spot it (`backtesting/overfitting`)
+- Transaction costs erase paper edges (`backtesting/transaction-costs`)
+- Sample size and luck (`testing/sample-size-and-luck`)
+- Walk-forward testing (`testing/walk-forward`)
+- Multiple testing (`testing/multiple-testing`)
+- Monte Carlo simulation (`testing/monte-carlo`)
+
+### Finding an edge
+
+- Building an edge you can trust (`market-study/building-an-edge`)
+- What actually predicts markets, and what does not (`market-study/what-actually-predicts`)
+- Think in probabilities, not predictions (`market-study/probabilistic-thinking`)
+
+## Stage 11: Algorithms and prediction
+
+Models, machine learning and execution algorithms.
+
+### Forecasting
+
+- How markets are forecast (`algos/how-markets-are-forecast`)
+- Fundamental and macro models (`algos/fundamental-and-macro-models`)
+- Sentiment models (`algos/sentiment-models`)
+- Regression (`algos/regression`)
+- Tree models (`algos/tree-models`)
+- Neural networks (`algos/neural-networks`)
+- Regime models (`algos/regime-models`)
+
+### Execution and automation
+
+- Execution algorithms: TWAP and VWAP (`algos/execution-algorithms`)
+- Screening and automation (`toolkit/screening-and-automation`)
+
+## Stage 12: Running it as a professional
+
+Routine, prop firms, tax, regulation and going live.
+
+### Daily practice
+
+- Charts and platforms (`toolkit/charts-and-platforms`)
+- A weekly workflow (`toolkit/weekly-workflow`)
+- A professional's trading day (`becoming-pro/daily-routine`)
+- From demo to real money: the ladder (`becoming-pro/from-demo-to-real`)
+
+### As a business
+
+- Prop-firm challenges (`pro/prop-firm-challenges`)
+- Taxes and regulation, at a general level (`pro/taxes-and-regulation`)
+- Running it like a business (`pro/running-it-like-a-business`)
+
+## Inside this app: How the mentor works
+
+How this app predicts, grades itself and stays honest.
+
+### Trading with Mentor, day to day
+
+- A day with Mentor: which page, when and why (`using-mentor/a-day-with-mentor`)
+- Reading the trade ticket, line by line (`using-mentor/reading-the-trade-ticket`)
+- When to trust the odds, and when to stand down (`using-mentor/trusting-the-odds`)
+- Watching the learning engine (`using-mentor/watching-the-loop`)
+- Close your own loop (`using-mentor/close-your-own-loop`)
+- How the whole system works, in plain English (`using-mentor/whole-system-plain-english`)
+- Every tab explained (1): the trading tabs (`using-mentor/every-tab-trading`)
+- Every tab explained (2): the toolkit tabs (`using-mentor/every-tab-toolkit`)
+
+### Under the hood: how the mentor predicts
+
+- What this system can and cannot predict (`under-the-hood/what-we-can-predict`)
+- Where the numbers come from (`under-the-hood/where-the-data-comes-from`)
+- What the model looks at, with no peeking at the future (`under-the-hood/what-the-model-sees`)
+- Predicting direction: rules, then trees, then humility (`under-the-hood/predicting-direction`)
+- Predicting the range, not the arrow (`under-the-hood/predicting-the-range`)
+- Making 60% actually mean 60% (`under-the-hood/trustworthy-probabilities`)
+- The system that grades itself (`under-the-hood/the-self-learning-loop`)
+- From a forecast to a position size (`under-the-hood/forecast-to-position-size`)
+- Tracking tipsters: measurement, not advice (`under-the-hood/tracking-tipsters`)
+- The watchdogs: quality gate, drift watch, heartbeats (`under-the-hood/the-watchdogs`)
+- Knowing when to say nothing (`under-the-hood/knowing-when-to-say-nothing`)
+
+### How the mentor keeps itself honest
+
+- Better than a coin flip is not enough: the cost hurdle (`keeping-honest/the-cost-hurdle`)
+- Saying no opinion when a call cannot pay (`keeping-honest/abstaining-by-profit`)
+- Honest win rates: overlap, sample size and the truth emerging (`keeping-honest/honest-win-rates`)
+- New data: a better price feed, and who is positioned where (`keeping-honest/new-data-sources`)
+- Learning from its own live mistakes (`keeping-honest/learning-from-live-mistakes`)
+- Clean prices: storing and grading only finished bars (`keeping-honest/finished-bars`)
+- The strategy lab: testing a trading plan properly (`keeping-honest/strategy-lab-testing`)
+- Why the bar rises with every idea tried (`keeping-honest/the-rising-bar`)
+- Running unattended: reports, alerts and the maintenance agent (`keeping-honest/running-unattended`)
+- The safety net: auto-deploy, rollback and protected thresholds (`keeping-honest/the-safety-net`)
+- What the mentor can and cannot do, honestly (`keeping-honest/what-it-can-and-cannot-do`)
