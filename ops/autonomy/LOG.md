@@ -11,6 +11,41 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-09 — `digest.resolution` counted voided weekend calls as overdue; fixed
+- **Report:** fetched at 06:36 UTC. Status `warn`, two issues:
+  `digest.resolution` (warn) — 16 predictions "should have been graded
+  by now"; `h1.champion_failing` (warn) — new H1 champion failed its
+  re-check 1/3 (challenger 0.2782 vs champion 0.2577, champion kept).
+  No `failing_jobs`, `recurring` empty (drift tally reset by the
+  2026-11-08 rebuilds). Live is `0ff5516`; three human deploys on
+  2026-11-08 (closed-market bars stopped and weekend calls voided,
+  Learn book), one earlier refusal of `c8bd662` that was then deployed.
+  H1: 81 independent windows (103 before the void) at 50.6% vs 51.66%
+  breakeven, weekly Brier 0.265. D1 baseline rule, 14 windows at 57.1%.
+  Strategy lab: 74 trials, bar 4.38, all 8 rejected, nothing waiting
+  or changed. Feed, retrain, alerting `ok`.
+- **Decision:** fix day (Mon). The feed was fresh and no job failed, so
+  16 overdue calls pointed at the count, not the resolver. The resolver
+  skips `origin='voided'` calls (`unresolved_due_by`), but the digest
+  counted every unresolved row, voided ones included — the weekend calls
+  voided by 74857ae. Left alone they would have become "lost" on
+  2026-11-12 and turned the check into a FAIL. Could not confirm the
+  origins directly (`/forecasting/audit` needs a token); the evidence is
+  the timing, the drop from 103 to 81 windows, and the code path.
+  `h1.champion_failing` 1/3 is the promotion gate working; no change.
+- **Change:** `49ca5ee` — `collect.awaiting_grade` excludes voided calls
+  from pending/overdue/lost; regression test
+  `test_a_voided_call_is_not_waiting_for_a_grade`. Also made
+  `_trade` in `tests/domain/journal/test_comparison.py` keyword-only
+  (all callers already used keywords): `ruff check .` was failing on
+  main with PLR0917 since 066e327. Gates: ruff, mypy, 1513 passed.
+  Note for the setup: `python3` here is 3.11 and the package needs
+  3.12; used a 3.12 venv.
+- **Watch next:** `digest.resolution` should clear in the next report.
+  If it still shows overdue calls, they are real (non-voided) and the
+  resolver needs a look. Watch `h1.champion_failing` — it removes the
+  champion at 3/3, which is the gate working, not a bug.
+
 ## 2026-11-08 — Recurring `loop.drift_detected` still 11× (no new fires); H1 champion replaced; no code change
 - **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
   `log.warning.loop.drift_detected` (warn), count unchanged at 11 since
