@@ -90,6 +90,7 @@ NO_TRADE = SystemResult(status=SystemStatus.NO_TRADE)
 
 
 def _trade(
+    *,
     direction: Direction = Direction.LONG,
     entry: str = "1.1001",
     exit_price: str = "1.1060",

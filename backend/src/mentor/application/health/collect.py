@@ -78,6 +78,30 @@ class _Pending(Protocol):
     def horizon_at(self) -> datetime: ...
 
 
+class _Recorded(_Pending, Protocol):
+    @property
+    def origin(self) -> str: ...
+    @property
+    def realised_outcome(self) -> int | None: ...
+
+
+# Origin of a call made from a bar printed while the market was closed. The
+# resolver never grades one (``unresolved_due_by`` skips it), so it must not
+# be counted as waiting for a grade either.
+_VOIDED = "voided"
+
+
+def awaiting_grade[R: _Recorded](recent: Iterable[R]) -> list[R]:
+    """The calls the resolver still owes an outcome.
+
+    A voided call is off the record and is never graded. Counting it as
+    pending reported every weekend call as overdue the morning after the
+    reopen (16 on 2026-11-09) and, four days later, as permanently lost
+    track record — a failure for calls that were removed on purpose.
+    """
+    return [r for r in recent if r.realised_outcome is None and r.origin != _VOIDED]
+
+
 def late_predictions(
     pending: Iterable[_Pending], settings: Settings, *, now: datetime
 ) -> tuple[int, int]:
@@ -110,7 +134,7 @@ async def collect_digest(
 
     predictions = PredictionRepository(session)
     recent = await predictions.list_recent(limit=2000)
-    pending = [r for r in recent if r.realised_outcome is None]
+    pending = awaiting_grade(recent)
     overdue, lost = late_predictions(pending, settings, now=now)
 
     # One lane only. The digest grades the record against the primary lane's

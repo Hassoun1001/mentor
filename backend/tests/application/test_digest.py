@@ -8,7 +8,11 @@ from types import SimpleNamespace
 import pytest
 
 from mentor.application.health import Level, build_digest
-from mentor.application.health.collect import late_predictions, outcome_expected_by
+from mentor.application.health.collect import (
+    awaiting_grade,
+    late_predictions,
+    outcome_expected_by,
+)
 from mentor.config import Settings
 from mentor.domain.market.bars import Timeframe
 
@@ -127,6 +131,30 @@ def test_a_call_past_the_resolvers_limit_is_lost_not_merely_late() -> None:
     assert late_predictions([_call(_WED_18)], _LOOP, now=lost_at) == (0, 1)
     d = _digest(overdue_predictions=0, lost_predictions=1)
     assert next(c for c in d.checks if c.key == "resolution").level is Level.FAIL
+
+
+def test_a_voided_call_is_not_waiting_for_a_grade() -> None:
+    """Regression (2026-11-09): calls voided for being made from a
+    closed-market bar are never graded, yet the digest counted them as
+    pending — 16 overdue the Monday after the void, and lost four days on."""
+    monday = datetime(2026, 11, 9, 6, 30, tzinfo=UTC)
+    saturday_call = datetime(2026, 11, 8, 2, 0, tzinfo=UTC)
+    voided = SimpleNamespace(
+        timeframe="1h", horizon_at=saturday_call, origin="voided", realised_outcome=None
+    )
+    live = SimpleNamespace(
+        timeframe="1h", horizon_at=saturday_call, origin="live", realised_outcome=None
+    )
+    graded = SimpleNamespace(
+        timeframe="1h", horizon_at=saturday_call, origin="live", realised_outcome=1
+    )
+    pending = awaiting_grade([voided, live, graded])
+    assert pending == [live]
+    assert late_predictions(pending, _LOOP, now=monday) == (1, 0)
+    assert late_predictions(awaiting_grade([voided]), _LOOP, now=monday + timedelta(days=4)) == (
+        0,
+        0,
+    )
 
 
 def test_a_retrain_that_stopped_firing_is_caught() -> None:
