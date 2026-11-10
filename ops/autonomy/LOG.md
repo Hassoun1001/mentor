@@ -11,6 +11,26 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-10 — `digest.resolution` cleared; only `h1.champion_failing` 1/3 left; no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.champion_failing` (warn) — H1 champion `auto_eurusd_1h_20261107_065435`
+  failed its re-check 1/3 (challenger 0.2782 vs champion 0.2577, champion
+  kept). `digest.resolution` is gone: "40 awaiting their horizon, none
+  overdue", so yesterday's fix (`49ca5ee`) worked. No `failing_jobs`,
+  `recurring` empty. Live is `cd62362` (deployed 2026-11-09 07:01 UTC);
+  no refusals or rollbacks. H1: 82 independent windows at 48.8% vs
+  51.66% breakeven (not significant), weekly Brier 0.269 (prev 0.266).
+  D1 baseline rule, 14 windows at 50.0%. Strategy lab: 74 trials, bar
+  4.38, all 8 rejected, nothing waiting or changed. Feed, retrain,
+  alerting `ok`.
+- **Decision:** fix day (Tue). The only issue is the promotion gate
+  doing its job (a 1/3 streak; removal at 3/3 is designed behaviour), so
+  there is nothing to fix in code.
+- **Change:** none (log only).
+- **Watch next:** `h1.champion_failing` streak — 3/3 removes the champion
+  and the baseline takes over; that is the gate, not a bug. Confirm
+  `digest.resolution` stays clear through the next weekend void.
+
 ## 2026-11-09 — `digest.resolution` counted voided weekend calls as overdue; fixed
 - **Report:** fetched at 06:36 UTC. Status `warn`, two issues:
   `digest.resolution` (warn) — 16 predictions "should have been graded
