@@ -11,6 +11,33 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-11 — H1 champion 2/3 floor failures and weekly Brier 0.294; gate handling it; no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, two issues:
+  `h1.calibration_week` (warn) — weekly Brier 0.294 over 144 calls
+  (prev week 0.250), worse than a coin flip; `h1.champion_failing`
+  (warn) — champion `auto_eurusd_1h_20261107_065435` failed its
+  re-check 2/3 (challenger 0.2553 beat champion 0.2622 but missed the
+  0.248 coin-flip floor, so not promoted). No `failing_jobs`, `recurring`
+  empty. Live is `674a8fd` (`deployed_docs` 2026-11-10); no refusals or
+  rollbacks. Digest `ok`: 26 awaiting their horizon, none overdue, so
+  the `digest.resolution` fix held. H1: 83 independent windows at
+  49.4% vs 51.66% breakeven, not significant. D1 baseline rule, 14
+  windows at 50.0%. Strategy lab: 74 trials, bar 4.38, all 8 rejected,
+  nothing waiting or changed. Feed, retrain, alerting `ok`.
+- **Decision:** fix day (Wed). Checked that the weekly Brier is not a
+  counting artefact: `_outcome_pairs` scores only graded calls
+  (`realised_outcome` set), so voided calls cannot inflate it. Both
+  issues are the live model doing badly, and the floor-failure streak
+  (removal at 3/3) is the designed response. Retiring it early or
+  touching the floors would mean changing an honesty gate, so no code
+  change.
+- **Change:** none (log only).
+- **Watch next:** the next H1 retrain should make the streak 3/3 and
+  hand the lane to the baseline rule unless a challenger clears the
+  floors; confirm that happens cleanly (no failing job, lane shows
+  `baseline rule`). `h1.calibration_week` should ease once the champion
+  stops predicting.
+
 ## 2026-11-10 — `digest.resolution` cleared; only `h1.champion_failing` 1/3 left; no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.champion_failing` (warn) — H1 champion `auto_eurusd_1h_20261107_065435`
