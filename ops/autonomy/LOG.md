@@ -11,6 +11,31 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-12 — H1 champion demoted at 3/3 as designed; baseline rule predicting; no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — weekly Brier 0.282 over 144 calls
+  (prev week 0.284). `h1.champion_failing` is gone. No `failing_jobs`,
+  `recurring` empty. Live is `3720376` (`deployed_docs` 2026-11-11);
+  no refusals or rollbacks since 2026-11-08. Digest `ok`: 25 awaiting
+  their horizon, none overdue. H1 lane now `baseline rule`,
+  `floor_failures` 0; last decision: champion's fresh re-grade failed
+  the coin-flip floor 3 retrains in a row, so it was demoted, and
+  challenger Brier 0.2579 missed the 0.248 floor, so it was not
+  promoted. H1: 84 windows at 50.0% vs 51.66% breakeven, not
+  significant. D1 baseline rule, 14 windows at 57.1%, not significant.
+  Strategy lab: 74 trials, bar 4.38, all 8 rejected, nothing waiting or
+  changed.
+- **Decision:** fix day (Thu). The handover that the last run asked
+  about happened cleanly: no failing job, and the lane shows `baseline
+  rule`. The weekly Brier warning is a trailing window that the removed
+  champion still dominates (champion share 93% this week), so it is a
+  model signal and not a code fault. No code change.
+- **Change:** none (log only).
+- **Watch next:** `h1.calibration_week` should ease over the next week
+  as baseline-rule calls replace the old champion's. If it persists
+  after a full week with champion share near 0, check how the baseline
+  rule's probabilities are scored.
+
 ## 2026-11-11 — H1 champion 2/3 floor failures and weekly Brier 0.294; gate handling it; no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, two issues:
   `h1.calibration_week` (warn) — weekly Brier 0.294 over 144 calls
