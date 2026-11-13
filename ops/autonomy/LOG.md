@@ -11,6 +11,27 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-13 — H1 weekly Brier warning still trailing the demoted champion; no code change
+- **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — weekly Brier 0.293 over 142 calls
+  (prev week 0.249). No `failing_jobs`, `recurring` empty. Live is
+  `fd72a6d` (`deployed_docs` 2026-11-12); no refusals or rollbacks.
+  Digest `ok`: 26 awaiting their horizon, none overdue, last retrain
+  1.7 days ago. H1 lane `baseline rule`, `floor_failures` 0, champion
+  share this week down to 81% (93% yesterday). H1: 85 windows at 49.4%
+  vs 51.66% breakeven, not significant. D1 baseline rule, 14 windows at
+  57.1%, not significant. Strategy lab: 74 trials, bar 4.38, all 8
+  rejected, nothing waiting or changed.
+- **Decision:** fix day (Fri). The warning is the trailing 7-day window
+  still dominated by calls from the champion demoted on 2026-11-11; its
+  share is falling as expected. Model signal, not a code fault, and no
+  gate may be touched to quiet it. No code change.
+- **Change:** none (log only).
+- **Watch next:** champion share should keep falling toward 0 by about
+  2026-11-18. If `h1.calibration_week` persists once the window is
+  mostly baseline-rule calls, check how the baseline rule's
+  probabilities are scored.
+
 ## 2026-11-12 — H1 champion demoted at 3/3 as designed; baseline rule predicting; no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — weekly Brier 0.282 over 144 calls
