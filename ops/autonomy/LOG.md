@@ -11,6 +11,46 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-14 — Improve day: offline tests pin Yahoo chart parsing (44% → 98%)
+- **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — weekly Brier 0.289 over 128 calls
+  (prev week 0.255). No `failing_jobs`, `recurring` empty. Live is
+  `685eccb` (`deployed_docs` 2026-11-13); no refusals or rollbacks.
+  Digest `ok`: market closed, 26 awaiting their horizon, none overdue,
+  last retrain 0.9 days ago. H1 lane `baseline rule`, `floor_failures`
+  0, champion share this week 68% (81% yesterday); last decision: the
+  challenger's Brier 0.2794 missed the 0.248 coin-flip floor, so no
+  champion. H1: 85 windows at 51.8% vs 51.66% breakeven, not
+  significant. D1 baseline rule, 14 windows at 57.1%, not significant.
+  Strategy lab: 74 trials, bar 4.38, all 8 rejected, nothing waiting or
+  changed.
+- **Decision:** improve day (Sat). The only issue is the same trailing
+  Brier window still dominated by the champion demoted on 2026-11-11;
+  champion share keeps falling, so no fix is due. The baseline rule's
+  probabilities are capped at [0.30, 0.70], so they cannot by themselves
+  push the weekly Brier far past ~0.27. For the one improvement I ran
+  coverage: `infrastructure/adapters/yahoo.py` was at 44%, with
+  `fetch_bars` (the parsing of Yahoo's unofficial, null-padded chart
+  payload) never run in tests. Yahoo is the failover price feed that is
+  always on, so this is the most useful untested path. (`domain/risk/stops.py`
+  is lower, at 42%, but nothing in production calls it.) No strategy
+  candidate this week.
+- **Change:** `9cbbd93` — new `tests/infrastructure/adapters/test_yahoo_parse.py`
+  (15 cases, no network, `httpx.MockTransport`): request conventions
+  (`EURUSD=X`, `60m`/`1d`, period bounds), null-padded and short-array
+  bars skipped, high/low widened to the body, volume kept only when
+  reported (FX 0 → None), daily bars dated on the UTC trading day,
+  empty responses yield nothing, an error payload raises, an injected
+  client is not closed. No production code changed. Gates: ruff, mypy,
+  1528 passed. Note for the setup: the checkout was on a detached HEAD,
+  so `git push origin main` first pushed a stale local `main` and was
+  rejected. Fixed by pointing `main` at HEAD; no history was rewritten.
+- **Watch next:** `9cbbd93` is test-only, so it should deploy normally.
+  Confirm `deploy.events[0]` shows it deployed. Champion share should
+  keep falling toward 0 by about 2026-11-18; if `h1.calibration_week`
+  stays once the window is mostly baseline-rule calls, check how the
+  baseline rule's probabilities are scored.
+
 ## 2026-11-13 — H1 weekly Brier warning still trailing the demoted champion; no code change
 - **Report:** fetched at 06:37 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — weekly Brier 0.293 over 142 calls
