@@ -11,6 +11,29 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-19 — Report clean, H1 weekly Brier 0.206 as champion calls age out; no code change
+- **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
+  `failing_jobs`, `recurring` empty. Live is `7b248d4`;
+  `deploy.events[0]` is that log commit `deployed_docs` on 2026-11-18;
+  no refusals or rollbacks. Digest `ok`: newest bar 40 min old, 25
+  awaiting their horizon, none overdue, last retrain 5.9 days ago,
+  alerting configured. H1 lane `baseline rule`, `floor_failures` 0,
+  weekly Brier 0.206 over 118 calls (0.238 yesterday; prev week
+  0.283), champion share 4% (25% yesterday); 89 windows at 52.8% vs
+  51.66% breakeven, not significant. D1 baseline rule, 15 windows at
+  60.0%, not significant, weekly Brier 0.188 over 5 calls. Last
+  decisions unchanged (H1 challenger Brier 0.2794, D1 challenger
+  0.2574, both miss the 0.248 coin-flip floor). Strategy lab: 74
+  trials, bar 4.38, all 8 rejected, nothing waiting or changed.
+- **Decision:** fix day (Thu). Nothing at fail or warn. No code change.
+- **Change:** none (log only).
+- **Watch next:** champion share should be 0 tomorrow; the baseline
+  rule's weekly Brier (now 0.206) answers yesterday's question about
+  how it scores — no sign of `h1.calibration_week` returning. Last
+  retrain 5.9 days ago: the weekly retrain should fire within about a
+  day; if the digest's retrain check warns, look at the retrain job.
+  Saturday 2026-11-21 is the next improve day.
+
 ## 2026-11-18 — Report clean, H1 weekly Brier down to 0.238; no code change
 - **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
   `failing_jobs`, `recurring` empty. Live is `0bf575e`;
