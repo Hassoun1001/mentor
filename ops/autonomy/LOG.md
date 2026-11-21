@@ -11,6 +11,39 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-21 — Event-freeze evaluator pinned by behaviour tests
+- **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
+  `failing_jobs`, `recurring` empty. Live is `85e8a71`;
+  `deploy.events[0]` is that log commit `deployed_docs` on 2026-11-20;
+  no refusals or rollbacks. Digest `ok`: market closed, 27 awaiting
+  their horizon, none overdue, **last retrain 0.8 days ago** (the
+  weekly retrain fired, answering yesterday's watch item), alerting
+  configured. H1 baseline rule, weekly Brier 0.231 over 110 calls
+  (prev week 0.284), 90 windows at 51.1% vs 51.66% breakeven, not
+  significant; new decision: challenger (pruned+macro) hit rate 48.7%
+  below the 52.03% needed. D1 baseline rule, 15 windows at 60.0%, not
+  significant, weekly Brier 0.178; challenger Brier 0.2574 misses the
+  0.248 floor. Strategy lab: 74 trials, bar 4.38, all 8 rejected,
+  nothing waiting or changed.
+- **Decision:** improve day (Sat). Nothing to fix. A coverage run showed
+  `domain/alerts/event_freeze.py` at 37% with no direct test, though the
+  new-trade form's freeze check (`api/v1/alerts.py`) relies on it — the
+  top improve priority (untested code path). No strategy candidate this
+  week; one improvement per run.
+- **Change:** `20ca371` — new `backend/tests/domain/test_event_freeze.py`
+  (11 tests; module coverage 37% → 100%): inclusive window edges and
+  custom widths, impact floor, unclassified and hype news ignored, soft
+  below 0.85 vs hard block at 0.85, calendar HIGH blocks / MEDIUM under
+  the default floor, worst item reported while all are counted. Tests
+  only, no source change. Gates: ruff, mypy, pytest 1538 passed.
+  Note for future runs: the checkout is a detached HEAD, so push with
+  `git push origin HEAD:main` (plain `git push origin main` pushes a
+  stale local branch and is rejected).
+- **Watch next:** `deploy.events[0]` should show `20ca371` deployed.
+  Other low-coverage pure domain modules if a later improve day wants
+  one: `domain/backtest/strategies/rsi_reversion.py` (38%),
+  `domain/alerts/evaluation.py` (36%).
+
 ## 2026-11-20 — Report clean, H1 weekly Brier 0.222; no code change
 - **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
   `failing_jobs`, `recurring` empty. Live is `3197cae`;
