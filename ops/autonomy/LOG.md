@@ -11,6 +11,28 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-22 — Report clean, `20ca371` deployed; no code change
+- **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
+  `failing_jobs`, `recurring` empty. Live is `9e13c99`;
+  `deploy.events[0]` is `deployed` on 2026-11-21 (the event-freeze
+  tests `20ca371` plus its log commit), answering yesterday's watch
+  item; no refusals or rollbacks. Digest `ok`: market closed, latest
+  real price 33 h old, 27 awaiting their horizon, none overdue, last
+  retrain 1.8 days ago, alerting configured. H1 baseline rule,
+  `floor_failures` 0, weekly Brier 0.235 over 96 calls (prev week
+  0.281), 90 windows at 51.1% vs 51.66% breakeven, not significant.
+  D1 baseline rule, 15 windows at 60.0%, not significant, weekly Brier
+  0.160 over 3 calls. Last decisions unchanged (H1 challenger hit rate
+  48.7% < 52.03%; D1 challenger Brier 0.2574 misses the 0.248 floor).
+  Strategy lab: 74 trials, bar 4.38, all 8 rejected, nothing waiting
+  or changed.
+- **Decision:** fix day (Sun). Nothing at fail or warn. No code change.
+- **Change:** none (log only).
+- **Watch next:** the market reopens tonight; tomorrow's feed check
+  should show fresh bars. Next improve day (Sat 2026-11-28) candidates
+  from last week's coverage note: `domain/alerts/evaluation.py` (36%),
+  `domain/backtest/strategies/rsi_reversion.py` (38%).
+
 ## 2026-11-21 — Event-freeze evaluator pinned by behaviour tests
 - **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
   `failing_jobs`, `recurring` empty. Live is `85e8a71`;
