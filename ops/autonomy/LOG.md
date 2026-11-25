@@ -11,6 +11,27 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-25 — Report clean, H1 weekly Brier 0.260; no code change
+- **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
+  `failing_jobs`, `recurring` empty, no notes. Live is `384fca6`;
+  `deploy.events[0]` is that log commit `deployed_docs` on 2026-11-24;
+  no refusals or rollbacks. Digest `ok`: newest bar 40 min old, 25
+  awaiting their horizon, none overdue, last retrain 4.8 days ago,
+  alerting configured. H1 baseline rule, `floor_failures` 0, weekly
+  Brier 0.260 over 119 calls (prev week 0.238), 93 windows at 51.6% vs
+  51.66% breakeven, not significant; decision unchanged (challenger
+  hit rate 48.7% < 52.03%). D1 baseline rule, 16 windows at 62.5%, not
+  significant, weekly Brier 0.172 over 4 calls; challenger Brier
+  0.2611 still misses the 0.248 floor. Strategy lab: 74 trials, bar
+  4.38, all 8 rejected, nothing waiting or changed.
+- **Decision:** fix day (Wed). Nothing at fail or warn. No code change.
+- **Change:** none (log only).
+- **Watch next:** H1 weekly Brier drifted up to 0.260 (from 0.247
+  yesterday) — still the baseline rule, no issue raised; note only.
+  Next improve day (Sat 2026-11-28) candidates unchanged:
+  `domain/alerts/evaluation.py` (36%),
+  `domain/backtest/strategies/rsi_reversion.py` (38%).
+
 ## 2026-11-24 — Report clean, H1 weekly Brier 0.247; no code change
 - **Report:** fetched at 06:37 UTC. Status `ok`, no issues, no
   `failing_jobs`, `recurring` empty. Live is `8a30e0f`;
