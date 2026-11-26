@@ -11,6 +11,43 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-26 — `h1.calibration_week` back on baseline-rule calls (Brier 0.279); scoring checked, no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.279 over 119 calls
+  (0.260 yesterday; prev week 0.205), champion share 0%, so this is the
+  baseline rule's own score. No `failing_jobs`, `recurring` empty, no
+  notes. Live is `ea26649`; `deploy.events[0]` is that log commit
+  `deployed_docs` on 2026-11-25; no refusals or rollbacks. Digest `ok`:
+  newest bar 40 min old, 25 awaiting their horizon, none overdue, last
+  retrain 5.8 days ago, alerting configured. H1 baseline rule,
+  `floor_failures` 0, 94 windows at 50.0% vs 51.66% breakeven, not
+  significant; decision unchanged (challenger pruned+macro misses the
+  floors). D1 baseline rule, 16 windows at 56.2%, not significant,
+  weekly Brier 0.203 over 5 calls; challenger Brier 0.2611 still misses
+  the 0.248 floor. Strategy lab: 74 trials, bar 4.38, all 8 rejected,
+  nothing waiting or changed.
+- **Decision:** fix day (Thu). Followed the standing watch item and
+  checked how the baseline rule's probabilities are scored: the rule
+  stores its raw `p_up` (bounded to about 0.37–0.63), `outcome_of`
+  grades 1 only when the horizon close is above the as-of close, and
+  `_brier` compares the two directly — the chain is correct. A 0.279
+  Brier from a rule that never strays past 0.63 means its leans were
+  wrong more often than right this week (roughly 40% of the 119 hourly
+  calls, which overlap into only about five independent days); the
+  independent record slipped from 51.6% to 50.0%. That is the
+  benchmark rule having a bad week, not a code fault. Re-weighting the
+  rule on one noisy week would be fitting to live data and would move
+  the yardstick every model is measured against, so no code change.
+- **Change:** none (log only).
+- **Watch next:** whether `h1.calibration_week` persists past the
+  weekend. If the baseline rule's weekly Brier stays at or above 0.25
+  for a second full week, Saturday's improve day could consider (as a
+  candidate, evidence-backed) whether live recalibration should also
+  shrink the baseline rule's stated probabilities; do not hand-tune the
+  rule's weights. Saturday 2026-11-28 improve-day coverage candidates
+  unchanged: `domain/alerts/evaluation.py` (36%),
+  `domain/backtest/strategies/rsi_reversion.py` (38%).
+
 ## 2026-11-25 — Report clean, H1 weekly Brier 0.260; no code change
 - **Report:** fetched at 06:36 UTC. Status `ok`, no issues, no
   `failing_jobs`, `recurring` empty, no notes. Live is `384fca6`;
