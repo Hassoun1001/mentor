@@ -11,6 +11,35 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-27 — `h1.calibration_week` persists (Brier 0.277); same baseline-rule week, no code change
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.277 over 119 calls
+  (0.279 yesterday; prev week 0.223), champion share 0%, so still the
+  baseline rule's own score. No `failing_jobs`, `recurring` empty, no
+  notes. Live is `f2f8f8a`; `deploy.events[0]` is that log commit
+  `deployed_docs` on 2026-11-26; no refusals or rollbacks. Digest `ok`:
+  newest bar 40 min old, 26 awaiting their horizon, none overdue, last
+  retrain 6.8 days ago, alerting configured. H1 baseline rule,
+  `floor_failures` 0, 95 windows at 50.5% vs 51.66% breakeven, not
+  significant; decision unchanged (challenger pruned+macro hit rate
+  48.7% < 52.03%). D1 baseline rule, 16 windows at 56.2%, not
+  significant, weekly Brier 0.203 over 5 calls; challenger Brier 0.2611
+  still misses the 0.248 floor. Strategy lab: 74 trials, bar 4.38, all 8
+  rejected, nothing waiting or changed.
+- **Decision:** fix day (Fri). The only issue is the same one examined
+  yesterday, where the scoring chain was verified correct; the figure is
+  flat (0.279 → 0.277) and the independent record ticked up (50.0% →
+  50.5%). It is the benchmark rule's bad week, not a code fault, and
+  re-weighting it on live data would move the yardstick. No code change.
+- **Change:** none (log only).
+- **Watch next:** Saturday 2026-11-28 is the improve day. If
+  `h1.calibration_week` is still raised, that is a warn and the run must
+  look at it first; it is not a code fault unless new evidence appears.
+  Otherwise improve-day coverage candidates unchanged:
+  `domain/alerts/evaluation.py` (36%),
+  `domain/backtest/strategies/rsi_reversion.py` (38%). Last retrain is
+  6.8 days old — check that the weekly retrain ran (digest `retrain`).
+
 ## 2026-11-26 — `h1.calibration_week` back on baseline-rule calls (Brier 0.279); scoring checked, no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — H1 weekly Brier 0.279 over 119 calls
