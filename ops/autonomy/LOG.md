@@ -11,6 +11,37 @@ including runs that change nothing. Format:
 - **Watch next:** what the next run should check
 ```
 
+## 2026-11-28 — Improve day: tests for price-alert evaluation and alert validation
+- **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
+  `h1.calibration_week` (warn) — H1 weekly Brier 0.276 over 111 calls
+  (0.277 yesterday), the baseline rule's own score as examined on
+  2026-11-26. No `failing_jobs`, `recurring` empty. Live is `5817b99`;
+  `deploy.events[0]` is that log commit `deployed_docs`; no refusals or
+  rollbacks. Digest `ok`: market closed, 27 awaiting their horizon, none
+  overdue, last retrain 0.8 days ago (the weekly retrain ran), alerting
+  configured; H1 independent record 95 windows at 52.6% vs 51.66%
+  breakeven, not significant. Strategy lab: 74 trials, bar 4.38, all 8
+  rejected, nothing waiting or changed.
+- **Decision:** improve day (Sat). The only warn has a flat figure and no
+  new evidence of a code fault, so no fix. Week's one improvement: test
+  coverage for `domain/alerts/evaluation.py` (36%), the carried
+  candidate. That code decides when `AlertService` fires a price alert
+  and had no direct test. No strategy-lab candidate this week.
+- **Change:** `e9b41d6`. New test file `backend/tests/domain/test_alerts.py`
+  (17 tests): above/below thresholds including the inclusive boundary,
+  non-price kinds and missing levels never fire, and `Alert` validation
+  (blank label, missing symbol, non-positive level, missing model name).
+  No source changes. `evaluation.py` and `alert.py` now 100%. ruff,
+  mypy and 1555 tests pass. Frontend untouched.
+- **Watch next:** confirm `e9b41d6` shows as `deployed` in
+  `deploy.events`. Watch whether `h1.calibration_week` clears now that
+  the new week's calls come in. Next coverage candidates:
+  `domain/alerts/event_freeze.py` (37%),
+  `domain/backtest/strategies/rsi_reversion.py` (38%). Note for later
+  runs: the default `python3` here is 3.11, so build the venv with
+  `python3.12`, and the checkout may start with HEAD detached, so push
+  with `git checkout -B main` after checking it is a fast-forward.
+
 ## 2026-11-27 — `h1.calibration_week` persists (Brier 0.277); same baseline-rule week, no code change
 - **Report:** fetched at 06:36 UTC. Status `warn`, one issue:
   `h1.calibration_week` (warn) — H1 weekly Brier 0.277 over 119 calls
